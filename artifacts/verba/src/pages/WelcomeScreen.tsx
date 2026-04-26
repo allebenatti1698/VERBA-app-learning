@@ -1,17 +1,23 @@
-import { motion, useAnimation } from "framer-motion";
-import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { useState } from "react";
 
+// TODO: Replace with dynamic list of user's recently missed words from database (Step 4)
 const FLOATING_WORDS = [
-  { word: "luminous", x: "72%", y: "8%", delay: 0.6 },
-  { word: "ephemeral", x: "5%", y: "20%", delay: 0.8 },
-  { word: "cogent", x: "76%", y: "42%", delay: 1.0 },
-  { word: "liminal", x: "3%", y: "48%", delay: 0.7 },
-  { word: "reverie", x: "68%", y: "72%", delay: 0.9 },
-  { word: "ineffable", x: "8%", y: "78%", delay: 1.1 },
-  { word: "sanguine", x: "60%", y: "88%", delay: 1.3 },
-  { word: "querulous", x: "15%", y: "12%", delay: 1.2 },
-  { word: "tenuous", x: "82%", y: "60%", delay: 0.5 },
-  { word: "obsequious", x: "20%", y: "88%", delay: 1.4 },
+  // Higher opacity (~0.5) — feel "closer"
+  { word: "luminous",    x: "70%",  y: "7%",  delay: 0.6,  opacity: 0.5,  fontSize: "0.82rem" },
+  { word: "ephemeral",   x: "4%",   y: "22%", delay: 0.8,  opacity: 0.48, fontSize: "0.8rem"  },
+  { word: "cogent",      x: "75%",  y: "44%", delay: 1.0,  opacity: 0.5,  fontSize: "0.82rem" },
+
+  // Medium opacity (~0.3) — standard depth
+  { word: "liminal",     x: "2%",   y: "50%", delay: 0.7,  opacity: 0.3,  fontSize: "0.75rem" },
+  { word: "reverie",     x: "66%",  y: "74%", delay: 0.9,  opacity: 0.32, fontSize: "0.77rem" },
+  { word: "querulous",   x: "14%",  y: "10%", delay: 1.2,  opacity: 0.28, fontSize: "0.73rem" },
+  { word: "sanguine",    x: "58%",  y: "90%", delay: 1.3,  opacity: 0.3,  fontSize: "0.75rem" },
+
+  // Lower opacity (~0.15) — feel "further away"
+  { word: "ineffable",   x: "6%",   y: "80%", delay: 1.1,  opacity: 0.16, fontSize: "0.68rem" },
+  { word: "tenuous",     x: "80%",  y: "62%", delay: 0.5,  opacity: 0.15, fontSize: "0.67rem" },
+  { word: "obsequious",  x: "18%",  y: "90%", delay: 1.4,  opacity: 0.14, fontSize: "0.66rem" },
 ];
 
 function FloatingWord({
@@ -19,11 +25,15 @@ function FloatingWord({
   x,
   y,
   delay,
+  opacity,
+  fontSize,
 }: {
   word: string;
   x: string;
   y: string;
   delay: number;
+  opacity: number;
+  fontSize: string;
 }) {
   return (
     <motion.span
@@ -34,23 +44,23 @@ function FloatingWord({
         top: y,
         fontFamily: "'Inter', sans-serif",
         fontWeight: 300,
-        fontSize: "0.75rem",
-        letterSpacing: "0.12em",
+        fontSize,
+        letterSpacing: "0.13em",
         color: "#D97706",
-        textShadow: "0 0 12px rgba(217, 119, 6, 0.6), 0 0 24px rgba(217, 119, 6, 0.3)",
+        textShadow: "0 0 10px rgba(217, 119, 6, 0.55), 0 0 22px rgba(217, 119, 6, 0.25)",
         whiteSpace: "nowrap",
       }}
       initial={{ opacity: 0 }}
       animate={{
-        opacity: [0, 0.45, 0.35, 0.45],
-        y: [0, -6, 0, 6, 0],
+        opacity: [0, opacity, opacity * 0.75, opacity],
+        y: [0, -5, 0, 5, 0],
       }}
       transition={{
         delay,
-        duration: 8,
+        duration: 9,
         repeat: Infinity,
         ease: "easeInOut",
-        times: [0, 0.3, 0.5, 0.7, 1],
+        times: [0, 0.25, 0.5, 0.75, 1],
       }}
     >
       {word}
@@ -69,7 +79,7 @@ function LogoMark() {
       transition={{ duration: 0.4, ease: "easeOut" }}
     >
       <motion.div
-        className="absolute inset-0 rounded-full"
+        className="absolute inset-0"
         animate={{
           boxShadow: [
             "0 0 12px 4px rgba(217, 119, 6, 0.35)",
@@ -78,9 +88,7 @@ function LogoMark() {
           ],
         }}
         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-        style={{
-          borderRadius: "50%",
-        }}
+        style={{ borderRadius: "50%" }}
       />
       <div
         style={{
@@ -120,10 +128,11 @@ function VerbaTitle() {
         fontWeight: 700,
         fontSize: "clamp(72px, 18vw, 108px)",
         lineHeight: 1,
-        background: "linear-gradient(180deg, #FFFFFF 0%, #F59E0B 100%)",
+        background: "linear-gradient(to right, #D97706 0%, #F5DEB3 50%, #FFFFFF 100%)",
         WebkitBackgroundClip: "text",
         WebkitTextFillColor: "transparent",
         backgroundClip: "text",
+        color: "transparent",
         letterSpacing: "-0.02em",
         margin: 0,
         padding: 0,
@@ -218,9 +227,7 @@ function BackgroundHalos() {
     <>
       <motion.div
         aria-hidden
-        animate={{
-          opacity: [0.25, 0.45, 0.25],
-        }}
+        animate={{ opacity: [0.25, 0.45, 0.25] }}
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
         style={{
           position: "absolute",
@@ -237,15 +244,8 @@ function BackgroundHalos() {
       />
       <motion.div
         aria-hidden
-        animate={{
-          opacity: [0.2, 0.4, 0.2],
-        }}
-        transition={{
-          duration: 4,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 2,
-        }}
+        animate={{ opacity: [0.2, 0.4, 0.2] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 2 }}
         style={{
           position: "absolute",
           bottom: 0,
