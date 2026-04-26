@@ -73,7 +73,7 @@ function LogoMark() {
     <motion.div
       data-testid="logo-mark"
       className="relative flex items-center justify-center"
-      style={{ width: 56, height: 56 }}
+      style={{ width: 40, height: 40 }}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
@@ -82,9 +82,9 @@ function LogoMark() {
         className="absolute inset-0"
         animate={{
           boxShadow: [
-            "0 0 12px 4px rgba(217, 119, 6, 0.35)",
-            "0 0 24px 8px rgba(217, 119, 6, 0.6)",
-            "0 0 12px 4px rgba(217, 119, 6, 0.35)",
+            "0 0 18px 8px rgba(217, 119, 6, 0.18)",
+            "0 0 32px 14px rgba(217, 119, 6, 0.32)",
+            "0 0 18px 8px rgba(217, 119, 6, 0.18)",
           ],
         }}
         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
@@ -92,17 +92,17 @@ function LogoMark() {
       />
       <div
         style={{
-          width: 56,
-          height: 56,
+          width: 40,
+          height: 40,
           borderRadius: "50%",
-          border: "1.5px solid #D97706",
-          background: "rgba(217, 119, 6, 0.08)",
+          border: "1px solid rgba(217, 119, 6, 0.7)",
+          background: "rgba(217, 119, 6, 0.06)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <svg width="22" height="16" viewBox="0 0 22 16" fill="none">
+        <svg width="15" height="11" viewBox="0 0 22 16" fill="none">
           <path
             d="M1 1L11 15L21 1"
             stroke="#D97706"
@@ -128,7 +128,8 @@ function VerbaTitle() {
         fontWeight: 700,
         fontSize: "clamp(72px, 18vw, 108px)",
         lineHeight: 1,
-        background: "linear-gradient(to right, #D97706 0%, #F5DEB3 50%, #FFFFFF 100%)",
+        background: "linear-gradient(120deg, #C17B1A 0%, #D97706 25%, #FFF8F0 50%, #D97706 75%, #C17B1A 100%)",
+        backgroundSize: "300% 100%",
         WebkitBackgroundClip: "text",
         WebkitTextFillColor: "transparent",
         backgroundClip: "text",
@@ -136,6 +137,7 @@ function VerbaTitle() {
         letterSpacing: "-0.02em",
         margin: 0,
         padding: 0,
+        animation: "title-shimmer 4.5s ease-in-out infinite",
       }}
     >
       Verba

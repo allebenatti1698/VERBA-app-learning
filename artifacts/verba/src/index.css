@@ -195,6 +195,12 @@
   }
 }
 
+@keyframes title-shimmer {
+  0%   { background-position: 0% center; }
+  72%  { background-position: 100% center; }
+  100% { background-position: 100% center; }
+}
+
 @layer utilities {
   input[type="search"]::-webkit-search-cancel-button {
     @apply hidden;
