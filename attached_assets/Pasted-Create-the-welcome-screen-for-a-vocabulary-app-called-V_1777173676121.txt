@@ -1,0 +1,44 @@
+Create the welcome screen for a vocabulary app called "Verba". It's a premium app for studying GRE and English vocabulary. This is only the first screen — the welcome page the user sees when opening the app.
+See the attached reference image for the exact visual style.
+LAYOUT:
+
+Fullscreen, vertically centered
+Small circular "V" logo mark above the title (amber stroke, subtle amber glow)
+App name "Verba" large and bold in the center, with a white-to-amber vertical gradient on the letters
+Below: tagline "words that stick" in lowercase, smaller, light weight, letter-spaced
+Below (with generous spacing): a "Start" button with amber-to-orange gradient, fully rounded pill shape
+Background: pure black with GRE vocabulary words floating at low opacity in the space around the title (words like: luminous, ephemeral, cogent, liminal, reverie) — these are subtle decorative elements, amber color #D97706 with warm text-shadow glow
+Two soft radial amber halos glowing from the center-top and center-bottom of the background
+
+DESIGN:
+
+Dark mode: background #0A0A0A, white text
+Accent color (amber/orange): #D97706 for floating words and logo glow
+Button gradient: #F59E0B → #EA580C
+Title font: Space Grotesk (Google Fonts), bold weight 700, very large
+Tagline and button font: Inter (Google Fonts), weight 300
+Floating words font: Inter weight 300, small size, letter-spaced
+Button: amber/orange gradient background, white text, fully rounded border-radius, generous padding, warm amber glow shadow
+Style inspired by Apple Fitness (rounded elements, bold typography on black), Brilliant (educational premium feel), Pinterest (warmth, rounded corners)
+Generous spacing everywhere — let the design breathe
+
+ANIMATIONS (Framer Motion):
+
+Title "Verba" appears with fade-in + slight slide up (0.3s, ease-out)
+Tagline appears 0.15s after the title, same effect
+Button appears 0.15s after the tagline, same effect
+Floating words fade in slowly and drift very slightly (subtle, non-distracting)
+Logo "V" has a pulsing amber glow (shadow breathes slowly, 3s loop)
+Button has a pulsing warm glow on its amber shadow (2s loop)
+On click the button scales to 0.95 for 0.1s (snappy press feedback)
+Background radial halos pulse slowly (opacity 0.3 → 0.5, 4s loop)
+
+TECH STACK:
+
+React + Vite
+Tailwind CSS
+Framer Motion for all animations
+Google Fonts: Space Grotesk (700) + Inter (300, 400)
+
+FEELING:
+Energetic, premium, confident. Like opening a luxury app that makes you want to start studying immediately. Warm amber tones against deep black create a sense of focused intensity.
