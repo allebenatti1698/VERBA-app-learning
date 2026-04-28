@@ -330,7 +330,7 @@ export default function QuizScreen() {
               style={{
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontWeight: 700,
-                fontSize: "clamp(52px, 14vw, 72px)",
+                fontSize: "clamp(40px, 10vw, 72px)",
                 lineHeight: 1,
                 background: "linear-gradient(120deg, #C17B1A 0%, #D97706 25%, #FFF8F0 50%, #D97706 75%, #C17B1A 100%)",
                 backgroundSize: "300% 100%",
@@ -341,6 +341,11 @@ export default function QuizScreen() {
                 margin: 0,
                 textAlign: "center",
                 animation: "title-shimmer 4.5s ease-in-out infinite",
+                width: "100%",
+                padding: "0 24px",
+                boxSizing: "border-box",
+                overflow: "visible",
+                whiteSpace: "nowrap",
               }}
             >
               {currentWord.word}
@@ -540,18 +545,18 @@ export default function QuizScreen() {
               whileTap={{ scale: 0.96 }}
               style={{
                 width: "100%",
-                padding: "16px 0",
+                padding: "11px 0",
                 borderRadius: 9999,
                 border: "none",
                 cursor: "pointer",
-                background: "linear-gradient(90deg, #F59E0B 0%, #EA580C 100%)",
+                background: "linear-gradient(90deg, #D97706 0%, #C2440C 100%)",
                 fontFamily: "'Inter', sans-serif",
                 fontWeight: 400,
-                fontSize: "1rem",
+                fontSize: "0.85rem",
                 letterSpacing: "0.04em",
-                color: "#FFFFFF",
+                color: "rgba(255,255,255,0.9)",
                 outline: "none",
-                boxShadow: "0 0 20px 4px rgba(245,158,11,0.3)",
+                boxShadow: "0 0 10px 2px rgba(217,119,6,0.18)",
               }}
             >
               {currentIndex + 1 >= words.length ? "Finish" : "Next →"}
