@@ -1,0 +1,95 @@
+Redesign the feedback card with a clear visual hierarchy and add new content fields. This requires data structure changes AND UI updates.
+
+PART 1 — Update the QUIZ_WORDS data structure
+For each of the 10 GRE words, add these 3 new fields:
+js{
+  // existing fields stay: id, word, correctDefinition, distractors, italianTranslation, italianDefinition, exampleSentence, synonyms
+  
+  phonetic: "/ɪˈfɛm.ər.əl/",
+  etymology: "From Greek 'ephēmeros', meaning 'lasting only a day'",
+  antonyms: ["eternal", "perpetual", "enduring"]
+}
+Fill in real data for all 10 words: ephemeral, luminous, cogent, liminal, querulous, ineffable, tenuous, obsequious, sanguine, reverie. Use Cambridge Dictionary or Merriam-Webster style for IPA.
+
+PART 2 — Add a close button to the feedback card
+Place a small close button (X icon, Lucide icon X) in the top-right corner of the card:
+
+Size: 20px
+Color: rgba(255, 255, 255, 0.4) at rest, 1.0 on hover
+Background: transparent
+On click: dismiss the feedback card with a downward slide animation, return user to the answered quiz state where they can click "Next" via a separate button
+
+Also enable two more dismiss methods: clicking outside the card (on the dark backdrop) and swipe-down gesture on mobile.
+
+PART 3 — Visual hierarchy of the feedback card content
+Apply this EXACT typographic hierarchy. From top to bottom:
+Section 1 — Status (small, top of card):
+
+"✓ CORRECT" or "✗ INCORRECT"
+font-size: 13px, font-weight: 600, letter-spacing: 0.1em, text-transform: uppercase
+Color: green #10B981 or red #EF4444
+
+Section 2 — WORD (the protagonist):
+
+font-size: 32px, font-weight: 700 (Space Grotesk)
+Color: amber gradient (white-to-amber, same as quiz word style)
+Inline next to the word, on its right: a small speaker icon button (Lucide icon Volume2, size 18px, color amber #D97706 at 60% opacity, 100% on hover) — clicking plays pronunciation via SpeechSynthesis API:
+jsconst utterance = new SpeechSynthesisUtterance(word);
+utterance.lang = 'en-US';
+utterance.rate = 0.9;
+window.speechSynthesis.speak(utterance);
+
+Below the word, in small light text: phonetic transcription, font-family monospace, font-size 13px, color rgba(255,255,255,0.4)
+Example: "/ɪˈfɛm.ər.əl/"
+
+Section 3 — DEFINITION (protagonist):
+
+font-size: 20px, font-weight: 400 (Inter)
+Color: white #FFFFFF
+margin-top: 16px
+
+Section 4 — EXAMPLE SENTENCE (protagonist):
+
+font-size: 16px, font-style: italic, font-weight: 300 (Inter)
+Color: rgba(255, 255, 255, 0.7)
+Wrapped in quotation marks
+margin-top: 12px
+
+Section 5 — SYNONYMS & ANTONYMS (semantic supports, equal weight, different colors):
+Two rows, stacked, with consistent styling but different accent colors:
+Synonyms row:
+
+"Synonyms:" label in font-size 13px, font-weight 600, letter-spacing 0.05em, color rgba(255,255,255,0.5)
+Words after the label: font-size 15px, font-weight 400, color amber #D97706
+Example: Synonyms: fleeting, transient, momentary
+
+Antonyms row (right below synonyms):
+
+Same label styling but text "Antonyms:"
+Words after the label: font-size 15px, font-weight 400, color sage green #84A98C
+Example: Antonyms: eternal, perpetual, enduring
+
+margin-top of this combined section: 20px
+Section 6 — ETYMOLOGY (small discrete utility):
+
+Label "Origin" in font-size 11px, uppercase, letter-spacing 0.1em, color rgba(255,255,255,0.3)
+Etymology text: font-size 13px, font-weight 300, font-style italic, color rgba(255,255,255,0.5)
+Example: ORIGIN — From Greek 'ephēmeros', meaning 'lasting only a day'
+margin-top: 24px
+Subtle, almost a footnote
+
+Section 7 — Next button (existing, keep current compact style):
+
+Compact pill button, centered, max-width 200px (already implemented in last iteration)
+margin-top: 24px
+
+
+PART 4 — Card sizing
+The expanded card needs to be larger to accommodate the new content. Adjust:
+
+max-height: 80vh (instead of current ~50vh)
+overflow-y: auto if content exceeds height (with subtle amber-tinted scrollbar)
+padding: 24px on all sides
+The card should not feel cramped — generous spacing between sections, clear visual breathing room
+
+Apply ALL these changes together. Do not modify the welcome screen, pre-quiz screen, or anything outside the feedback card.
