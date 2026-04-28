@@ -87,18 +87,9 @@ function LogoMark() {
         justifyContent: "center",
       }}
     >
-      <span
-        style={{
-          fontFamily: "'Space Grotesk', sans-serif",
-          fontWeight: 300,
-          fontSize: "36px",
-          color: "#D97706",
-          lineHeight: 1,
-          userSelect: "none",
-        }}
-      >
-        V
-      </span>
+      <svg width="32" height="28" viewBox="0 0 32 28" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2 2 L16 26 L30 2 L24 2 L16 16 L8 2 Z" fill="#D97706" />
+      </svg>
     </motion.div>
   );
 }
