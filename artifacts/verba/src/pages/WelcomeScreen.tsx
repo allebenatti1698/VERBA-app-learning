@@ -211,6 +211,57 @@ function StartButton() {
   );
 }
 
+function ChromaticOrbs() {
+  return (
+    <>
+      {/* Violet orb — upper-left */}
+      <motion.div
+        aria-hidden
+        animate={{
+          opacity: [0.20, 0.30, 0.20],
+          x: [0, 14, 0],
+          y: [0, -10, 0],
+        }}
+        transition={{ duration: 14, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
+        style={{
+          position: "absolute",
+          top: "5%",
+          left: "0%",
+          width: 400,
+          height: 400,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, #4C1D95 0%, transparent 70%)",
+          filter: "blur(120px)",
+          pointerEvents: "none",
+          zIndex: 1,
+        }}
+      />
+      {/* Magenta orb — lower-right */}
+      <motion.div
+        aria-hidden
+        animate={{
+          opacity: [0.15, 0.25, 0.15],
+          x: [0, -18, 0],
+          y: [0, 12, 0],
+        }}
+        transition={{ duration: 12, repeat: Infinity, repeatType: "reverse", ease: "easeInOut", delay: 3 }}
+        style={{
+          position: "absolute",
+          bottom: "5%",
+          right: "0%",
+          width: 350,
+          height: 350,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, #9D174D 0%, transparent 70%)",
+          filter: "blur(120px)",
+          pointerEvents: "none",
+          zIndex: 1,
+        }}
+      />
+    </>
+  );
+}
+
 function BackgroundHalos() {
   return (
     <>
@@ -267,6 +318,7 @@ export default function WelcomeScreen() {
         overflow: "hidden",
       }}
     >
+      <ChromaticOrbs />
       <BackgroundHalos />
 
       {FLOATING_WORDS.map((fw) => (
