@@ -73,47 +73,53 @@ function LogoMark() {
     <motion.div
       data-testid="logo-mark"
       className="relative flex items-center justify-center"
-      style={{ width: 40, height: 40 }}
+      style={{ width: 72, height: 72 }}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
     >
+      {/* Outer atmospheric glow */}
       <motion.div
-        className="absolute inset-0"
+        className="absolute"
         animate={{
-          boxShadow: [
-            "0 0 18px 8px rgba(217, 119, 6, 0.18)",
-            "0 0 32px 14px rgba(217, 119, 6, 0.32)",
-            "0 0 18px 8px rgba(217, 119, 6, 0.18)",
-          ],
+          opacity: [0.5, 1, 0.5],
         }}
         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-        style={{ borderRadius: "50%" }}
+        style={{
+          width: 100,
+          height: 100,
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(180, 100, 10, 0.55) 0%, transparent 70%)",
+          pointerEvents: "none",
+        }}
       />
+      {/* Circle + V */}
       <div
         style={{
-          width: 40,
-          height: 40,
+          width: 72,
+          height: 72,
           borderRadius: "50%",
-          border: "2px solid #D97706",
-          background: "rgba(217, 119, 6, 0.06)",
+          border: "1.5px solid rgba(217, 119, 6, 0.85)",
+          background: "rgba(160, 80, 5, 0.12)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          position: "relative",
+          zIndex: 1,
         }}
       >
-        <span
-          style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontWeight: 700,
-            fontSize: "1rem",
-            color: "#D97706",
-            lineHeight: 1,
-            userSelect: "none",
-          }}
-        >
-          V
-        </span>
+        <svg width="30" height="22" viewBox="0 0 30 22" fill="none">
+          <path
+            d="M2 2L15 20L28 2"
+            stroke="#D97706"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </div>
     </motion.div>
   );
