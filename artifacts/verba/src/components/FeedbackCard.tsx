@@ -184,6 +184,123 @@ export function FeedbackAntonyms({ antonyms, visible = true }: FeedbackAntonymsP
   );
 }
 
+interface FeedbackTranslationProps {
+  italianTranslation: string;
+  italianDefinition: string;
+  visible?: boolean;
+}
+export function FeedbackTranslation({ italianTranslation, italianDefinition, visible = true }: FeedbackTranslationProps) {
+  const [expanded, setExpanded] = useState(false);
+  if (!visible) return null;
+  return (
+    <div style={{ marginTop: 16 }}>
+      <AnimatePresence mode="wait">
+        {!expanded ? (
+          <motion.button
+            key="show-btn"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setExpanded(true)}
+            style={{
+              background: "none",
+              border: "1px solid rgba(217,119,6,0.25)",
+              borderRadius: 9999,
+              padding: "4px 12px",
+              cursor: "pointer",
+              fontFamily: "'Inter', sans-serif",
+              fontWeight: 300,
+              fontSize: "0.72rem",
+              color: "rgba(217,119,6,0.5)",
+              letterSpacing: "0.03em",
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              opacity: 0.7,
+              transition: "color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.9)";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.5)";
+              (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.5)";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.25)";
+              (e.currentTarget as HTMLButtonElement).style.opacity = "0.7";
+            }}
+          >
+            🌐 show italian translation
+          </motion.button>
+        ) : (
+          <motion.div
+            key="translation-card"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(217,119,6,0.2)",
+              borderRadius: 10,
+              padding: "12px 14px",
+              position: "relative",
+            }}
+          >
+            {/* Hide button */}
+            <button
+              onClick={() => setExpanded(false)}
+              style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "rgba(255,255,255,0.3)",
+                padding: 2,
+                display: "flex",
+                alignItems: "center",
+                transition: "color 0.15s ease",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.7)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.3)"; }}
+              aria-label="Hide translation"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+              </svg>
+            </button>
+            <p style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontWeight: 500,
+              fontSize: 18,
+              color: "#D97706",
+              margin: 0,
+            }}>
+              {italianTranslation}
+            </p>
+            <p style={{
+              fontFamily: "'Inter', sans-serif",
+              fontWeight: 300,
+              fontSize: 14,
+              color: "rgba(255,255,255,0.6)",
+              fontStyle: "italic",
+              margin: "6px 0 0",
+              lineHeight: 1.5,
+            }}>
+              {italianDefinition}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 interface FeedbackEtymologyProps {
   etymology: string;
   visible?: boolean;
@@ -267,6 +384,8 @@ export interface QuizWord {
   synonyms: string[];
   antonyms: string[];
   etymology: string;
+  italianTranslation: string;
+  italianDefinition: string;
 }
 
 interface FeedbackCardProps {
@@ -370,6 +489,8 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
               <FeedbackSynonyms synonyms={word.synonyms} visible={true} />
               <FeedbackAntonyms antonyms={word.antonyms} visible={true} />
             </div>
+
+            <FeedbackTranslation italianTranslation={word.italianTranslation} italianDefinition={word.italianDefinition} visible={true} />
 
             <FeedbackEtymology etymology={word.etymology} visible={true} />
             <FeedbackNextButton onClick={onNext} isLast={isLast} visible={true} />

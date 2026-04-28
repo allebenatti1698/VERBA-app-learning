@@ -374,28 +374,40 @@ export default function QuizScreen() {
               {currentWord.word}
             </h2>
 
-            {/* Translate button */}
+            {/* Hint button */}
             <motion.button
               onClick={() => setShowTranslation((v) => !v)}
               whileTap={{ scale: 0.95 }}
               style={{
-                marginTop: 16,
+                marginTop: 8,
                 background: "none",
-                border: "1px solid rgba(217,119,6,0.4)",
+                border: "1px solid rgba(217,119,6,0.25)",
                 borderRadius: 9999,
-                padding: "6px 16px",
+                padding: "4px 12px",
                 cursor: "pointer",
                 fontFamily: "'Inter', sans-serif",
                 fontWeight: 300,
-                fontSize: "0.78rem",
-                color: "rgba(217,119,6,0.8)",
-                letterSpacing: "0.04em",
+                fontSize: "0.72rem",
+                color: "rgba(217,119,6,0.5)",
+                letterSpacing: "0.03em",
                 display: "flex",
                 alignItems: "center",
-                gap: 6,
+                gap: 5,
+                transition: "color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease",
+                opacity: 0.7,
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.9)";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.5)";
+                (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.5)";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.25)";
+                (e.currentTarget as HTMLButtonElement).style.opacity = "0.7";
               }}
             >
-              🌐 Translate
+              💡 hint
             </motion.button>
 
             {/* Translation card */}

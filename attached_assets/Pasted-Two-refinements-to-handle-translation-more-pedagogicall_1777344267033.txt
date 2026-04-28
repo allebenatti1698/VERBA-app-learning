@@ -1,0 +1,30 @@
+Two refinements to handle translation more pedagogically:
+PART 1 — Make the "Translate" button on the Quiz Screen more discreet (rename to "Hint")
+The current "🌐 Translate" button below the word during the quiz should be redesigned:
+
+Rename to "Hint" (with a small lightbulb icon 💡 or use Lucide Lightbulb)
+Reduce visual prominence: smaller font (12px), thinner border (1px instead of current), lower opacity at rest (0.5), only becomes fully visible on hover
+Smaller padding overall — this should feel like a subtle option, not a primary action
+Behavior unchanged: clicking reveals the Italian translation in a small card below
+Position: same place as now (below the word)
+
+PART 2 — Add a Translation section to the Feedback Card, hidden behind a button
+In the Feedback Card (the one that slides up after answering), add a new section between Antonyms and Etymology:
+Create a new modular component <FeedbackTranslation /> following the same architectural pattern as the other Feedback subcomponents (with a visible prop defaulting to true).
+Its design:
+
+Initial state: a small ghost button labeled "🌐 Show Italian translation" — same compact style as the new Hint button on the Quiz Screen, lowercase, muted
+On click: the button is replaced by a translation card with a smooth fade-in animation
+Translation card content:
+
+Italian translation of the word (font-size 18px, weight 500, color amber #D97706)
+Italian definition below it (font-size 14px, weight 300, color rgba(255,255,255,0.6), italic)
+A small "Hide" icon (Lucide EyeOff) in the corner to collapse it back to the button
+
+
+Position in the card: AFTER antonyms, BEFORE etymology
+margin-top: 16px
+
+Reasoning: keeping the Italian translation hidden behind a button (in both the quiz and the feedback card) ensures the user engages with the English content first. The Italian is available as a final consolidation check, not as a shortcut.
+Update the QUIZ_WORDS data structure if needed: each word should still have italianTranslation and italianDefinition fields (these already exist).
+Apply ONLY these changes. Do not modify other sections of the feedback card or other screens.
