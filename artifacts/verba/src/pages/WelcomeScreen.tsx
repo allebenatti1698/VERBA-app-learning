@@ -95,22 +95,25 @@ function LogoMark() {
           width: 40,
           height: 40,
           borderRadius: "50%",
-          border: "1px solid rgba(217, 119, 6, 0.7)",
+          border: "2px solid #D97706",
           background: "rgba(217, 119, 6, 0.06)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <svg width="15" height="11" viewBox="0 0 22 16" fill="none">
-          <path
-            d="M1 1L11 15L21 1"
-            stroke="#D97706"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <span
+          style={{
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontWeight: 700,
+            fontSize: "1rem",
+            color: "#D97706",
+            lineHeight: 1,
+            userSelect: "none",
+          }}
+        >
+          V
+        </span>
       </div>
     </motion.div>
   );
