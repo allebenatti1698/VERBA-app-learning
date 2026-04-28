@@ -102,8 +102,8 @@ function LogoMark() {
           width: 72,
           height: 72,
           borderRadius: "50%",
-          border: "1.5px solid rgba(217, 119, 6, 0.85)",
-          background: "rgba(160, 80, 5, 0.12)",
+          border: "1px solid rgba(217, 119, 6, 0.7)",
+          background: "transparent",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -115,7 +115,7 @@ function LogoMark() {
           <path
             d="M2 2L15 20L28 2"
             stroke="#D97706"
-            strokeWidth="2.5"
+            strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
