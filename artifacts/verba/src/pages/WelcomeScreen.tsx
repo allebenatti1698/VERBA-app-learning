@@ -72,55 +72,33 @@ function LogoMark() {
   return (
     <motion.div
       data-testid="logo-mark"
-      className="relative flex items-center justify-center"
-      style={{ width: 72, height: 72 }}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
+      style={{
+        width: 80,
+        height: 80,
+        borderRadius: "50%",
+        background: "transparent",
+        border: "1.5px solid #D97706",
+        boxShadow: "0 0 40px 8px rgba(217, 119, 6, 0.4)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
     >
-      {/* Outer atmospheric glow */}
-      <motion.div
-        className="absolute"
-        animate={{
-          opacity: [0.5, 1, 0.5],
-        }}
-        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+      <span
         style={{
-          width: 100,
-          height: 100,
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(180, 100, 10, 0.55) 0%, transparent 70%)",
-          pointerEvents: "none",
-        }}
-      />
-      {/* Circle + V */}
-      <div
-        style={{
-          width: 72,
-          height: 72,
-          borderRadius: "50%",
-          border: "1px solid rgba(217, 119, 6, 0.7)",
-          background: "transparent",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
-          zIndex: 1,
+          fontFamily: "'Space Grotesk', sans-serif",
+          fontWeight: 300,
+          fontSize: "36px",
+          color: "#D97706",
+          lineHeight: 1,
+          userSelect: "none",
         }}
       >
-        <svg width="30" height="22" viewBox="0 0 30 22" fill="none">
-          <path
-            d="M2 2L15 20L28 2"
-            stroke="#D97706"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </div>
+        V
+      </span>
     </motion.div>
   );
 }
