@@ -15,10 +15,9 @@ const cardStyle: React.CSSProperties = {
 export default function PreQuizSetup() {
   const [, setLocation] = useLocation();
   const [wordCount, setWordCount] = useState(10);
-  const [timerEnabled, setTimerEnabled] = useState(false);
 
   function handleBegin() {
-    setLocation(`/quiz?words=${wordCount}&timer=${timerEnabled}`);
+    setLocation(`/quiz?words=${wordCount}`);
   }
 
   return (
@@ -35,7 +34,7 @@ export default function PreQuizSetup() {
         overflow: "hidden",
       }}
     >
-      <AppBackground dimWords={false} />
+      <AppBackground />
 
       {/* Back arrow */}
       <motion.button
@@ -108,11 +107,11 @@ export default function PreQuizSetup() {
               letterSpacing: "0.02em",
             }}
           >
-            Choose how many words and your pace
+            Choose how many words to practice
           </p>
         </motion.div>
 
-        {/* Card 1 — Words slider */}
+        {/* Words slider card */}
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
@@ -172,87 +171,11 @@ export default function PreQuizSetup() {
           </div>
         </motion.div>
 
-        {/* Card 2 — Timer toggle */}
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: "easeOut", delay: 0.25 }}
-          style={cardStyle}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span
-              style={{
-                fontFamily: "'Inter', sans-serif",
-                fontWeight: 400,
-                fontSize: "0.9rem",
-                color: "rgba(255,255,255,0.7)",
-                letterSpacing: "0.02em",
-              }}
-            >
-              Timer per word
-            </span>
-            {/* Toggle */}
-            <button
-              data-testid="toggle-timer"
-              onClick={() => setTimerEnabled((v) => !v)}
-              style={{
-                width: 50,
-                height: 28,
-                borderRadius: 14,
-                border: "none",
-                cursor: "pointer",
-                background: timerEnabled
-                  ? "linear-gradient(90deg, #F59E0B, #D97706)"
-                  : "rgba(255,255,255,0.1)",
-                position: "relative",
-                transition: "background 0.3s ease",
-                flexShrink: 0,
-                padding: 0,
-              }}
-            >
-              <motion.div
-                animate={{ x: timerEnabled ? 22 : 2 }}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                style={{
-                  position: "absolute",
-                  top: 3,
-                  left: 0,
-                  width: 22,
-                  height: 22,
-                  borderRadius: "50%",
-                  background: "#FFFFFF",
-                  boxShadow: timerEnabled ? "0 0 8px rgba(217,119,6,0.5)" : "none",
-                }}
-              />
-            </button>
-          </div>
-          <motion.div
-            initial={false}
-            animate={{ opacity: timerEnabled ? 1 : 0, height: timerEnabled ? "auto" : 0 }}
-            transition={{ duration: 0.2 }}
-            style={{ overflow: "hidden" }}
-          >
-            <p
-              style={{
-                fontFamily: "'Inter', sans-serif",
-                fontWeight: 300,
-                fontSize: "0.8rem",
-                color: "rgba(217,119,6,0.7)",
-                marginTop: 12,
-                marginBottom: 0,
-                letterSpacing: "0.03em",
-              }}
-            >
-              15 seconds per word
-            </p>
-          </motion.div>
-        </motion.div>
-
         {/* Begin button */}
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: "easeOut", delay: 0.4 }}
+          transition={{ duration: 0.35, ease: "easeOut", delay: 0.25 }}
           style={{ marginTop: 8 }}
         >
           <motion.button

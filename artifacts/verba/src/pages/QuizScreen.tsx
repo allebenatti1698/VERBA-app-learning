@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useSearch } from "wouter";
 import AppBackground from "@/components/AppBackground";
@@ -174,36 +174,11 @@ function playCorrectSound() {
   }
 }
 
-function TimerRing({ timeLeft, total }: { timeLeft: number; total: number }) {
-  const r = 20;
-  const circumference = 2 * Math.PI * r;
-  const offset = circumference * (1 - timeLeft / total);
-  const color = timeLeft > total * 0.4 ? "#F59E0B" : timeLeft > total * 0.2 ? "#EA580C" : "#EF4444";
-
-  return (
-    <svg width="52" height="52" viewBox="0 0 52 52" style={{ transform: "rotate(-90deg)" }}>
-      <circle cx="26" cy="26" r={r} fill="none" stroke="#1F1F1F" strokeWidth="3" />
-      <motion.circle
-        cx="26" cy="26" r={r}
-        fill="none"
-        stroke={color}
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={offset}
-        style={{ transition: "stroke-dashoffset 1s linear, stroke 0.3s ease" }}
-      />
-    </svg>
-  );
-}
-
 export default function QuizScreen() {
   const [, setLocation] = useLocation();
   const search = useSearch();
   const params = new URLSearchParams(search);
   const totalWords = Math.min(Math.max(Number(params.get("words")) || 10, 1), QUIZ_WORDS.length);
-  const timerEnabled = params.get("timer") === "true";
-  const TIMER_DURATION = 15;
 
   const words = useMemo(() => QUIZ_WORDS.slice(0, totalWords), [totalWords]);
 
@@ -212,9 +187,7 @@ export default function QuizScreen() {
   const [isAnswered, setIsAnswered] = useState(false);
   const [showTranslation, setShowTranslation] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(TIMER_DURATION);
   const [wordKey, setWordKey] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const currentWord = words[currentIndex];
 
@@ -223,34 +196,8 @@ export default function QuizScreen() {
     return shuffleArray(opts);
   }, [currentWord]);
 
-  const clearTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!timerEnabled || isAnswered) return;
-    setTimeLeft(TIMER_DURATION);
-    timerRef.current = setInterval(() => {
-      setTimeLeft((t) => {
-        if (t <= 1) {
-          clearTimer();
-          setSelectedOption(null);
-          setIsAnswered(true);
-          setShowFeedback(true);
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
-    return clearTimer;
-  }, [wordKey, timerEnabled, isAnswered, clearTimer]);
-
   function handleSelectOption(option: string) {
     if (isAnswered) return;
-    clearTimer();
     setSelectedOption(option);
     setIsAnswered(true);
     if (option === currentWord.correctDefinition) {
@@ -271,7 +218,6 @@ export default function QuizScreen() {
       setIsAnswered(false);
       setShowTranslation(false);
       setShowFeedback(false);
-      setTimeLeft(TIMER_DURATION);
       setWordKey((k) => k + 1);
     }, 300);
   }
@@ -318,7 +264,8 @@ export default function QuizScreen() {
         overflow: "hidden",
       }}
     >
-      <AppBackground dimWords />
+      {/* Orbs and halos only — no floating words */}
+      <AppBackground showWords={false} />
 
       {/* Progress bar */}
       <div style={{ position: "relative", zIndex: 20 }}>
@@ -374,29 +321,10 @@ export default function QuizScreen() {
               alignItems: "center",
               paddingTop: 24,
               paddingBottom: 8,
-              position: "relative",
               width: "100%",
               maxWidth: 440,
             }}
           >
-            {/* Timer ring */}
-            {timerEnabled && (
-              <div style={{ position: "absolute", top: 20, right: 0 }}>
-                <TimerRing timeLeft={timeLeft} total={TIMER_DURATION} />
-                <p style={{
-                  fontFamily: "'Inter', sans-serif",
-                  fontWeight: 300,
-                  fontSize: "0.65rem",
-                  color: "rgba(255,255,255,0.3)",
-                  textAlign: "center",
-                  marginTop: 2,
-                  letterSpacing: "0.05em",
-                }}>
-                  {timeLeft}s
-                </p>
-              </div>
-            )}
-
             {/* The word */}
             <h2
               style={{
@@ -562,16 +490,10 @@ export default function QuizScreen() {
               fontSize: "0.78rem",
               letterSpacing: "0.1em",
               textTransform: "uppercase",
-              color: selectedOption === currentWord.correctDefinition || selectedOption === null
-                ? (selectedOption === null ? "#EF4444" : "#10B981")
-                : "#EF4444",
+              color: selectedOption === currentWord.correctDefinition ? "#10B981" : "#EF4444",
               margin: "0 0 12px",
             }}>
-              {selectedOption === currentWord.correctDefinition
-                ? "✓ Correct"
-                : selectedOption === null
-                  ? "✗ Time's up"
-                  : "✗ Incorrect"}
+              {selectedOption === currentWord.correctDefinition ? "✓ Correct" : "✗ Incorrect"}
             </p>
 
             {/* Definition */}
