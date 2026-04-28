@@ -330,8 +330,8 @@ export default function QuizScreen() {
               style={{
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontWeight: 700,
-                fontSize: "clamp(40px, 10vw, 72px)",
-                lineHeight: 1,
+                fontSize: "clamp(36px, 9vw, 64px)",
+                lineHeight: 1.3,
                 background: "linear-gradient(120deg, #C17B1A 0%, #D97706 25%, #FFF8F0 50%, #D97706 75%, #C17B1A 100%)",
                 backgroundSize: "300% 100%",
                 WebkitBackgroundClip: "text",
@@ -342,10 +342,12 @@ export default function QuizScreen() {
                 textAlign: "center",
                 animation: "title-shimmer 4.5s ease-in-out infinite",
                 width: "100%",
-                padding: "0 24px",
+                maxWidth: "100%",
+                padding: "20px 32px 32px 32px",
                 boxSizing: "border-box",
                 overflow: "visible",
                 whiteSpace: "nowrap",
+                wordBreak: "keep-all",
               }}
             >
               {currentWord.word}
@@ -544,19 +546,22 @@ export default function QuizScreen() {
               onClick={handleNext}
               whileTap={{ scale: 0.96 }}
               style={{
-                width: "100%",
-                padding: "11px 0",
+                display: "block",
+                width: "auto",
+                maxWidth: 200,
+                margin: "16px auto 0 auto",
+                padding: "12px 32px",
                 borderRadius: 9999,
                 border: "none",
                 cursor: "pointer",
-                background: "linear-gradient(90deg, #D97706 0%, #C2440C 100%)",
+                background: "linear-gradient(to right, #B45309, #C2410C)",
                 fontFamily: "'Inter', sans-serif",
-                fontWeight: 400,
-                fontSize: "0.85rem",
+                fontWeight: 500,
+                fontSize: 15,
                 letterSpacing: "0.04em",
-                color: "rgba(255,255,255,0.9)",
+                color: "#FFFFFF",
                 outline: "none",
-                boxShadow: "0 0 10px 2px rgba(217,119,6,0.18)",
+                boxShadow: "0 0 12px rgba(217,119,6,0.25)",
               }}
             >
               {currentIndex + 1 >= words.length ? "Finish" : "Next →"}
