@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
+import { useLocation } from "wouter";
 
 // TODO: Replace with dynamic list of user's recently missed words from database (Step 4)
 const FLOATING_WORDS = [
@@ -157,6 +158,7 @@ function Tagline() {
 
 function StartButton() {
   const [isPressed, setIsPressed] = useState(false);
+  const [, setLocation] = useLocation();
 
   return (
     <motion.div
@@ -167,6 +169,7 @@ function StartButton() {
     >
       <motion.button
         data-testid="button-start"
+        onClick={() => setLocation("/setup")}
         onMouseDown={() => setIsPressed(true)}
         onMouseUp={() => setIsPressed(false)}
         onMouseLeave={() => setIsPressed(false)}

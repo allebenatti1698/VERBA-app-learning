@@ -1,0 +1,101 @@
+Add two new screens to the Verba app: a Pre-Quiz Setup screen and the Quiz Screen. The user navigates: Welcome → click "Start" → Pre-Quiz Setup → click "Begin" → Quiz Screen. Use React Router or simple state-based routing for navigation.
+Maintain the exact same visual style as the welcome screen: dark background #0A0A0A, amber accents #D97706 and #F59E0B, Space Grotesk for headings, Inter for body text, soft amber glows, generous spacing, premium feel. Use Framer Motion for all transitions.
+
+SCREEN 1 — PRE-QUIZ SETUP
+Layout (centered vertically, fullscreen):
+
+Top: small back arrow (returns to welcome)
+Title: "Set up your session" — Space Grotesk bold, large, white
+Subtitle: "Choose how many words and your pace" — Inter light, smaller, muted gray
+Card 1 (glassy dark card with thin amber border): Number of words slider
+
+Label: "Words per session"
+Slider from 5 to 50, default 10, step 5
+Live display of current value, large, amber gradient text (white-to-amber)
+
+
+Card 2 (same style as Card 1): Timer toggle
+
+Label: "Timer per word"
+iOS-style toggle switch (off by default, amber when ON)
+When ON: small text appears below "15 seconds per word"
+
+
+Bottom: "Begin" button — same amber gradient pill style as the welcome's Start button, full width with margins
+
+Animations: cards fade in with slight stagger (0.15s delay each), button appears last.
+
+SCREEN 2 — QUIZ (Multiple Choice)
+Layout (top to bottom):
+
+Top progress bar (minimal style):
+
+Thin horizontal bar at the very top of the screen, full width
+Background: dark gray #1F1F1F, fill: amber gradient (#F59E0B → #EA580C)
+Smoothly animates as user progresses through words
+Small text below it, centered: "3 / 10" in Inter light, muted gray
+
+
+Word display area (top half of screen):
+
+The English word displayed huge: Space Grotesk bold, ~64px, white-to-amber gradient (same shimmer style as "Verba" title on welcome)
+Below the word: a small "Translate" button (ghost button with thin amber border, "🌐 Translate" label) — when clicked, reveals the Italian translation in a card that slides down from below the word with smooth animation
+The translation card shows: Italian translation + brief Italian definition, in Inter light, white text, semi-transparent dark background
+
+
+Answer options (bottom half of screen):
+
+4 option cards stacked vertically (or 2x2 grid on wider screens)
+Each card: dark glass effect (rgba black + thin amber border at low opacity), Inter light text white, generous padding, fully rounded corners (12px)
+On hover: amber border becomes more visible
+On click:
+
+If correct: card flashes green (#10B981 border + glow), brief checkmark animation, soft "pop" sound (use Web Audio API)
+If wrong: card flashes red (#EF4444 border + glow), and the correct answer card simultaneously highlights green, no sound
+
+
+After answering, all option cards become non-clickable
+
+
+Feedback area (appears after answering):
+
+A detail card slides up from the bottom with spring physics (Framer Motion)
+Contains: definition of the word in English, example sentence in italics, synonyms (e.g. "Synonyms: fleeting, transient")
+Bottom of detail card: large "Next →" button in amber gradient, full width with margins
+Clicking Next: detail card slides down, next word loads with fade-in animation
+
+
+If timer is enabled:
+
+A thin amber circular progress ring appears around the top-right corner of the word area
+Counts down from 15 seconds visually (ring depletes)
+At 0: auto-marks as wrong, shows feedback card
+
+
+
+
+DATA
+Create a constant QUIZ_WORDS array at the top of the quiz component with 10 sample GRE words. Each entry must have this exact structure:
+js{
+  id: 1,
+  word: "ephemeral",
+  correctDefinition: "Lasting for a very short time",
+  distractors: [
+    "Occurring at irregular intervals",
+    "Lasting forever; without end",
+    "Happening repeatedly over time"
+  ],
+  italianTranslation: "effimero",
+  italianDefinition: "che dura per un tempo molto breve",
+  exampleSentence: "The ephemeral beauty of cherry blossoms makes them precious.",
+  synonyms: ["fleeting", "transient"]
+}
+Use 10 real GRE words: ephemeral, luminous, cogent, liminal, querulous, ineffable, tenuous, obsequious, sanguine, reverie. Fill in real definitions, distractors, translations, examples, and synonyms for each.
+Add this comment at the top: // TODO: Replace with database fetch from user's deck (Step 4)
+
+CRITICAL NOTES
+
+The quiz session should track score (correct/total) and end on a results screen after the last word — but for now, after the last word just navigate back to the Pre-Quiz screen as a placeholder. We'll build the Results screen in the next step.
+Sounds: use a simple Web Audio API beep for "correct" — short, soft, around 600Hz, 100ms duration. No sound for wrong answers.
+All buttons follow the welcome screen's style language: amber gradient pills with warm glow on hover/active.
+Maintain the floating GRE words background effect from the welcome screen, but reduce their opacity by 50% on the quiz screen so they don't distract from the content.
