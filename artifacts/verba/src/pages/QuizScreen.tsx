@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useSearch } from "wouter";
 import AppBackground from "@/components/AppBackground";
@@ -220,6 +220,9 @@ export default function QuizScreen() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [wordKey, setWordKey] = useState(0);
 
+  const startTimeRef = useRef<number>(Date.now());
+  const wrongAnswersRef = useRef<Map<number, string>>(new Map());
+
   const currentWord = words[currentIndex];
 
   const shuffledOptions = useMemo(() => {
@@ -231,7 +234,11 @@ export default function QuizScreen() {
     if (isAnswered) return;
     setSelectedOption(option);
     setIsAnswered(true);
-    if (option === currentWord.correctDefinition) playCorrectSound();
+    if (option === currentWord.correctDefinition) {
+      playCorrectSound();
+    } else {
+      wrongAnswersRef.current.set(currentIndex, option);
+    }
     setTimeout(() => setShowFeedback(true), 400);
   }
 
@@ -243,7 +250,20 @@ export default function QuizScreen() {
     setShowFeedback(false);
     setTimeout(() => {
       if (currentIndex + 1 >= words.length) {
-        setLocation("/setup");
+        const elapsedMs = Date.now() - startTimeRef.current;
+        const missedWords = Array.from(wrongAnswersRef.current.entries()).map(([idx, selectedAnswer]) => ({
+          ...words[idx],
+          selectedAnswer,
+        }));
+        const result = {
+          correct: words.length - wrongAnswersRef.current.size,
+          total: words.length,
+          missedWords,
+          elapsedMs,
+          wordCount: totalWords,
+        };
+        sessionStorage.setItem("verbaSessionResult", JSON.stringify(result));
+        setLocation("/results");
         return;
       }
       setCurrentIndex((i) => i + 1);

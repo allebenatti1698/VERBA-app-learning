@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import WelcomeScreen from "@/pages/WelcomeScreen";
 import PreQuizSetup from "@/pages/PreQuizSetup";
 import QuizScreen from "@/pages/QuizScreen";
+import ResultsScreen from "@/pages/ResultsScreen";
 
 const queryClient = new QueryClient();
 
@@ -15,6 +16,7 @@ function Router() {
       <Route path="/" component={WelcomeScreen} />
       <Route path="/setup" component={PreQuizSetup} />
       <Route path="/quiz" component={QuizScreen} />
+      <Route path="/results" component={ResultsScreen} />
       <Route component={NotFound} />
     </Switch>
   );

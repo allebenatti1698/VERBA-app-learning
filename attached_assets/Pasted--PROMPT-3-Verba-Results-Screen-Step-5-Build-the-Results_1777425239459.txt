@@ -1,0 +1,194 @@
+# PROMPT 3 — Verba Results Screen (Step 5)
+
+Build the **Results Screen** for Verba. This screen appears at the end of every quiz session, replacing the current placeholder behavior of returning to the Pre-Quiz screen.
+
+Maintain the exact same visual style as the existing screens: dark background #0A0A0A, amber accents #D97706 / #F59E0B, sage green #84A98C for antonyms, Space Grotesk for headings, Inter for body, soft amber radial halos in background, generous spacing. Floating GRE words in the background should be present but at 30% opacity (less than welcome screen) and only in safe zones (corners, edges) — they must NOT overlap with central content.
+
+Use Framer Motion for all animations.
+
+---
+
+## LAYOUT — Single vertical scroll, top to bottom
+
+### SECTION 1 — Hero score block (top of screen, full viewport height on first load)
+
+- Top of section: a small motivational title that varies by performance
+  - score >= 90% → "Outstanding!"
+  - score 70-89% → "Great work"
+  - score 50-69% → "Keep going"
+  - score < 50% → "Every word counts"
+  - Style: Inter weight 500, font-size 18px, letter-spacing 0.05em, color amber #D97706
+
+- Center: huge score display
+  - Format: "8 / 10" (correct out of total)
+  - Style: Space Grotesk weight 700, font-size 96px, white-to-amber gradient (same shimmer as Verba title)
+  - Animation on entry: numbers count up from 0 to final value over 1.5 seconds, easing out
+
+- Below score: percentage in smaller text
+  - "80% accuracy" — Inter weight 400, font-size 24px, color rgba(255,255,255,0.7)
+
+- **Perfect session celebration:** if score === total (100%), add a subtle confetti burst animation that plays once on entry. Use small amber, white, and sage green particles that drift upward and fade. Background of this section gets a subtle rainbow gradient overlay at 10% opacity for 3 seconds, then fades to normal.
+
+---
+
+### SECTION 2 — Quick stats row (right after hero, horizontal cards)
+
+Three small stat cards in a horizontal row, each with thin amber border and dark glass background:
+
+1. **Time spent**
+   - Icon: Lucide `Clock`, amber color
+   - Label: "TIME"
+   - Value: "4m 32s" (calculated from session duration)
+
+2. **Streak**
+   - Icon: Lucide `Flame` with color that changes based on streak length
+     - 1-6 days: white
+     - 7-29 days: yellow #FBBF24
+     - 30-89 days: amber #F59E0B
+     - 90-364 days: orange #EA580C
+     - 365+ days: red-to-purple gradient
+   - Label: "STREAK"
+   - Value: "7 days"
+   - HARDCODE this value to 7 for now with comment `// TODO: Replace with real streak from database (Step 7)`
+
+3. **Words mastered**
+   - Icon: Lucide `BookOpen`, amber color
+   - Label: "MASTERED"
+   - Value: "47 words"
+   - HARDCODE to 47 with comment `// TODO: Replace with real count from database (Step 7)`
+
+Style for each card: padding 16px, border-radius 12px, border 1px solid rgba(217,119,6,0.2), background rgba(0,0,0,0.4), backdrop-blur. Label in 11px uppercase letter-spaced 0.1em, value in Space Grotesk 24px bold.
+
+---
+
+### SECTION 3 — Action buttons (right after stats)
+
+Two buttons side by side:
+
+1. **"Try again"** — same words, restart session
+   - Ghost style: transparent background, thin amber border, white text
+   - Padding: 14px 32px, border-radius pill
+
+2. **"New session"** — return to pre-quiz setup for new words
+   - Filled amber gradient style (same as quiz Begin button), but with the compact sizing we used for the Next button
+   - Padding: 14px 32px, border-radius pill
+
+Both buttons same height, same padding, equal width with 12px gap between them.
+
+---
+
+### SECTION 4 — Missed words review (only if there are wrong answers)
+
+Section header: "Words to review" — Space Grotesk 24px bold, white, with a small count chip "(2)" in amber to its right.
+
+Below the header, a stacked list of cards, one per missed word. Each card structure:
+
+```
+┌─────────────────────────────────────┐
+│  ephemeral                          │
+│  /ɪˈfɛm.ər.əl/                      │
+│                                     │
+│  ✗ Your answer:                     │
+│     "Lasting forever; without end"  │
+│                                     │
+│  ✓ Correct answer:                  │
+│     "Lasting for a very short time" │
+│                                     │
+│  [ Review →  ]                      │
+└─────────────────────────────────────┘
+```
+
+- Word: amber gradient (white-to-amber), Space Grotesk 28px bold
+- Phonetic: monospace 13px, rgba(255,255,255,0.4)
+- "✗ Your answer:" label in red #EF4444 weight 600, then the wrong text the user selected in white at 70% opacity
+- "✓ Correct answer:" label in green #10B981 weight 600, then the correct definition in white at 100%
+- "Review →" button: ghost style with sage green border (matching the antonyms color), opens the same Feedback Card component already built for the quiz, populated with this word's full data
+- Card padding: 20px, border-radius 16px, thin amber border at 15% opacity, dark glass background
+- Stack vertically with 12px gap
+
+---
+
+### SECTION 5 — Weekly progress chart (line chart, Apple Health style)
+
+Section header: "This week" — same style as Section 4 header.
+
+Below: a smooth line chart showing the last 7 days of quiz scores.
+- X-axis: 7 days, labels "Mon Tue Wed Thu Fri Sat Sun" in Inter 11px weight 400, color rgba(255,255,255,0.4)
+- Y-axis: hidden (no clutter)
+- Line: amber gradient (#F59E0B to #EA580C), 2px stroke, smooth bezier curves
+- Area below the line: amber gradient at 15% opacity fading to 0% at the bottom
+- Data points: small dots at each day, amber color, 6px diameter
+- On hover (or tap on mobile): the day's score appears as a tooltip
+- Animation on entry: line draws itself from left to right over 1.5 seconds with ease-out
+
+Use a simple SVG path or a lightweight library like `recharts` if already available.
+
+HARDCODE the weekly data:
+```js
+const weeklyData = [
+  { day: 'Mon', score: 70 },
+  { day: 'Tue', score: 80 },
+  { day: 'Wed', score: 60 },
+  { day: 'Thu', score: 85 },
+  { day: 'Fri', score: 75 },
+  { day: 'Sat', score: 90 },
+  { day: 'Sun', score: 80 }
+];
+// TODO: Replace with real data from database (Step 7)
+```
+
+---
+
+### SECTION 6 — Activity heatmap (GitHub-style, last 12 weeks)
+
+Section header: "Your study activity" — same style.
+
+Below: a 7-row × 12-column grid of small squares (each ~14px), representing the last 12 weeks of daily study.
+- Each square's color reflects how many words were practiced that day:
+  - 0 words: rgba(255,255,255,0.05) (almost invisible)
+  - 1-9 words: amber at 25% opacity
+  - 10-29 words: amber at 50% opacity
+  - 30-49 words: amber at 75% opacity
+  - 50+ words: amber 100%
+- Squares with rounded corners (3px), 2px gap between them
+- On hover: tooltip shows date and word count
+- Below the grid, a small legend on the right: "Less" → 5 increasing-opacity squares → "More"
+
+HARDCODE realistic-looking sample data (mostly low values with a few high-activity days). Add comment:
+```js
+// TODO: Replace with real daily activity from database (Step 7)
+```
+
+---
+
+### SECTION 7 — Bottom spacing
+
+Add 80px of empty space at the bottom of the scroll, so the last section breathes.
+
+---
+
+## NAVIGATION INTEGRATION
+
+Update the Quiz Screen logic: after the user clicks "Next" on the last word of the session, instead of navigating back to the Pre-Quiz screen, navigate to this new Results Screen, passing the session data (correct/total, missed words, time spent, etc.) via state or props.
+
+---
+
+## MODULAR ARCHITECTURE
+
+Following the same pattern we used for FeedbackCard, structure the Results Screen as composed sub-components:
+- `<HeroScore />`
+- `<QuickStats />`
+- `<ActionButtons />`
+- `<MissedWordsList />`
+- `<WeeklyChart />`
+- `<ActivityHeatmap />`
+
+Each accepts data via props with a `visible` prop defaulting to true.
+Add comment at top:
+```js
+// TODO: Replace `visible={true}` with user preferences from settings (Step 8)
+```
+
+---
+
+Apply ALL these sections together. Do not modify the welcome, pre-quiz, or quiz screens (only the navigation FROM the quiz to the new results screen).
