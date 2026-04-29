@@ -1,0 +1,81 @@
+Three refinements to the Results Screen: add semantic colors throughout, vary the stat cards' identity colors, and add a discreet "mark as difficult" feature on missed words.
+
+PART 1 — Semantic colors on the weekly chart
+Currently the line chart uses a uniform amber gradient. Replace this with performance-based color coding:
+Each data point dot, and the line segment leading to/from each point, should be colored based on the score for that day:
+
+score >= 80 → green #10B981 (excellent)
+score 50-79 → yellow #FBBF24 (medium)
+score < 50 → red #EF4444 (low)
+
+Implementation:
+
+Render the line as multiple SVG segments, each colored according to the average of its two endpoint scores
+Each data point dot uses its own color based on its individual score
+The area below the line (the gradient fill) should be a soft amber #D97706 at 12% opacity, fading to 0% at the bottom — keep this amber to maintain brand cohesion (don't multi-color the fill, only the line and dots)
+The tooltip on hover should also reflect the score color (e.g., "Tue — Score 80%" with the percentage in green if >=80)
+
+Maintain smooth bezier curves between points. The transition from one color segment to another should be a hard-edge transition at the data point itself (cleaner than a gradient blend, makes the performance level immediately readable).
+
+PART 2 — Identity colors for the three stat cards
+Each of the three Quick Stats cards (Time / Streak / Mastered) should have its own identity color, applied to the icon, the label, and a subtle inner glow:
+
+TIME card:
+
+Icon (Lucide Clock): blue #3B82F6
+Label "TIME" color: rgba(59,130,246,0.7) — blue at 70% opacity
+Inner glow / box-shadow inset: rgba(59,130,246,0.08) — very subtle blue tint inside
+Border: change from amber to rgba(59,130,246,0.2) — thin blue border
+Value text "1m 04s" stays white for readability
+
+
+STREAK card:
+
+Icon (Lucide Flame): keep the existing dynamic color logic based on streak length (white→yellow→amber→orange→red gradient)
+Label "STREAK": amber #D97706 at 70% opacity
+Inner glow: amber rgba(217,119,6,0.08)
+Border: rgba(217,119,6,0.2) — keep amber border
+Value text stays white
+
+
+MASTERED card:
+
+Icon (Lucide BookOpen): green #10B981
+Label "MASTERED": rgba(16,185,129,0.7) — green at 70% opacity
+Inner glow: rgba(16,185,129,0.08)
+Border: rgba(16,185,129,0.2) — thin green border
+Value text stays white
+
+
+
+The color logic semantically: Time = cool/calm = blue, Streak = fire/momentum = amber-fire, Mastered = growth/achievement = green.
+Keep card sizes, padding, and typography exactly the same — only the colors of icons, labels, borders, and inner glows change.
+
+PART 3 — "Mark as difficult" feature on missed words cards
+Each card in the "Words to review" section should have a small star icon in the top-right corner:
+
+Icon: Lucide Star
+Position: absolute, top-right of each missed word card, 12px from edges
+Size: 18px
+Initial state (not marked): outlined star, color rgba(255,255,255,0.3)
+Hover state: color rgba(255,255,255,0.6)
+Active state (marked as difficult): filled star, color #FBBF24 (yellow), with a subtle warm glow box-shadow: 0 0 8px rgba(251,191,36,0.4)
+Click toggles the state with a small spring animation (Framer Motion whileTap={{ scale: 0.85 }})
+
+Storage logic:
+
+Use localStorage to persist marked words across sessions
+Storage key: verba_difficult_words
+Storage structure: ["ephemeral", "cogent", ...] (array of word strings)
+On click: add or remove the word from this array, save to localStorage immediately
+On component mount: read from localStorage to set initial states of all stars
+
+Add a comment near this logic:
+js// TODO: Migrate to user database (Step 7). Difficult words will sync across devices and influence spaced repetition algorithm.
+No extra UI for now (no list of "your difficult words" anywhere — that comes later). Just the toggle on each card.
+
+Notes:
+
+Do not change the heatmap colors yet — we'll address those in a future iteration once we see how the chart and stat cards feel together
+Do not modify the hero score block, action buttons, or other screens (welcome, pre-quiz, quiz, feedback card)
+Maintain modular component structure as we've been doing

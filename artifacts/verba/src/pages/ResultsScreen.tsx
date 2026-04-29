@@ -1,10 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
-import { Clock, Flame, BookOpen } from "lucide-react";
-import {
-  AreaChart, Area, XAxis, ResponsiveContainer, Tooltip as ReTooltip,
-} from "recharts";
+import { Clock, Flame, BookOpen, Star } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
 import FeedbackCard from "@/components/FeedbackCard";
 
@@ -222,7 +219,7 @@ function QuickStats({ elapsedMs, visible = true }: QuickStatsProps) {
   // TODO: Replace with real count from database (Step 7)
   const mastered = 47;
 
-  const streakColor =
+  const streakIconColor =
     streak >= 365 ? "url(#streakGrad)"
     : streak >= 90 ? "#EA580C"
     : streak >= 30 ? "#F59E0B"
@@ -233,8 +230,11 @@ function QuickStats({ elapsedMs, visible = true }: QuickStatsProps) {
 
   const cards = [
     {
-      icon: <Clock size={18} color="#D97706" />,
+      icon: <Clock size={18} color="#3B82F6" />,
       label: "TIME",
+      labelColor: "rgba(59,130,246,0.7)",
+      border: "1px solid rgba(59,130,246,0.2)",
+      glow: "rgba(59,130,246,0.08)",
       value: formatTime(elapsedMs),
     },
     {
@@ -248,15 +248,21 @@ function QuickStats({ elapsedMs, visible = true }: QuickStatsProps) {
               </linearGradient>
             </defs>
           </svg>
-          <Flame size={18} color={streakColor} />
+          <Flame size={18} color={streakIconColor} />
         </>
       ),
       label: "STREAK",
+      labelColor: "rgba(217,119,6,0.7)",
+      border: "1px solid rgba(217,119,6,0.2)",
+      glow: "rgba(217,119,6,0.08)",
       value: `${streak} days`,
     },
     {
-      icon: <BookOpen size={18} color="#D97706" />,
+      icon: <BookOpen size={18} color="#10B981" />,
       label: "MASTERED",
+      labelColor: "rgba(16,185,129,0.7)",
+      border: "1px solid rgba(16,185,129,0.2)",
+      glow: "rgba(16,185,129,0.08)",
       value: `${mastered} words`,
     },
   ];
@@ -283,8 +289,9 @@ function QuickStats({ elapsedMs, visible = true }: QuickStatsProps) {
             flex: 1,
             padding: 16,
             borderRadius: 12,
-            border: "1px solid rgba(217,119,6,0.2)",
-            background: "rgba(0,0,0,0.4)",
+            border: card.border,
+            background: `rgba(0,0,0,0.4)`,
+            boxShadow: `inset 0 0 24px ${card.glow}`,
             backdropFilter: "blur(8px)",
             display: "flex",
             flexDirection: "column",
@@ -299,7 +306,7 @@ function QuickStats({ elapsedMs, visible = true }: QuickStatsProps) {
             fontSize: 11,
             letterSpacing: "0.1em",
             textTransform: "uppercase",
-            color: "rgba(255,255,255,0.4)",
+            color: card.labelColor,
             margin: 0,
           }}>
             {card.label}
@@ -398,6 +405,31 @@ interface MissedWordsListProps {
 function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) {
   const [reviewIndex, setReviewIndex] = useState<number | null>(null);
 
+  // TODO: Migrate to user database (Step 7). Difficult words will sync across devices and influence spaced repetition algorithm.
+  const [difficultWords, setDifficultWords] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem("verba_difficult_words");
+      return new Set(stored ? JSON.parse(stored) : []);
+    } catch {
+      return new Set();
+    }
+  });
+
+  function toggleDifficult(word: string) {
+    setDifficultWords((prev) => {
+      const next = new Set(prev);
+      if (next.has(word)) {
+        next.delete(word);
+      } else {
+        next.add(word);
+      }
+      try {
+        localStorage.setItem("verba_difficult_words", JSON.stringify([...next]));
+      } catch { /* storage unavailable */ }
+      return next;
+    });
+  }
+
   if (!visible || missedWords.length === 0) return null;
 
   const reviewWord = reviewIndex !== null ? missedWords[reviewIndex] : null;
@@ -436,7 +468,9 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
 
       {/* Cards */}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {missedWords.map((mw, i) => (
+        {missedWords.map((mw, i) => {
+          const isMarked = difficultWords.has(mw.word);
+          return (
           <div
             key={mw.id}
             style={{
@@ -445,8 +479,43 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
               border: "1px solid rgba(217,119,6,0.15)",
               background: "rgba(0,0,0,0.35)",
               backdropFilter: "blur(6px)",
+              position: "relative",
             }}
           >
+            {/* Mark as difficult star */}
+            <motion.button
+              whileTap={{ scale: 0.85 }}
+              onClick={() => toggleDifficult(mw.word)}
+              style={{
+                position: "absolute",
+                top: 12,
+                right: 12,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: 2,
+                display: "flex",
+                alignItems: "center",
+                color: isMarked ? "#FBBF24" : "rgba(255,255,255,0.3)",
+                boxShadow: isMarked ? "0 0 8px rgba(251,191,36,0.4)" : "none",
+                borderRadius: "50%",
+                transition: "color 0.15s ease, box-shadow 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (!isMarked) (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.6)";
+              }}
+              onMouseLeave={(e) => {
+                if (!isMarked) (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.3)";
+              }}
+              aria-label={isMarked ? "Unmark as difficult" : "Mark as difficult"}
+            >
+              <Star
+                size={18}
+                fill={isMarked ? "#FBBF24" : "none"}
+                stroke={isMarked ? "#FBBF24" : "currentColor"}
+              />
+            </motion.button>
+
             {/* Word + phonetic */}
             <p style={{
               fontFamily: "'Space Grotesk', sans-serif",
@@ -508,7 +577,8 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
               Review →
             </motion.button>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Feedback Card for review */}
@@ -545,11 +615,51 @@ const weeklyData = [
 ];
 // TODO: Replace with real data from database (Step 7)
 
+function scoreColor(score: number): string {
+  if (score >= 80) return "#10B981";
+  if (score >= 50) return "#FBBF24";
+  return "#EF4444";
+}
+
 interface WeeklyChartProps {
   visible?: boolean;
 }
 function WeeklyChart({ visible = true }: WeeklyChartProps) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
   if (!visible) return null;
+
+  const n = weeklyData.length;
+  const VW = 400;
+  const VH = 160;
+  const PAD_X = 24;
+  const PAD_TOP = 12;
+  const PAD_BOTTOM = 32; // space for x-axis labels
+  const chartH = VH - PAD_TOP - PAD_BOTTOM;
+
+  const xs = weeklyData.map((_, i) => PAD_X + (i / (n - 1)) * (VW - PAD_X * 2));
+  const ys = weeklyData.map((d) => PAD_TOP + chartH - (d.score / 100) * chartH);
+
+  // Bezier control points (smooth curve)
+  const cpX = (i: number, next: number) => xs[i] + (xs[next] - xs[i]) * 0.45;
+
+  // Area fill path (amber gradient, closed shape)
+  const baselineY = PAD_TOP + chartH;
+  let areaPath = `M ${xs[0]} ${ys[0]}`;
+  for (let i = 0; i < n - 1; i++) {
+    areaPath += ` C ${cpX(i, i + 1)} ${ys[i]} ${cpX(i + 1, i)} ${ys[i + 1]} ${xs[i + 1]} ${ys[i + 1]}`;
+  }
+  areaPath += ` L ${xs[n - 1]} ${baselineY} L ${xs[0]} ${baselineY} Z`;
+
+  // Individual line segments (each colored by avg score of its endpoints)
+  const segments = weeklyData.slice(0, n - 1).map((d, i) => {
+    const avgScore = (d.score + weeklyData[i + 1].score) / 2;
+    const path = `M ${xs[i]} ${ys[i]} C ${cpX(i, i + 1)} ${ys[i]} ${cpX(i + 1, i)} ${ys[i + 1]} ${xs[i + 1]} ${ys[i + 1]}`;
+    return { path, color: scoreColor(avgScore) };
+  });
+
+  const hovered = hoveredIdx !== null ? weeklyData[hoveredIdx] : null;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -571,52 +681,101 @@ function WeeklyChart({ visible = true }: WeeklyChartProps) {
         background: "rgba(0,0,0,0.3)",
         border: "1px solid rgba(217,119,6,0.12)",
         borderRadius: 16,
-        padding: "20px 8px 12px",
+        padding: "16px 8px 8px",
+        position: "relative",
       }}>
-        <ResponsiveContainer width="100%" height={160}>
-          <AreaChart data={weeklyData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#F59E0B" stopOpacity={0.25} />
-                <stop offset="100%" stopColor="#EA580C" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#F59E0B" />
-                <stop offset="100%" stopColor="#EA580C" />
-              </linearGradient>
-            </defs>
-            <XAxis
-              dataKey="day"
-              tick={{ fontFamily: "'Inter', sans-serif", fontSize: 11, fill: "rgba(255,255,255,0.4)" }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <ReTooltip
-              contentStyle={{
-                background: "#1A1A1A",
-                border: "1px solid rgba(217,119,6,0.3)",
-                borderRadius: 8,
-                fontFamily: "'Inter', sans-serif",
-                fontSize: 13,
-                color: "#D97706",
-              }}
-              formatter={(value: number) => [`${value}%`, "Score"]}
-              cursor={{ stroke: "rgba(217,119,6,0.2)", strokeWidth: 1 }}
-            />
-            <Area
-              type="monotone"
-              dataKey="score"
-              stroke="url(#lineGradient)"
+        <svg
+          viewBox={`0 0 ${VW} ${VH}`}
+          width="100%"
+          height={VH}
+          style={{ display: "block", overflow: "visible" }}
+        >
+          <defs>
+            <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#D97706" stopOpacity={0.18} />
+              <stop offset="100%" stopColor="#D97706" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+
+          {/* Amber area fill */}
+          <path d={areaPath} fill="url(#areaFill)" />
+
+          {/* Colored line segments */}
+          {segments.map((seg, i) => (
+            <path
+              key={i}
+              d={seg.path}
+              stroke={seg.color}
               strokeWidth={2}
-              fill="url(#chartGradient)"
-              dot={{ fill: "#F59E0B", r: 3, strokeWidth: 0 }}
-              activeDot={{ fill: "#D97706", r: 5, strokeWidth: 0 }}
-              isAnimationActive={true}
-              animationDuration={1500}
-              animationEasing="ease-out"
+              fill="none"
+              strokeLinecap="round"
             />
-          </AreaChart>
-        </ResponsiveContainer>
+          ))}
+
+          {/* Data point dots */}
+          {weeklyData.map((d, i) => (
+            <circle
+              key={i}
+              cx={xs[i]}
+              cy={ys[i]}
+              r={hoveredIdx === i ? 5 : 3.5}
+              fill={scoreColor(d.score)}
+              style={{ cursor: "pointer", transition: "r 0.15s ease" }}
+              onMouseEnter={() => setHoveredIdx(i)}
+              onMouseLeave={() => setHoveredIdx(null)}
+            />
+          ))}
+
+          {/* X-axis labels */}
+          {weeklyData.map((d, i) => (
+            <text
+              key={i}
+              x={xs[i]}
+              y={VH - 6}
+              textAnchor="middle"
+              style={{
+                fontFamily: "'Inter', sans-serif",
+                fontSize: 11,
+                fill: "rgba(255,255,255,0.4)",
+              }}
+            >
+              {d.day}
+            </text>
+          ))}
+
+          {/* Tooltip vertical line */}
+          {hoveredIdx !== null && (
+            <line
+              x1={xs[hoveredIdx]}
+              y1={PAD_TOP}
+              x2={xs[hoveredIdx]}
+              y2={PAD_TOP + chartH}
+              stroke="rgba(255,255,255,0.08)"
+              strokeWidth={1}
+              strokeDasharray="3 3"
+            />
+          )}
+        </svg>
+
+        {/* Floating tooltip */}
+        {hovered && hoveredIdx !== null && (
+          <div style={{
+            position: "absolute",
+            top: 8,
+            left: `clamp(8px, calc(${(xs[hoveredIdx] / VW) * 100}% - 48px), calc(100% - 96px))`,
+            background: "#1A1A1A",
+            border: `1px solid ${scoreColor(hovered.score)}40`,
+            borderRadius: 8,
+            padding: "5px 10px",
+            fontFamily: "'Inter', sans-serif",
+            fontSize: 12,
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+          }}>
+            <span style={{ color: "rgba(255,255,255,0.6)" }}>{hovered.day} — </span>
+            <span style={{ color: scoreColor(hovered.score), fontWeight: 600 }}>{hovered.score}%</span>
+          </div>
+        )}
       </div>
     </motion.div>
   );
