@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ChevronUp } from "lucide-react";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -535,28 +536,41 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
               pointerEvents: "none",
             }}
           >
-            {/* Show feedback pill */}
+            {/* Show feedback pill — styled to match the Hint button (secondary, ghost) */}
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={() => setMinimized(false)}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.45)";
+                (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.75)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.opacity = "0.7";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.25)";
+                (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.5)";
+              }}
               style={{
                 pointerEvents: "auto",
-                background: "rgba(10,10,10,0.88)",
-                border: "1px solid rgba(217,119,6,0.4)",
+                background: "none",
+                border: "1px solid rgba(217,119,6,0.25)",
                 borderRadius: 9999,
-                padding: "10px 18px",
+                padding: "4px 12px",
                 cursor: "pointer",
                 fontFamily: "'Inter', sans-serif",
-                fontWeight: 500,
-                fontSize: 13,
-                color: "#C7B8E8",
-                backdropFilter: "blur(12px)",
+                fontWeight: 300,
+                fontSize: "0.72rem",
+                color: "rgba(217,119,6,0.5)",
+                letterSpacing: "0.03em",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                opacity: 0.7,
                 outline: "none",
-                letterSpacing: "0.02em",
-                WebkitBackdropFilter: "blur(12px)",
+                transition: "color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease",
               }}
             >
-              Show feedback ▲
+              Show feedback <ChevronUp size={12} />
             </motion.button>
 
             {/* Next pill */}
