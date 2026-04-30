@@ -1,0 +1,52 @@
+Apply a coherent color refactor across the Quiz Screen and Feedback Card to fix visual hierarchy and semantic color logic.
+
+PART 1 — Word color: cream instead of amber gradient
+The big word displayed at the top of the Quiz Screen (e.g. "ephemeral") and the word at the top of the Feedback Card should both change color:
+
+REMOVE: the current amber-to-white gradient (with background-clip: text)
+REPLACE WITH: a solid color, cream/warm ivory #F5DEB3
+Font weight, size, and spacing remain exactly the same — only the color changes
+
+Reasoning: the amber gradient currently competes visually with the orange Next button and the orange Begin button, creating ambiguity between "subject" and "action". Cream keeps the word warm and premium but visually distinct.
+Note: do NOT change the "Verba" title on the Welcome Screen. The amber-to-white shimmer gradient remains exclusive to the brand logotype on the Welcome Screen — it must stay there to maintain brand identity. Only quiz word and feedback card word change to cream.
+
+PART 2 — Synonyms and Antonyms color swap
+Currently:
+
+Synonyms = amber #D97706
+Antonyms = sage green #84A98C
+
+This is semantically inverted (synonyms are continuity → should be green; antonyms are opposition → should be a contrasting color).
+Replace with:
+
+Synonyms label and words: sage green #84A98C (now means continuity/prolongation)
+Antonyms label and words: desaturated coral peach #F87171 at slightly muted opacity. Use color: #F87171 with opacity: 0.85 so it's clearly a coral-pink-red, NOT a saturated alarm red
+
+Critical: the coral antonyms color must be visually DIFFERENT from the bright red used for "✗ Your answer:" labels and "INCORRECT" status. Those use #EF4444 (saturated red). The antonyms use #F87171 at 0.85 opacity (coral, softer, pinker). Ensure these two reds don't blend visually.
+
+PART 3 — Verify integration
+After applying the changes, the visual hierarchy on each screen should be:
+Quiz Screen:
+
+PRIMARY (cream): the word "ephemeral"
+SECONDARY (white): the 4 answer options
+ACTION (amber): the Hint button (small, ghost) — wait, this stays amber
+NEUTRAL: progress bar
+
+Feedback Card:
+
+PRIMARY (cream): the word
+SEMANTIC GREEN: Synonyms (continuity)
+SEMANTIC CORAL: Antonyms (contrast/opposition)
+STATUS: ✓ CORRECT in green / ✗ INCORRECT in saturated red (different from coral)
+ACTION (amber gradient): Next button — stays as is, the only orange-actionable on the card
+
+
+OTHER NOTES
+
+Do not modify the Welcome Screen, Pre-Quiz Setup, or Results Screen
+Do not modify the QuickStats card colors (Time blue, Streak amber, Mastered green) — those stay
+Do not modify the weekly chart semantic colors (green/yellow/red for performance) — those stay
+The streak journey calendar (if already updated) keeps its amber + green palette as designed
+
+Apply only PART 1 and PART 2.

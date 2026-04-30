@@ -72,12 +72,7 @@ export function FeedbackWord({ word, phonetic, visible = true }: FeedbackWordPro
           fontFamily: "'Space Grotesk', sans-serif",
           fontWeight: 700,
           fontSize: 32,
-          background: "linear-gradient(120deg, #C17B1A 0%, #D97706 30%, #FFF8F0 55%, #D97706 80%, #C17B1A 100%)",
-          backgroundSize: "300% 100%",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
-          animation: "title-shimmer 4.5s ease-in-out infinite",
+          color: "#F5DEB3",
           lineHeight: 1.2,
         }}>
           {word}
@@ -164,8 +159,8 @@ export function FeedbackSynonyms({ synonyms, visible = true }: FeedbackSynonymsP
   if (!visible) return null;
   return (
     <p style={{ margin: 0, fontFamily: "'Inter', sans-serif", lineHeight: 1.5 }}>
-      <span style={{ fontWeight: 600, fontSize: 13, letterSpacing: "0.05em", color: "rgba(255,255,255,0.5)" }}>Synonyms: </span>
-      <span style={{ fontWeight: 400, fontSize: 15, color: "#D97706" }}>{synonyms.join(", ")}</span>
+      <span style={{ fontWeight: 600, fontSize: 13, letterSpacing: "0.05em", color: "#84A98C" }}>Synonyms: </span>
+      <span style={{ fontWeight: 400, fontSize: 15, color: "#84A98C" }}>{synonyms.join(", ")}</span>
     </p>
   );
 }
@@ -178,8 +173,8 @@ export function FeedbackAntonyms({ antonyms, visible = true }: FeedbackAntonymsP
   if (!visible) return null;
   return (
     <p style={{ margin: 0, fontFamily: "'Inter', sans-serif", lineHeight: 1.5 }}>
-      <span style={{ fontWeight: 600, fontSize: 13, letterSpacing: "0.05em", color: "rgba(255,255,255,0.5)" }}>Antonyms: </span>
-      <span style={{ fontWeight: 400, fontSize: 15, color: "#84A98C" }}>{antonyms.join(", ")}</span>
+      <span style={{ fontWeight: 600, fontSize: 13, letterSpacing: "0.05em", color: "rgba(248,113,113,0.85)" }}>Antonyms: </span>
+      <span style={{ fontWeight: 400, fontSize: 15, color: "rgba(248,113,113,0.85)" }}>{antonyms.join(", ")}</span>
     </p>
   );
 }
