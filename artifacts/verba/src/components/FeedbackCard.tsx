@@ -72,7 +72,8 @@ export function FeedbackWord({ word, phonetic, visible = true }: FeedbackWordPro
           fontFamily: "'Space Grotesk', sans-serif",
           fontWeight: 700,
           fontSize: 32,
-          color: "#F5DEB3",
+          color: "#FFFFFF",
+          textShadow: "0 0 20px rgba(217,119,6,0.18), 0 0 40px rgba(217,119,6,0.08)",
           lineHeight: 1.2,
         }}>
           {word}
