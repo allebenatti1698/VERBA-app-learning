@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -390,24 +390,39 @@ interface FeedbackCardProps {
   isLast: boolean;
   onDismiss: () => void;
   onNext: () => void;
+  allowMinimize?: boolean;
 }
 
-export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss, onNext }: FeedbackCardProps) {
+export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss, onNext, allowMinimize = false }: FeedbackCardProps) {
   const [closeHover, setCloseHover] = useState(false);
+  const [minimized, setMinimized] = useState(false);
   const swipeStartY = useRef<number | null>(null);
+
+  // Reset minimized state whenever the card is freshly shown (new word answered)
+  useEffect(() => {
+    if (show) setMinimized(false);
+  }, [show]);
+
+  const handleClose = () => {
+    if (allowMinimize) {
+      setMinimized(true);
+    } else {
+      onDismiss();
+    }
+  };
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — hidden when card is minimized */}
       <AnimatePresence>
-        {show && (
+        {show && !minimized && (
           <motion.div
             key="backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            onClick={onDismiss}
+            onClick={handleClose}
             style={{
               position: "fixed",
               inset: 0,
@@ -418,20 +433,25 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
         )}
       </AnimatePresence>
 
-      {/* Card */}
+      {/* Card — stays mounted while show=true so internal state is preserved;
+          slides to y:"110%" when minimized, returns with spring when expanded */}
       <AnimatePresence>
         {show && (
           <motion.div
             key="feedback"
             initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", stiffness: 280, damping: 32 }}
+            animate={{ y: minimized ? "110%" : 0 }}
+            exit={{ y: "110%" }}
+            transition={
+              minimized
+                ? { type: "tween", duration: 0.25, ease: "easeIn" }
+                : { type: "spring", stiffness: 200, damping: 25 }
+            }
             onTouchStart={(e) => { swipeStartY.current = e.touches[0].clientY; }}
             onTouchMove={(e) => {
               if (swipeStartY.current !== null) {
                 const delta = e.touches[0].clientY - swipeStartY.current;
-                if (delta > 80) onDismiss();
+                if (delta > 80) handleClose();
               }
             }}
             onTouchEnd={() => { swipeStartY.current = null; }}
@@ -451,9 +471,9 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
               scrollbarColor: "rgba(217,119,6,0.3) transparent",
             }}
           >
-            {/* Close button */}
+            {/* Minimize / Close button */}
             <button
-              onClick={onDismiss}
+              onClick={handleClose}
               onMouseEnter={() => setCloseHover(true)}
               onMouseLeave={() => setCloseHover(false)}
               style={{
@@ -470,7 +490,7 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
                 justifyContent: "center",
                 transition: "color 0.15s ease",
               }}
-              aria-label="Close"
+              aria-label={allowMinimize ? "Minimize" : "Close"}
             >
               <IconX />
             </button>
@@ -489,6 +509,78 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
 
             <FeedbackEtymology etymology={word.etymology} visible={true} />
             <FeedbackNextButton onClick={onNext} isLast={isLast} visible={true} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Minimized pill bar — shown when card is set aside */}
+      <AnimatePresence>
+        {show && minimized && (
+          <motion.div
+            key="minimized-pills"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              position: "fixed",
+              bottom: 32,
+              left: 0,
+              right: 0,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 12,
+              zIndex: 60,
+              pointerEvents: "none",
+            }}
+          >
+            {/* Show feedback pill */}
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setMinimized(false)}
+              style={{
+                pointerEvents: "auto",
+                background: "rgba(10,10,10,0.88)",
+                border: "1px solid rgba(217,119,6,0.4)",
+                borderRadius: 9999,
+                padding: "10px 18px",
+                cursor: "pointer",
+                fontFamily: "'Inter', sans-serif",
+                fontWeight: 500,
+                fontSize: 13,
+                color: "#C7B8E8",
+                backdropFilter: "blur(12px)",
+                outline: "none",
+                letterSpacing: "0.02em",
+                WebkitBackdropFilter: "blur(12px)",
+              }}
+            >
+              Show feedback ▲
+            </motion.button>
+
+            {/* Next pill */}
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={onNext}
+              style={{
+                pointerEvents: "auto",
+                background: "linear-gradient(to right, #B45309, #C2410C)",
+                border: "none",
+                borderRadius: 9999,
+                padding: "10px 22px",
+                cursor: "pointer",
+                fontFamily: "'Inter', sans-serif",
+                fontWeight: 500,
+                fontSize: 13,
+                color: "#FFFFFF",
+                boxShadow: "0 0 12px rgba(217,119,6,0.3)",
+                outline: "none",
+                letterSpacing: "0.02em",
+              }}
+            >
+              {isLast ? "Finish" : "Next →"}
+            </motion.button>
           </motion.div>
         )}
       </AnimatePresence>

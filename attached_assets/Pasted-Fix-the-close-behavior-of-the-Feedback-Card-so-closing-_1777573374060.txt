@@ -1,0 +1,31 @@
+Fix the close behavior of the Feedback Card so closing doesn't trap the user. Currently clicking the X button hides the card permanently, leaving no way to advance to the next word. Replace this with a minimize/expand pattern.
+
+NEW BEHAVIOR
+When the user clicks the X (or taps outside the card) AFTER having answered:
+
+The Feedback Card animates downward (slide down) and minimizes to a compact pill at the bottom of the screen
+The pill shows: "Show feedback ▲" — small pill, dark glass background, thin amber border, lavender text matching the word color #C7B8E8
+Pill position: centered horizontally, ~32px from the bottom of the viewport
+The Quiz Screen above is fully visible again — the lavender word, the 4 answer options (still showing the user's selected answer in red/green border), the Hint button. The user can re-read the question without the card overlay.
+Clicking the pill expands the Feedback Card back to full state with a smooth spring animation (Framer Motion spring, stiffness: 200, damping: 25)
+The Card content state is preserved: the user does not lose any context (translation reveal state, "mark as difficult" star state, etc. should all persist between minimize/expand)
+
+CRITICAL — Next button accessibility
+Since the Next button currently lives inside the Feedback Card, when the card is minimized the user has no way to advance. Two options:
+Option A (preferred): show a small secondary "Next →" button next to the "Show feedback ▲" pill at the bottom. This way the user can either expand the feedback OR proceed to the next word, both options always available when minimized.
+Layout when minimized:
+    [ Show feedback ▲ ]   [ Next → ]
+Pills next to each other, ~12px gap, both centered horizontally at the bottom.
+Style of the Next pill (when minimized): same compact pill style as the in-card Next button, just smaller. Amber gradient, white text, pill-shaped.
+REASONING
+This pattern lets the user perform a self-quiz exercise after the feedback: close the card, look at the question and answer options again, mentally test their recall, then either expand the feedback for review or skip directly to the next word. Pedagogically this is a powerful active recall pattern.
+
+DETAILS
+
+The X button on the card stays where it is (top-right corner of the card)
+Clicking outside the card (on the dark backdrop) should also trigger minimize, NOT permanent close
+The minimize animation should feel light and fast (~250ms) — the user should feel they "set aside" the card, not that they "dismissed" it
+The expand animation can be slightly slower (~350ms) with spring physics — the card "comes back" with weight
+Preserve all sub-component visible states (translation toggle, difficult star, etc.)
+
+Apply only this change. Do not modify card content, colors, or layout — only the close behavior.

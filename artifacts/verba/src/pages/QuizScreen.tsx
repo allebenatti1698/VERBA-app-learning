@@ -538,6 +538,7 @@ export default function QuizScreen() {
         isLast={currentIndex + 1 >= words.length}
         onDismiss={handleDismissFeedback}
         onNext={handleNext}
+        allowMinimize={true}
       />
     </div>
   );
