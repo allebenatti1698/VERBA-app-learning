@@ -1,0 +1,37 @@
+Apply two changes across the Quiz Screen and Feedback Card:
+
+PART 1 — Word color: pure light lavender
+Change the color of the big word displayed in BOTH the Quiz Screen and the Feedback Card from the current pure white + amber glow to a solid light lavender color.
+
+Color: #C7B8E8 (light lavender, slightly cool, premium-literary feel)
+Remove the previous text-shadow amber glow entirely — no glow on this new color
+The lavender should be applied as a flat solid color (no gradient, no glow)
+Apply identical color and identical font-size in both contexts (Quiz Screen big word AND Feedback Card word) — coherent brand identity across both screens
+Font weight, size, letter spacing, family — all unchanged
+
+The pronunciation speaker icon (🔊) next to the word in the Feedback Card should ALSO change to lavender #C7B8E8 to stay visually consistent with the word.
+Reasoning: lavender is in a different color family from everything else in the app (which is warm: amber, sage green, coral). This intentional contrast makes the word — the subject the user is learning — visually distinct from all other UI elements (white text, orange Next button, sage synonyms, coral antonyms). It also gives the app a literary-premium positioning, evocative of illuminated manuscripts and academic tradition.
+
+PART 2 — Increase spacing between Etymology and Next button in Feedback Card
+In the Feedback Card, the Etymology section (label "ORIGIN" + the etymology text "From Greek 'ephēmeros'...") currently sits too close to the "Next →" button. This makes the etymology feel attached to the button instead of being its own independent piece of content.
+Increase the bottom margin of the Etymology component (or the top margin of the Next button container) so there is more breathing space between the end of the etymology text and the Next button.
+
+Current spacing: appears to be ~16-20px
+Target spacing: ~40-48px (roughly double)
+This is a small but important visual fix — the etymology should feel like a closing paragraph of the card, not a label adjacent to the button
+
+
+DO NOT CHANGE:
+
+The "Verba" title on the Welcome Screen (keeps its existing amber-to-white shimmer gradient)
+Synonyms color (sage green), Antonyms color (coral)
+Definition, example, etymology text colors (white at various opacities)
+The Next button colors and styling
+Any other element on any other screen
+
+
+Apply only these two changes. Verify visually that:
+
+The lavender word stands out clearly against the dark background AND against the orange Next button
+There is now visible breathing room between the etymology text and the Next button
+The Quiz Screen and Feedback Card show the SAME lavender word, identical color and size

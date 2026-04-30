@@ -72,8 +72,7 @@ export function FeedbackWord({ word, phonetic, visible = true }: FeedbackWordPro
           fontFamily: "'Space Grotesk', sans-serif",
           fontWeight: 700,
           fontSize: 32,
-          color: "#FFFFFF",
-          textShadow: "0 0 20px rgba(217,119,6,0.18), 0 0 40px rgba(217,119,6,0.08)",
+          color: "#C7B8E8",
           lineHeight: 1.2,
         }}>
           {word}
@@ -86,7 +85,7 @@ export function FeedbackWord({ word, phonetic, visible = true }: FeedbackWordPro
             background: "none",
             border: "none",
             cursor: "pointer",
-            color: speakerHover ? "#D97706" : "rgba(217,119,6,0.6)",
+            color: speakerHover ? "#C7B8E8" : "rgba(199,184,232,0.55)",
             padding: 4,
             display: "flex",
             alignItems: "center",
@@ -347,7 +346,7 @@ export function FeedbackNextButton({ onClick, isLast, visible = true }: Feedback
         display: "block",
         width: "auto",
         maxWidth: 200,
-        margin: "24px auto 0 auto",
+        margin: "44px auto 0 auto",
         padding: "12px 32px",
         borderRadius: 9999,
         border: "none",
