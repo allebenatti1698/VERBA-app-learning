@@ -1,0 +1,69 @@
+Replace the entire "Your study activity" heatmap section with a new "Your streak journey" calendar visualization.
+
+REMOVE: the current 7×12 grid heatmap with amber intensity tiers and "Less / More" legend.
+REPLACE WITH: a streak-focused calendar grid that visualizes the user's study consistency and active streak.
+
+NEW SECTION DESIGN
+Header:
+
+Title: "Your streak journey" — Space Grotesk 24px bold, white
+Right of the title: a small chip showing the current active streak — e.g. "🔥 7 days" with the flame icon (Lucide Flame) in amber. Pill-shaped, dark glass background, thin amber border, small font (13px).
+
+Calendar grid:
+
+7 rows × 12 columns of small rounded squares (~14px each, 3px border-radius, 2px gap)
+Same layout as the previous heatmap, but completely different color logic
+
+Color logic for each square:
+
+No study that day: rgba(255,255,255,0.05) — almost invisible, same as before
+Studied that day (NOT part of active streak): amber #D97706 at 50% opacity, no glow
+Studied that day AND part of the active current streak: vibrant green #10B981 at 90% opacity, with a subtle green glow box-shadow: 0 0 6px rgba(16, 185, 129, 0.5)
+For long streaks (30+ days): add a slow pulsing animation to all green squares of the active streak — animate={{ opacity: [0.85, 1, 0.85], boxShadow: [...] }} with 3s duration, repeating infinitely. Subtle, not flashy.
+
+Critical logic:
+
+The "active streak" means consecutive days from today backwards. If today the user studied, today is part of the streak. If yesterday studied, yesterday is too. The streak ends at the most recent day where the user did NOT study.
+Days that were studied but are NOT part of the current active streak (e.g. studied 3 weeks ago in a row, but missed days since) stay AMBER, not green.
+
+Below the grid:
+
+Replace the old "Less → More" legend with a clearer one:
+
+Small horizontal line with three labeled squares:
+
+Empty/dim square + "No study"
+Amber square + "Studied"
+Green glowing square + "Active streak"
+
+
+
+
+Style: 11px Inter weight 400, color rgba(255,255,255,0.4), small gap between items
+
+Hover tooltip on each square:
+
+Shows: date (e.g. "Apr 15") + status ("No study" / "Studied — 12 words" / "Streak day 7 — 18 words")
+Same tooltip style as the rest of the app
+
+
+HARDCODED DATA
+Generate realistic sample data for 84 days (last 12 weeks):
+
+Most days: studied or not, with realistic patterns (some streaks broken, some long gaps)
+The LAST 7 days should ALL be studied = creates an active 7-day streak (matching the "🔥 7 days" chip in the header)
+This makes the green glow appear in the bottom-right corner of the grid (most recent days)
+The amber/empty pattern in earlier weeks should look organic — clusters of studied days with occasional gaps
+
+Add comment:
+js// TODO: Calculate from real session data + streak logic in database (Step 7)
+// Active streak = consecutive days from today backwards with at least 1 session.
+
+OTHER NOTES
+
+Maintain the same outer card container style (border, padding, background) as the previous heatmap
+Maintain the same overall section spacing within the Results Screen
+Use Framer Motion for smooth transitions when squares enter the view (slight stagger animation, ~30ms delay between squares)
+Update the modular component name from <ActivityHeatmap /> to <StreakJourney /> to match the new concept
+
+Apply ONLY this change. Do not modify the weekly chart, stat cards, missed words list, or any other section.

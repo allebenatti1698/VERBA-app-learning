@@ -781,44 +781,81 @@ function WeeklyChart({ visible = true }: WeeklyChartProps) {
   );
 }
 
-// ─── Activity heatmap ─────────────────────────────────────────────────────────
+// ─── Streak journey ────────────────────────────────────────────────────────────
 
-function generateHeatmapData(): number[] {
-  return Array.from({ length: 84 }, () => {
-    const r = Math.random();
-    if (r < 0.28) return 0;
-    if (r < 0.55) return Math.floor(Math.random() * 9) + 1;
-    if (r < 0.75) return Math.floor(Math.random() * 20) + 10;
-    if (r < 0.92) return Math.floor(Math.random() * 20) + 30;
-    return Math.floor(Math.random() * 20) + 50;
-  });
+// TODO: Calculate from real session data + streak logic in database (Step 7)
+// Active streak = consecutive days from today backwards with at least 1 session.
+
+const STREAK_DATA: number[] = [
+  // col 0 (83–77 days ago)
+  0, 12, 8, 0, 15, 0, 0,
+  // col 1 (76–70 days ago)
+  20, 0, 14, 18, 0, 10, 6,
+  // col 2 (69–63 days ago)
+  0, 0, 8, 12, 16, 0, 22,
+  // col 3 (62–56 days ago)
+  14, 9, 0, 0, 11, 18, 0,
+  // col 4 (55–49 days ago)
+  0, 13, 19, 8, 0, 0, 14,
+  // col 5 (48–42 days ago)
+  7, 0, 22, 15, 12, 0, 0,
+  // col 6 (41–35 days ago)
+  10, 18, 0, 14, 8, 0, 20,
+  // col 7 (34–28 days ago)
+  0, 0, 15, 11, 0, 18, 14,
+  // col 8 (27–21 days ago)
+  20, 8, 12, 0, 0, 15, 9,
+  // col 9 (20–14 days ago)
+  0, 14, 0, 18, 10, 12, 0,
+  // col 10 (13–7 days ago) — index 76 = 7 days ago, no study → breaks streak
+  8, 0, 22, 15, 0, 14, 0,
+  // col 11 (6–0 days ago) — active 7-day streak
+  15, 12, 18, 22, 16, 20, 19,
+];
+
+function getActiveStreakSet(data: number[]): Set<number> {
+  const set = new Set<number>();
+  for (let i = data.length - 1; i >= 0; i--) {
+    if (data[i] > 0) {
+      set.add(i);
+    } else {
+      break;
+    }
+  }
+  return set;
 }
-// TODO: Replace with real daily activity from database (Step 7)
 
-const HEATMAP_DATA = generateHeatmapData();
-
-function cellColor(count: number): string {
-  if (count === 0) return "rgba(255,255,255,0.05)";
-  if (count < 10) return "rgba(217,119,6,0.25)";
-  if (count < 30) return "rgba(217,119,6,0.5)";
-  if (count < 50) return "rgba(217,119,6,0.75)";
-  return "rgba(217,119,6,1)";
-}
-
-interface ActivityHeatmapProps {
+interface StreakJourneyProps {
   visible?: boolean;
 }
-function ActivityHeatmap({ visible = true }: ActivityHeatmapProps) {
+function StreakJourney({ visible = true }: StreakJourneyProps) {
   const [tooltip, setTooltip] = useState<{ index: number; x: number; y: number } | null>(null);
 
   if (!visible) return null;
 
+  const activeStreakSet = getActiveStreakSet(STREAK_DATA);
+  const streakLength = activeStreakSet.size;
+  const isLongStreak = streakLength >= 30;
+  const streakStart = activeStreakSet.size > 0 ? Math.min(...activeStreakSet) : 84;
+
   const today = new Date();
-  const getDate = (daysAgo: number) => {
+  function getDateLabel(daysAgo: number): string {
     const d = new Date(today);
     d.setDate(d.getDate() - daysAgo);
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  };
+  }
+
+  function getTooltipText(index: number): string {
+    const daysAgo = 83 - index;
+    const dateLabel = getDateLabel(daysAgo);
+    const words = STREAK_DATA[index];
+    if (words === 0) return `${dateLabel} — No study`;
+    if (activeStreakSet.has(index)) {
+      const streakDay = index - streakStart + 1;
+      return `${dateLabel} — Streak day ${streakDay} · ${words} words`;
+    }
+    return `${dateLabel} — Studied · ${words} words`;
+  }
 
   return (
     <motion.div
@@ -827,15 +864,39 @@ function ActivityHeatmap({ visible = true }: ActivityHeatmapProps) {
       transition={{ delay: 0.95, duration: 0.4 }}
       style={{ padding: "32px 20px 0", maxWidth: 480, margin: "0 auto", width: "100%", boxSizing: "border-box" }}
     >
-      <h2 style={{
-        fontFamily: "'Space Grotesk', sans-serif",
-        fontWeight: 700,
-        fontSize: 24,
-        color: "#FFFFFF",
-        margin: "0 0 20px",
-      }}>
-        Your study activity
-      </h2>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+        <h2 style={{
+          fontFamily: "'Space Grotesk', sans-serif",
+          fontWeight: 700,
+          fontSize: 24,
+          color: "#FFFFFF",
+          margin: 0,
+        }}>
+          Your streak journey
+        </h2>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
+          background: "rgba(0,0,0,0.45)",
+          border: "1px solid rgba(217,119,6,0.35)",
+          borderRadius: 9999,
+          padding: "3px 10px",
+          backdropFilter: "blur(6px)",
+          flexShrink: 0,
+        }}>
+          <Flame size={13} color="#D97706" />
+          <span style={{
+            fontFamily: "'Inter', sans-serif",
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#D97706",
+          }}>
+            {streakLength} days
+          </span>
+        </div>
+      </div>
 
       <div style={{
         background: "rgba(0,0,0,0.3)",
@@ -845,30 +906,56 @@ function ActivityHeatmap({ visible = true }: ActivityHeatmapProps) {
         position: "relative",
         overflow: "hidden",
       }}>
-        {/* Grid: 7 rows × 12 cols */}
-        <div style={{ display: "flex", gap: 2, position: "relative" }}>
+        {/* 7 × 12 grid */}
+        <div style={{ display: "flex", gap: 2 }}>
           {Array.from({ length: 12 }, (_, col) => (
             <div key={col} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               {Array.from({ length: 7 }, (_, row) => {
                 const index = col * 7 + row;
-                const daysAgo = 83 - index;
-                const count = HEATMAP_DATA[index];
+                const words = STREAK_DATA[index];
+                const isStreak = activeStreakSet.has(index);
+                const staggerDelay = index * 0.010;
+
+                const baseBg = words === 0
+                  ? "rgba(255,255,255,0.05)"
+                  : isStreak
+                    ? "rgba(16,185,129,0.9)"
+                    : "rgba(217,119,6,0.5)";
+
+                const baseBoxShadow = isStreak ? "0 0 6px rgba(16,185,129,0.5)" : "none";
+
                 return (
-                  <div
+                  <motion.div
                     key={row}
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={isStreak && isLongStreak
+                      ? {
+                          opacity: [0.82, 1, 0.82],
+                          boxShadow: [
+                            "0 0 4px rgba(16,185,129,0.35)",
+                            "0 0 10px rgba(16,185,129,0.7)",
+                            "0 0 4px rgba(16,185,129,0.35)",
+                          ],
+                        }
+                      : { opacity: 1, scale: 1 }
+                    }
+                    transition={isStreak && isLongStreak
+                      ? { delay: staggerDelay, duration: 3, repeat: Infinity, ease: "easeInOut" }
+                      : { delay: staggerDelay, duration: 0.22, ease: "easeOut" }
+                    }
                     onMouseEnter={(e) => setTooltip({ index, x: e.clientX, y: e.clientY })}
                     onMouseLeave={() => setTooltip(null)}
                     style={{
                       width: 14,
                       height: 14,
                       borderRadius: 3,
-                      background: cellColor(count),
-                      cursor: "default",
+                      background: baseBg,
+                      boxShadow: baseBoxShadow,
                       flexShrink: 0,
+                      cursor: "default",
                     }}
                   />
                 );
-                void daysAgo;
               })}
             </div>
           ))}
@@ -878,8 +965,8 @@ function ActivityHeatmap({ visible = true }: ActivityHeatmapProps) {
         {tooltip !== null && (
           <div style={{
             position: "fixed",
-            left: tooltip.x + 10,
-            top: tooltip.y - 40,
+            left: tooltip.x + 12,
+            top: tooltip.y - 44,
             background: "#1A1A1A",
             border: "1px solid rgba(217,119,6,0.3)",
             borderRadius: 8,
@@ -891,23 +978,36 @@ function ActivityHeatmap({ visible = true }: ActivityHeatmapProps) {
             pointerEvents: "none",
             whiteSpace: "nowrap",
           }}>
-            {getDate(83 - tooltip.index)} — {HEATMAP_DATA[tooltip.index]} words
+            {getTooltipText(tooltip.index)}
           </div>
         )}
 
         {/* Legend */}
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          gap: 6,
-          marginTop: 12,
-        }}>
-          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Less</span>
-          {[0, 1, 10, 30, 50].map((v, i) => (
-            <div key={i} style={{ width: 12, height: 12, borderRadius: 2, background: cellColor(v) }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 14 }}>
+          {[
+            { bg: "rgba(255,255,255,0.05)", shadow: "none", label: "No study" },
+            { bg: "rgba(217,119,6,0.5)", shadow: "none", label: "Studied" },
+            { bg: "rgba(16,185,129,0.9)", shadow: "0 0 5px rgba(16,185,129,0.5)", label: "Active streak" },
+          ].map(({ bg, shadow, label }) => (
+            <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{
+                width: 12,
+                height: 12,
+                borderRadius: 2,
+                background: bg,
+                boxShadow: shadow,
+                flexShrink: 0,
+              }} />
+              <span style={{
+                fontFamily: "'Inter', sans-serif",
+                fontSize: 11,
+                fontWeight: 400,
+                color: "rgba(255,255,255,0.4)",
+              }}>
+                {label}
+              </span>
+            </div>
           ))}
-          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.35)" }}>More</span>
         </div>
       </div>
     </motion.div>
@@ -953,7 +1053,7 @@ export default function ResultsScreen() {
         <ActionButtons wordCount={result.wordCount} visible={true} />
         <MissedWordsList missedWords={result.missedWords} visible={true} />
         <WeeklyChart visible={true} />
-        <ActivityHeatmap visible={true} />
+        <StreakJourney visible={true} />
 
         {/* Bottom spacing */}
         <div style={{ height: 80 }} />
