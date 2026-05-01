@@ -542,25 +542,25 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
               onClick={() => setMinimized(false)}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLButtonElement).style.opacity = "1";
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.45)";
-                (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.75)";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.85)";
+                (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,1)";
               }}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLButtonElement).style.opacity = "0.7";
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.25)";
-                (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.5)";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.6)";
+                (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.8)";
               }}
               style={{
                 pointerEvents: "auto",
                 background: "none",
-                border: "1px solid rgba(217,119,6,0.25)",
+                border: "1px solid rgba(217,119,6,0.6)",
                 borderRadius: 9999,
                 padding: "4px 12px",
                 cursor: "pointer",
                 fontFamily: "'Inter', sans-serif",
                 fontWeight: 300,
                 fontSize: "0.72rem",
-                color: "rgba(217,119,6,0.5)",
+                color: "rgba(217,119,6,0.8)",
                 letterSpacing: "0.03em",
                 display: "flex",
                 alignItems: "center",
