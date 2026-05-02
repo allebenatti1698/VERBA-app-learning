@@ -467,14 +467,14 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
       </div>
 
       {/* Cards */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {missedWords.map((mw, i) => {
           const isMarked = difficultWords.has(mw.word);
           return (
           <div
             key={mw.id}
             style={{
-              padding: 20,
+              padding: 16,
               borderRadius: 16,
               border: "1px solid rgba(217,119,6,0.15)",
               background: "rgba(0,0,0,0.35)",
@@ -488,8 +488,8 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
               onClick={() => toggleDifficult(mw.word)}
               style={{
                 position: "absolute",
-                top: 12,
-                right: 12,
+                top: 8,
+                right: 8,
                 background: "none",
                 border: "none",
                 cursor: "pointer",
@@ -510,7 +510,7 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
               aria-label={isMarked ? "Unmark as difficult" : "Mark as difficult"}
             >
               <Star
-                size={18}
+                size={16}
                 fill={isMarked ? "#FBBF24" : "none"}
                 stroke={isMarked ? "#FBBF24" : "currentColor"}
               />
@@ -520,22 +520,18 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
             <p style={{
               fontFamily: "'Space Grotesk', sans-serif",
               fontWeight: 700,
-              fontSize: 28,
-              background: "linear-gradient(120deg, #C17B1A 0%, #D97706 30%, #FFF8F0 55%, #D97706 80%, #C17B1A 100%)",
-              backgroundSize: "300% 100%",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-              animation: "title-shimmer 4.5s ease-in-out infinite",
+              fontSize: 22,
+              color: "#C7B8E8",
               margin: "0 0 4px",
+              paddingRight: 28,
             }}>
               {mw.word}
             </p>
             <p style={{
               fontFamily: "monospace",
-              fontSize: 13,
+              fontSize: 11,
               color: "rgba(255,255,255,0.4)",
-              margin: "0 0 16px",
+              margin: "0 0 10px",
             }}>
               {mw.phonetic}
             </p>
@@ -544,7 +540,7 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
             <p style={{ margin: "0 0 4px", fontFamily: "'Inter', sans-serif" }}>
               <span style={{ fontWeight: 600, fontSize: 13, color: "#EF4444" }}>✗ Your answer:</span>
             </p>
-            <p style={{ margin: "0 0 14px", fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: 14, color: "rgba(255,255,255,0.7)", lineHeight: 1.4, paddingLeft: 12 }}>
+            <p style={{ margin: "0 0 8px", fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: 14, color: "rgba(255,255,255,0.7)", lineHeight: 1.4, paddingLeft: 12 }}>
               "{mw.selectedAnswer}"
             </p>
 
@@ -552,29 +548,41 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
             <p style={{ margin: "0 0 4px", fontFamily: "'Inter', sans-serif" }}>
               <span style={{ fontWeight: 600, fontSize: 13, color: "#10B981" }}>✓ Correct answer:</span>
             </p>
-            <p style={{ margin: "0 0 16px", fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 14, color: "#FFFFFF", lineHeight: 1.4, paddingLeft: 12 }}>
+            <p style={{ margin: "0 0 10px", fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 14, color: "#FFFFFF", lineHeight: 1.4, paddingLeft: 12 }}>
               "{mw.correctDefinition}"
             </p>
 
-            {/* Review button */}
+            {/* Review button — ghost amber, matches Hint + Show feedback style */}
             <motion.button
               whileTap={{ scale: 0.96 }}
               onClick={() => setReviewIndex(i)}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.85)";
+                (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,1)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.opacity = "0.7";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.6)";
+                (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.8)";
+              }}
               style={{
                 background: "none",
-                border: "1px solid rgba(132,169,140,0.4)",
+                border: "1px solid rgba(217,119,6,0.6)",
                 borderRadius: 9999,
-                padding: "7px 20px",
+                padding: "6px 14px",
                 cursor: "pointer",
                 fontFamily: "'Inter', sans-serif",
-                fontWeight: 400,
-                fontSize: 13,
-                color: "#84A98C",
-                letterSpacing: "0.02em",
+                fontWeight: 300,
+                fontSize: 12,
+                color: "rgba(217,119,6,0.8)",
+                letterSpacing: "0.03em",
+                opacity: 0.7,
                 outline: "none",
+                transition: "color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease",
               }}
             >
-              Review →
+              review →
             </motion.button>
           </div>
           );

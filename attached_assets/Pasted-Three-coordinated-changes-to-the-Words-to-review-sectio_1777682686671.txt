@@ -1,0 +1,51 @@
+Three coordinated changes to the "Words to review" section in the Results Screen:
+
+CHANGE 1 — Word color: amber → lavender
+Each word in the missed word cards (e.g. "querulous" with its phonetic below) currently shows in amber/orange. Change to lavender #C7B8E8 to match the brand identity for "the word the user is learning" (consistent with Quiz Screen and Feedback Card).
+Phonetic stays muted gray (unchanged).
+
+CHANGE 2 — "Review →" button style: green sage → ghost amber
+The current Review button uses sage green border and text. This is semantically incorrect (sage in our app means continuity/synonyms, not action) and inconsistent with the "Hint" button on Quiz Screen and "Show feedback" pill on the Feedback Card — all three are conceptually identical (optional consultation actions) and should share visual style.
+Update the Review button to use the SAME style as the existing "💡 hint" button on the Quiz Screen:
+
+Background: transparent
+Border: 1px solid amber rgba(217, 119, 6, 0.6)
+Text color: amber rgba(217, 119, 6, 0.8)
+Pill shape, compact padding 6px 14px, font-size 12px
+Lowercase text "review →" (or keep the Lucide ChevronRight icon)
+Subtle hover state (slight opacity increase)
+
+
+CHANGE 3 — Compact card sizing
+Currently each card takes too much vertical space, problematic when the user has many missed words. Reduce all internal sizing while preserving structure:
+
+Card padding: from ~20-24px to 16px
+Word size: from ~28-30px to 22px
+Phonetic size: from ~13px to 11px
+Spacing phonetic → "Your answer": from ~16-20px to 10px
+"✗ Your answer:" / "✓ Correct answer:" text size: from ~16-18px to 14px, with answer text on same line if it fits, else stacked with 6px gap
+Spacing "Your answer" → "Correct answer": from ~12px to 8px
+Review button (in addition to style change above): smaller padding 6px 14px, font 12px
+Spacing answers → Review button: from ~16px to 10px
+Spacing between cards: from 12px to 8px
+Star icon: from 18px to 16px, position 8px from edges (instead of 12px)
+
+
+DO NOT CHANGE:
+
+"✗ Your answer:" red label (#EF4444) and the answer text in white at 70% opacity
+"✓ Correct answer:" green label (#10B981) and the answer text in white at 100%
+Card border (thin amber at 15% opacity), border-radius (16px), background (dark glass)
+The "Words to review" section header
+Any other section of the Results Screen (hero score, stats, action buttons, weekly chart, streak journey)
+The star icon color logic (white outline by default, lavender filled when marked)
+
+
+EXPECTED VISUAL OUTCOME:
+
+Each missed word card is approximately 35-45% shorter than now (more cards visible per scroll)
+The word "querulous" appears in lavender (matching app-wide brand)
+The Review button now visually matches the Hint and Show feedback buttons (consistent design system)
+The star, the colored answer labels, and the structure all remain the same
+
+Apply ALL three changes together.
