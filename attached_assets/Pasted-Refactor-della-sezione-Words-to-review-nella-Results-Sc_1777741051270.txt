@@ -1,0 +1,41 @@
+Refactor della sezione "Words to review" nella Results Screen.
+
+OBIETTIVO: trasformare la lista verticale attuale in un carosello di card sfogliabili con design minimalista.
+
+LAYOUT NUOVO:
+- Sopra il carosello, indicatore "3 / 7" piccolo, centrato, colore rgba(255,255,255,0.45), font-size 11px, font-weight 500
+- Una sola card alla volta visibile al centro (no lista sotto)
+- Sotto la card: frecce ‹ › laterali con space-between, e dots indicators centrati (uno per ogni missed word, dot attivo color #D97706, gli altri rgba(255,255,255,0.18))
+- Le frecce sono cliccabili. Swipe gesture supportato anche su touch (hammer.js o framer-motion drag)
+
+CARD MINIMALISTA (la review card singola):
+- Background: rgba(255,255,255,0.015), border 0.5px solid rgba(217,119,6,0.18), border-radius 12px, padding 18px 16px
+- L'INTERA CARD è cliccabile (cursor: pointer). Click → apre la FeedbackCard completa (lo stesso componente già esistente che usiamo nel quiz)
+- Hover state: il border passa a rgba(217,119,6,0.4), transition 0.2s ease
+- In alto a destra: icona stella ☆ (color rgba(255,255,255,0.35)). Click sulla stella → toggle add/remove from My Words (chiave localStorage `verba_my_words`). La stella diventa filled ★ con colore #D97706 quando attiva. IMPORTANTE: il click sulla stella NON deve propagare al click della card (event.stopPropagation)
+- In basso a destra: icona tre puntini ⋯ (color rgba(217,119,6,0.75), font-size 14px, letter-spacing 1px). È solo un hint visivo, non è un bottone separato (la card intera è cliccabile)
+- Parola in lavender #C7B8E8, font-size 22px, font-weight 500, letter-spacing -0.2px, margin-bottom 18px
+- NIENTE IPA (rimosso)
+- Risposta sbagliata: 
+  - Sopra l'icona ✗ in colore #F87171, font-size 13px, margin-bottom 4px
+  - Testo "Lasting forever without end" in rgba(255,255,255,0.5), font-size 13px, line-height 1.5
+  - Margin-bottom 14px tra questa sezione e quella corretta
+- Risposta corretta:
+  - Sopra l'icona ✓ in colore #84A98C, font-size 13px, margin-bottom 4px
+  - Testo "Lasting for a very short time" in rgba(255,255,255,0.95), font-size 13px, line-height 1.5
+- Niente etichette testuali "Your answer:" o "Correct answer:" — solo le icone ✗ ✓ con i loro colori semantici comunicano la distinzione
+
+ANIMAZIONE TRA CARD:
+- Crossfade morbido con Framer Motion (AnimatePresence + opacity 0 → 1, durata 0.3s, easeInOut)
+- Niente slide orizzontale, niente flip 3D — solo opacity
+
+QUICK REVIEW BUTTON (in fondo alla sezione Words to review):
+- Sotto il carosello, centrato, bottone outlined amber ghost (stesso stile del bottone "Try again")
+- Testo: "Quick review →"
+- Click: mostra un toast in basso (autodismiss 2.5s) con il testo "Coming in Step 9 — practice missed words with Reverse mode 🔁". Background del toast: rgba(217,119,6,0.15), border 0.5px solid rgba(217,119,6,0.4), color #D97706, padding 10px 16px, border-radius 12px
+
+PRESERVARE:
+- La modularità del componente (props `visible={true}` per future Settings)
+- L'integrazione con l'array missedWords esistente
+
+TECH: React + Tailwind CSS + Framer Motion. Usare AnimatePresence per il crossfade.

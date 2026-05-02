@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { Clock, Flame, BookOpen, Star } from "lucide-react";
@@ -403,210 +404,349 @@ interface MissedWordsListProps {
   visible?: boolean;
 }
 function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) {
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [reviewIndex, setReviewIndex] = useState<number | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // TODO: Migrate to user database (Step 7). Difficult words will sync across devices and influence spaced repetition algorithm.
-  const [difficultWords, setDifficultWords] = useState<Set<string>>(() => {
+  // TODO: Migrate to user database (Step 7). My Words syncs across devices and drives spaced repetition.
+  const [myWords, setMyWords] = useState<Set<string>>(() => {
     try {
-      const stored = localStorage.getItem("verba_difficult_words");
+      const stored = localStorage.getItem("verba_my_words");
       return new Set(stored ? JSON.parse(stored) : []);
     } catch {
       return new Set();
     }
   });
 
-  function toggleDifficult(word: string) {
-    setDifficultWords((prev) => {
+  function toggleMyWord(word: string) {
+    setMyWords((prev) => {
       const next = new Set(prev);
-      if (next.has(word)) {
-        next.delete(word);
-      } else {
-        next.add(word);
-      }
+      if (next.has(word)) next.delete(word);
+      else next.add(word);
       try {
-        localStorage.setItem("verba_difficult_words", JSON.stringify([...next]));
+        localStorage.setItem("verba_my_words", JSON.stringify([...next]));
       } catch { /* storage unavailable */ }
       return next;
     });
   }
 
+  function goTo(index: number) {
+    setCurrentIndex(Math.max(0, Math.min(index, missedWords.length - 1)));
+  }
+
+  function handleQuickReview() {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setShowToast(true);
+    toastTimer.current = setTimeout(() => setShowToast(false), 2500);
+  }
+
   if (!visible || missedWords.length === 0) return null;
 
+  const mw = missedWords[currentIndex];
+  const isStarred = myWords.has(mw.word);
   const reviewWord = reviewIndex !== null ? missedWords[reviewIndex] : null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.75, duration: 0.4 }}
-      style={{ padding: "32px 20px 0", maxWidth: 480, margin: "0 auto", width: "100%", boxSizing: "border-box" }}
-    >
-      {/* Section header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-        <h2 style={{
-          fontFamily: "'Space Grotesk', sans-serif",
-          fontWeight: 700,
-          fontSize: 24,
-          color: "#FFFFFF",
-          margin: 0,
-        }}>
-          Words to review
-        </h2>
-        <span style={{
-          fontFamily: "'Inter', sans-serif",
-          fontWeight: 600,
-          fontSize: 13,
-          color: "#D97706",
-          background: "rgba(217,119,6,0.12)",
-          border: "1px solid rgba(217,119,6,0.3)",
-          borderRadius: 9999,
-          padding: "2px 10px",
-        }}>
-          {missedWords.length}
-        </span>
-      </div>
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.75, duration: 0.4 }}
+        style={{ padding: "32px 20px 0", maxWidth: 480, margin: "0 auto", width: "100%", boxSizing: "border-box" }}
+      >
+        {/* Section header */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+          <h2 style={{
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontWeight: 700,
+            fontSize: 24,
+            color: "#FFFFFF",
+            margin: 0,
+          }}>
+            Words to review
+          </h2>
+          <span style={{
+            fontFamily: "'Inter', sans-serif",
+            fontWeight: 600,
+            fontSize: 13,
+            color: "#D97706",
+            background: "rgba(217,119,6,0.12)",
+            border: "1px solid rgba(217,119,6,0.3)",
+            borderRadius: 9999,
+            padding: "2px 10px",
+          }}>
+            {missedWords.length}
+          </span>
+        </div>
 
-      {/* Cards */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {missedWords.map((mw, i) => {
-          const isMarked = difficultWords.has(mw.word);
-          return (
-          <div
-            key={mw.id}
+        {/* Counter */}
+        <p style={{
+          textAlign: "center",
+          fontFamily: "'Inter', sans-serif",
+          fontSize: 11,
+          fontWeight: 500,
+          color: "rgba(255,255,255,0.45)",
+          margin: "0 0 10px",
+          letterSpacing: "0.04em",
+        }}>
+          {currentIndex + 1} / {missedWords.length}
+        </p>
+
+        {/* Carousel card — crossfade only */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentIndex}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.12}
+            onDragEnd={(_e, info) => {
+              if (info.offset.x < -50 && currentIndex < missedWords.length - 1) goTo(currentIndex + 1);
+              else if (info.offset.x > 50 && currentIndex > 0) goTo(currentIndex - 1);
+            }}
+            onClick={() => setReviewIndex(currentIndex)}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(217,119,6,0.4)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(217,119,6,0.18)";
+            }}
             style={{
-              padding: 16,
-              borderRadius: 16,
-              border: "1px solid rgba(217,119,6,0.15)",
-              background: "rgba(0,0,0,0.35)",
-              backdropFilter: "blur(6px)",
+              background: "rgba(255,255,255,0.015)",
+              border: "0.5px solid rgba(217,119,6,0.18)",
+              borderRadius: 12,
+              padding: "18px 16px",
+              cursor: "pointer",
               position: "relative",
+              userSelect: "none",
+              transition: "border-color 0.2s ease",
             }}
           >
-            {/* Mark as difficult star */}
+            {/* Star — top right, does NOT propagate to card click */}
             <motion.button
               whileTap={{ scale: 0.85 }}
-              onClick={() => toggleDifficult(mw.word)}
+              onClick={(e) => { e.stopPropagation(); toggleMyWord(mw.word); }}
               style={{
                 position: "absolute",
-                top: 8,
-                right: 8,
+                top: 10,
+                right: 12,
                 background: "none",
                 border: "none",
                 cursor: "pointer",
                 padding: 2,
                 display: "flex",
                 alignItems: "center",
-                color: isMarked ? "#FBBF24" : "rgba(255,255,255,0.3)",
-                boxShadow: isMarked ? "0 0 8px rgba(251,191,36,0.4)" : "none",
-                borderRadius: "50%",
-                transition: "color 0.15s ease, box-shadow 0.15s ease",
+                color: isStarred ? "#D97706" : "rgba(255,255,255,0.35)",
+                transition: "color 0.15s ease",
+                outline: "none",
               }}
-              onMouseEnter={(e) => {
-                if (!isMarked) (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.6)";
-              }}
-              onMouseLeave={(e) => {
-                if (!isMarked) (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.3)";
-              }}
-              aria-label={isMarked ? "Unmark as difficult" : "Mark as difficult"}
+              aria-label={isStarred ? "Remove from My Words" : "Add to My Words"}
             >
               <Star
-                size={16}
-                fill={isMarked ? "#FBBF24" : "none"}
-                stroke={isMarked ? "#FBBF24" : "currentColor"}
+                size={15}
+                fill={isStarred ? "#D97706" : "none"}
+                stroke={isStarred ? "#D97706" : "currentColor"}
               />
             </motion.button>
 
-            {/* Word + phonetic */}
+            {/* Word */}
             <p style={{
               fontFamily: "'Space Grotesk', sans-serif",
-              fontWeight: 700,
+              fontWeight: 500,
               fontSize: 22,
               color: "#C7B8E8",
-              margin: "0 0 4px",
-              paddingRight: 28,
+              margin: "0 0 18px",
+              letterSpacing: "-0.2px",
+              paddingRight: 26,
             }}>
               {mw.word}
             </p>
-            <p style={{
-              fontFamily: "monospace",
-              fontSize: 11,
-              color: "rgba(255,255,255,0.4)",
-              margin: "0 0 10px",
-            }}>
-              {mw.phonetic}
-            </p>
 
             {/* Wrong answer */}
-            <p style={{ margin: "0 0 4px", fontFamily: "'Inter', sans-serif" }}>
-              <span style={{ fontWeight: 600, fontSize: 13, color: "#EF4444" }}>✗ Your answer:</span>
-            </p>
-            <p style={{ margin: "0 0 8px", fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: 14, color: "rgba(255,255,255,0.7)", lineHeight: 1.4, paddingLeft: 12 }}>
-              "{mw.selectedAnswer}"
+            <p style={{ margin: "0 0 4px", fontFamily: "'Inter', sans-serif", fontSize: 13, color: "#F87171" }}>✗</p>
+            <p style={{ margin: "0 0 14px", fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+              {mw.selectedAnswer}
             </p>
 
             {/* Correct answer */}
-            <p style={{ margin: "0 0 4px", fontFamily: "'Inter', sans-serif" }}>
-              <span style={{ fontWeight: 600, fontSize: 13, color: "#10B981" }}>✓ Correct answer:</span>
-            </p>
-            <p style={{ margin: "0 0 10px", fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 14, color: "#FFFFFF", lineHeight: 1.4, paddingLeft: 12 }}>
-              "{mw.correctDefinition}"
+            <p style={{ margin: "0 0 4px", fontFamily: "'Inter', sans-serif", fontSize: 13, color: "#84A98C" }}>✓</p>
+            <p style={{ margin: 0, fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.95)", lineHeight: 1.5 }}>
+              {mw.correctDefinition}
             </p>
 
-            {/* Review button — ghost amber, matches Hint + Show feedback style */}
-            <motion.button
-              whileTap={{ scale: 0.96 }}
-              onClick={() => setReviewIndex(i)}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.opacity = "1";
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.85)";
-                (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,1)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.opacity = "0.7";
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.6)";
-                (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.8)";
-              }}
+            {/* Three-dots hint — decorative, bottom right */}
+            <span style={{
+              position: "absolute",
+              bottom: 10,
+              right: 14,
+              fontFamily: "'Inter', sans-serif",
+              fontSize: 14,
+              letterSpacing: 1,
+              color: "rgba(217,119,6,0.75)",
+              pointerEvents: "none",
+              userSelect: "none",
+            }}>
+              ⋯
+            </span>
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Navigation row: ‹ dots › */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => goTo(currentIndex - 1)}
+            disabled={currentIndex === 0}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: currentIndex === 0 ? "default" : "pointer",
+              fontFamily: "'Inter', sans-serif",
+              fontSize: 22,
+              lineHeight: 1,
+              color: currentIndex === 0 ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.5)",
+              padding: "4px 10px",
+              outline: "none",
+              transition: "color 0.15s ease",
+            }}
+          >
+            ‹
+          </motion.button>
+
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {missedWords.map((_, i) => (
+              <motion.button
+                key={i}
+                onClick={() => goTo(i)}
+                whileTap={{ scale: 0.85 }}
+                animate={{
+                  width: i === currentIndex ? 16 : 6,
+                  background: i === currentIndex ? "#D97706" : "rgba(255,255,255,0.18)",
+                }}
+                style={{
+                  height: 6,
+                  borderRadius: 9999,
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 0,
+                  outline: "none",
+                }}
+              />
+            ))}
+          </div>
+
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => goTo(currentIndex + 1)}
+            disabled={currentIndex === missedWords.length - 1}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: currentIndex === missedWords.length - 1 ? "default" : "pointer",
+              fontFamily: "'Inter', sans-serif",
+              fontSize: 22,
+              lineHeight: 1,
+              color: currentIndex === missedWords.length - 1 ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.5)",
+              padding: "4px 10px",
+              outline: "none",
+              transition: "color 0.15s ease",
+            }}
+          >
+            ›
+          </motion.button>
+        </div>
+
+        {/* Quick review button */}
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 20 }}>
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={handleQuickReview}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.85)";
+              (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,1)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.opacity = "0.7";
+              (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.6)";
+              (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.8)";
+            }}
+            style={{
+              background: "none",
+              border: "1px solid rgba(217,119,6,0.6)",
+              borderRadius: 9999,
+              padding: "8px 20px",
+              cursor: "pointer",
+              fontFamily: "'Inter', sans-serif",
+              fontWeight: 400,
+              fontSize: 13,
+              color: "rgba(217,119,6,0.8)",
+              letterSpacing: "0.02em",
+              opacity: 0.7,
+              outline: "none",
+              transition: "color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease",
+            }}
+          >
+            Quick review →
+          </motion.button>
+        </div>
+
+        {/* Feedback Card overlay for card click */}
+        {reviewWord && (
+          <FeedbackCard
+            show={reviewIndex !== null}
+            word={reviewWord}
+            isCorrect={false}
+            isLast={reviewIndex === missedWords.length - 1}
+            onDismiss={() => setReviewIndex(null)}
+            onNext={() => {
+              if (reviewIndex !== null && reviewIndex < missedWords.length - 1) {
+                setReviewIndex(reviewIndex + 1);
+              } else {
+                setReviewIndex(null);
+              }
+            }}
+          />
+        )}
+      </motion.div>
+
+      {/* Toast — rendered via portal so position:fixed is unaffected by ancestor transforms */}
+      {createPortal(
+        <AnimatePresence>
+          {showToast && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.25 }}
               style={{
-                background: "none",
-                border: "1px solid rgba(217,119,6,0.6)",
-                borderRadius: 9999,
-                padding: "6px 14px",
-                cursor: "pointer",
+                position: "fixed",
+                bottom: 28,
+                left: "50%",
+                transform: "translateX(-50%)",
+                background: "rgba(217,119,6,0.15)",
+                border: "0.5px solid rgba(217,119,6,0.4)",
+                color: "#D97706",
+                padding: "10px 16px",
+                borderRadius: 12,
                 fontFamily: "'Inter', sans-serif",
-                fontWeight: 300,
-                fontSize: 12,
-                color: "rgba(217,119,6,0.8)",
-                letterSpacing: "0.03em",
-                opacity: 0.7,
-                outline: "none",
-                transition: "color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease",
+                fontSize: 13,
+                zIndex: 300,
+                whiteSpace: "nowrap",
+                pointerEvents: "none",
               }}
             >
-              review →
-            </motion.button>
-          </div>
-          );
-        })}
-      </div>
-
-      {/* Feedback Card for review */}
-      {reviewWord && (
-        <FeedbackCard
-          show={reviewIndex !== null}
-          word={reviewWord}
-          isCorrect={false}
-          isLast={reviewIndex === missedWords.length - 1}
-          onDismiss={() => setReviewIndex(null)}
-          onNext={() => {
-            if (reviewIndex !== null && reviewIndex < missedWords.length - 1) {
-              setReviewIndex(reviewIndex + 1);
-            } else {
-              setReviewIndex(null);
-            }
-          }}
-        />
+              Coming in Step 9 — practice missed words with Reverse mode 🔁
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
       )}
-    </motion.div>
+    </>
   );
 }
 
