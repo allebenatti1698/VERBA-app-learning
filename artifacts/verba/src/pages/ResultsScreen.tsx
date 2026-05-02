@@ -691,7 +691,7 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
               transition: "color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease",
             }}
           >
-            Quick review →
+            Test these again →
           </motion.button>
         </div>
 
@@ -1193,7 +1193,7 @@ export default function ResultsScreen() {
       position: "relative",
       overflowX: "hidden",
     }}>
-      <AppBackground showWords={true} />
+      <AppBackground showWords={false} />
 
       <div style={{ position: "relative", zIndex: 10 }}>
         <HeroScore correct={result.correct} total={result.total} visible={true} />
