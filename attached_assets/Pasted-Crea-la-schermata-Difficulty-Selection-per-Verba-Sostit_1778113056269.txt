@@ -1,0 +1,103 @@
+Crea la schermata "Difficulty Selection" per Verba. Sostituisce il placeholder 
+"Difficulty Selection - WIP" creato nella fase precedente.
+
+# CONTESTO
+La schermata appare quando l'utente clicca uno dei deck Essential English / 
+Advanced English / GRE Vocabulary nella Deck Selection. Il deck selezionato 
+arriva come query param: /difficulty?deck=<deckId>
+
+deckId possibili: "essential", "advanced", "gre"
+(My Verba salta questa schermata e va direttamente a /pre-quiz-setup)
+
+# HEADER DELLA SCHERMATA
+Identico struttura della Deck Selection:
+- Freccia "‹" in alto a sinistra (back button → torna a /decks con navigate(-1))
+- Wordmark "Verba" centrato in alto, font italic, opacity 0.6, font-size 12px, 
+  cliccabile (click → naviga alla home)
+
+# CONTENUTO PRINCIPALE
+Sotto l'header, mostra:
+- Mini-info del deck selezionato in alto (font-size 11px, opacity 0.5):
+  - Per "essential": "📖 Essential English"
+  - Per "advanced": "📚 Advanced English"
+  - Per "gre": "🎓 GRE Vocabulary"
+- Titolo: "Choose difficulty" font-size 20px, font-weight 500, color white, 
+  margin-top 4px
+- Margin-bottom 20px sotto il titolo
+
+# COLORE FAMIGLIA DEL DECK
+Il colore di tutte le card di questa pagina dipende dal deck selezionato:
+- Se deck="essential" o deck="advanced" → colore famiglia = soft blue rgba(125,211,252, X)
+- Se deck="gre" → colore famiglia = mauve rgba(167,139,250, X)
+
+Userò la sintassi <FAMILY_COLOR> nelle specifiche sotto per indicare il colore 
+giusto in base al deck.
+
+# 3 CARD DI DIFFICOLTÀ (una sotto l'altra)
+
+Tutte le card hanno:
+- Background: rgba(255,255,255,0.02)
+- Border-radius: 12px
+- Padding: 16px
+- Margin-bottom: 8px tra una card e l'altra
+- Cursor: pointer
+
+## Card 1: Easy
+- Indicator in alto a sinistra: 3 punti orizzontali "• · ·" con il primo pieno 
+  (background <FAMILY_COLOR alpha 0.85>) e gli altri due vuoti 
+  (background <FAMILY_COLOR alpha 0.15>). Ogni punto è un cerchio width/height 7px, 
+  border-radius 50%, gap 4px tra punti
+- Sotto i punti, margin-top 10px:
+  - Nome: "Easy" font-size 13px, font-weight 500, color white, margin-bottom 2px
+  - Descrizione: "Most common words" font-size 10px, opacity 0.5
+- Bordo card: 0.5px solid <FAMILY_COLOR alpha 0.25>
+
+## Card 2: Medium
+Stessa struttura. Differenze:
+- Indicator: "• • ·" (i primi due pieni a 0.85, l'ultimo vuoto a 0.15)
+- Nome: "Medium"
+- Descrizione: "Mid-frequency"
+- Bordo card: 0.5px solid <FAMILY_COLOR alpha 0.5>
+
+## Card 3: Hard
+Stessa struttura. Differenze:
+- Indicator: "• • •" (tutti e tre pieni a 0.85)
+- Nome: "Hard"
+- Descrizione: "Rare and tricky"
+- Bordo card: 0.5px solid <FAMILY_COLOR alpha 0.75>
+
+# STATI INTERATTIVI DELLE CARD
+## Default
+Già descritto sopra.
+
+## Hover (e tap su mobile)
+- Border opacity sale (es. da 0.5 → 0.7)
+- Background passa a rgba(255,255,255,0.04)
+- Transform: scale(1.02)
+- Transition: all 0.2s ease
+
+## Click
+- Tutte le card al click navigano a /pre-quiz-setup con due query params:
+  - deck=<deckId>
+  - difficulty=<easy|medium|hard>
+- La pagina /pre-quiz-setup esiste già — assicurati che riceva e legga questi param 
+  (anche se per ora non li usa pienamente, deve almeno non rompersi)
+
+# ROUTING
+- Path: /difficulty?deck=<deckId>
+- Se l'utente arriva senza deck param o con deck invalido: redirect a /decks
+
+# LAYOUT GENERALE
+- Mobile-first
+- Padding orizzontale 14-16px
+- Background pagina: #0A0A0A
+- Modulare: ogni card è un componente con prop `visible={true}` per future Settings
+
+# COSA NON FARE IN QUESTA FASE
+- NON implementare il tag "Last" sulla difficoltà usata l'ultima volta (Fase 3)
+- NON implementare la memoria localStorage (Fase 3)
+- NON implementare animazioni slide laterale tra pagine (Fase 3)
+- NON usare emoji 🌱🌿🌳 — solo i 3 punti come indicator visivo
+
+# TECH STACK
+React + Tailwind CSS + Framer Motion (per hover) + react-router-dom
