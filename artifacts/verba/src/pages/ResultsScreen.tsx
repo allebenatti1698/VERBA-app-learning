@@ -31,6 +31,8 @@ export interface SessionResult {
   missedWords: MissedWord[];
   elapsedMs: number;
   wordCount: number;
+  deck?: string | null;
+  difficulty?: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1175,7 +1177,26 @@ export default function ResultsScreen() {
       return;
     }
     try {
-      setResult(JSON.parse(raw));
+      const parsed: SessionResult = JSON.parse(raw);
+      setResult(parsed);
+      // 1A — persist last session
+      try {
+        const session = {
+          deck: parsed.deck ?? null,
+          difficulty: parsed.difficulty ?? null,
+          wordCount: parsed.wordCount,
+          completedAt: new Date().toISOString(),
+        };
+        localStorage.setItem("verba_last_session", JSON.stringify(session));
+        // 1B — persist last difficulty per deck
+        if (parsed.deck && parsed.difficulty) {
+          localStorage.setItem(`verba_last_difficulty_${parsed.deck}`, parsed.difficulty);
+        }
+        // 1C — ensure verba_my_verba exists
+        if (!localStorage.getItem("verba_my_verba")) {
+          localStorage.setItem("verba_my_verba", JSON.stringify([]));
+        }
+      } catch { /* storage unavailable */ }
     } catch {
       navigate("/setup");
     }

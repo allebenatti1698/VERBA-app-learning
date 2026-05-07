@@ -210,6 +210,8 @@ export default function QuizScreen() {
   const search = useSearch();
   const params = new URLSearchParams(search);
   const totalWords = Math.min(Math.max(Number(params.get("words")) || 10, 1), QUIZ_WORDS.length);
+  const deckParam = params.get("deck") ?? null;
+  const difficultyParam = params.get("difficulty") ?? null;
 
   const words = useMemo(() => QUIZ_WORDS.slice(0, totalWords), [totalWords]);
 
@@ -261,6 +263,8 @@ export default function QuizScreen() {
           missedWords,
           elapsedMs,
           wordCount: totalWords,
+          deck: deckParam,
+          difficulty: difficultyParam,
         };
         sessionStorage.setItem("verbaSessionResult", JSON.stringify(result));
         setLocation("/results");

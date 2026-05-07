@@ -39,7 +39,7 @@ export default function PreQuizSetup() {
       {/* Back arrow */}
       <motion.button
         data-testid="button-back"
-        onClick={() => setLocation("/")}
+        onClick={() => window.history.back()}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}

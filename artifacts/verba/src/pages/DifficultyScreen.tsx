@@ -30,7 +30,15 @@ function deckLabel(deck: DeckId) {
   return "🎓 GRE Vocabulary";
 }
 
-// ─── Difficulty dot indicator ────────────────────────────────────────────────
+function loadLastDifficulty(deck: DeckId): Difficulty | null {
+  try {
+    const v = localStorage.getItem(`verba_last_difficulty_${deck}`);
+    if (v === "easy" || v === "medium" || v === "hard") return v;
+    return null;
+  } catch { return null; }
+}
+
+// ─── Difficulty dot indicator ─────────────────────────────────────────────────
 function DotIndicator({ filled, color }: { filled: number; color: (a: number) => string }) {
   return (
     <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
@@ -49,6 +57,29 @@ function DotIndicator({ filled, color }: { filled: number; color: (a: number) =>
   );
 }
 
+// ─── LAST tag ─────────────────────────────────────────────────────────────────
+function LastTag() {
+  return (
+    <div style={{
+      position: "absolute",
+      top: 10,
+      right: 10,
+      background: "rgba(217,119,6,0.15)",
+      border: "0.5px solid rgba(217,119,6,0.4)",
+      color: "rgba(217,119,6,0.95)",
+      fontSize: 7,
+      fontWeight: 600,
+      fontFamily: "'Inter', sans-serif",
+      textTransform: "uppercase",
+      letterSpacing: "0.5px",
+      padding: "2px 6px",
+      borderRadius: 4,
+    }}>
+      Last
+    </div>
+  );
+}
+
 // ─── Single difficulty card ───────────────────────────────────────────────────
 interface DiffCardProps {
   label: string;
@@ -59,13 +90,14 @@ interface DiffCardProps {
   color: (a: number) => string;
   difficulty: Difficulty;
   deck: DeckId;
+  isLast?: boolean;
   visible?: boolean;
 }
 
 function DiffCard({
   label, description, filledDots,
   borderDefault, borderHover, color,
-  difficulty, deck, visible = true,
+  difficulty, deck, isLast, visible = true,
 }: DiffCardProps) {
   const [, navigate] = useLocation();
   const [hovered, setHovered] = useState(false);
@@ -91,10 +123,11 @@ function DiffCard({
         userSelect: "none",
         transform: hovered ? "scale(1.02)" : "scale(1)",
         transition: "all 0.2s ease",
+        position: "relative",
       }}
     >
+      {isLast && <LastTag />}
       <DotIndicator filled={filledDots} color={color} />
-
       <p style={{
         fontFamily: "'Space Grotesk', sans-serif",
         fontWeight: 500,
@@ -123,17 +156,18 @@ export default function DifficultyScreen() {
   const params = new URLSearchParams(search);
   const rawDeck = params.get("deck") ?? "";
 
-  useEffect(() => {
-    if (window.twemoji) window.twemoji.parse(document.body);
-  }, []);
+  const isValid = VALID_DECKS.includes(rawDeck as DeckId);
 
-  if (!VALID_DECKS.includes(rawDeck as DeckId)) {
-    navigate("/decks");
-    return null;
-  }
+  useEffect(() => {
+    if (!isValid) { navigate("/decks"); return; }
+    if (window.twemoji) window.twemoji.parse(document.body);
+  }, [isValid, navigate]);
+
+  if (!isValid) return null;
 
   const deck = rawDeck as DeckId;
   const color = deckColor(deck);
+  const lastDifficulty = loadLastDifficulty(deck);
 
   return (
     <div style={{
@@ -198,13 +232,8 @@ export default function DifficultyScreen() {
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: "easeOut", delay: 0.08 }}
-        style={{
-          position: "relative",
-          zIndex: 10,
-          padding: "20px 16px 48px",
-        }}
+        style={{ position: "relative", zIndex: 10, padding: "20px 16px 48px" }}
       >
-        {/* Deck mini-label */}
         <p style={{
           fontFamily: "'Inter', sans-serif",
           fontSize: 11,
@@ -214,7 +243,6 @@ export default function DifficultyScreen() {
           {deckLabel(deck)}
         </p>
 
-        {/* Title */}
         <h1 style={{
           fontFamily: "'Space Grotesk', sans-serif",
           fontWeight: 500,
@@ -225,7 +253,6 @@ export default function DifficultyScreen() {
           Choose difficulty
         </h1>
 
-        {/* Cards */}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <DiffCard
             label="Easy"
@@ -236,6 +263,7 @@ export default function DifficultyScreen() {
             color={color}
             difficulty="easy"
             deck={deck}
+            isLast={lastDifficulty === "easy"}
           />
           <DiffCard
             label="Medium"
@@ -246,6 +274,7 @@ export default function DifficultyScreen() {
             color={color}
             difficulty="medium"
             deck={deck}
+            isLast={lastDifficulty === "medium"}
           />
           <DiffCard
             label="Hard"
@@ -256,6 +285,7 @@ export default function DifficultyScreen() {
             color={color}
             difficulty="hard"
             deck={deck}
+            isLast={lastDifficulty === "hard"}
           />
         </div>
       </motion.div>

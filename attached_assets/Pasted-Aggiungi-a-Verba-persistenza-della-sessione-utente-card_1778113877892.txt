@@ -1,0 +1,184 @@
+Aggiungi a Verba: persistenza della sessione utente, card "Continue where you 
+left off", edge case My Verba vuota, animazioni di transizione tra le pagine 
+del flusso quiz, e fix del bug del Back button.
+
+# 1. PERSISTENZA SESSIONE IN LOCALSTORAGE
+
+## 1A. Quando l'utente completa una sessione (arriva sulla Results screen)
+Salva in localStorage la chiave `verba_last_session` con questo oggetto JSON:
+{
+  "deck": "<deckId>",          // "essential" | "advanced" | "gre" | "myverba"
+  "difficulty": "<difficulty>", // "easy" | "medium" | "hard" | null (per myverba)
+  "wordCount": <number>,        // es. 20
+  "completedAt": "<ISO date>"   // es. "2026-05-07T18:30:00.000Z"
+}
+
+Implementa la scrittura nel componente Results screen, al mount/render.
+
+## 1B. Quando l'utente completa una sessione, salva anche l'ULTIMA DIFFICOLTÀ 
+USATA per ciascun deck (per il tag "Last" nella Difficulty Selection):
+Chiave: `verba_last_difficulty_<deckId>` (es. `verba_last_difficulty_gre`)
+Valore: "easy" | "medium" | "hard"
+
+## 1C. My Verba parole (placeholder per ora)
+Verifica che esista la chiave `verba_my_verba` come array di stringhe. 
+Se non esiste, inizializzala come `[]`.
+Per testing, possiamo lasciarla vuota o popolare con 3-5 parole hardcoded.
+
+# 2. CARD "CONTINUE WHERE YOU LEFT OFF" (Deck Selection)
+
+## 2A. Posizione e logica di visualizzazione
+Sulla Deck Selection screen, sopra a TUTTE le sezioni famiglia (sopra "Foundations"),
+mostra una card "Continue" SE e SOLO SE:
+- Esiste `verba_last_session` in localStorage
+- `completedAt` è entro gli ultimi 7 giorni (calcola: now - completedAt <= 7 * 24 * 60 * 60 * 1000)
+
+Se queste condizioni non sono soddisfatte, NON mostrare la card. La Deck Selection 
+appare normalmente con solo le 3 sezioni famiglia.
+
+## 2B. Design della card Continue
+- Background: rgba(217,119,6,0.08) (ambra leggermente più presente di una card normale, 
+  per dire "questa è la tua azione brand-primaria")
+- Border: 0.5px solid rgba(217,119,6,0.5)
+- Border-radius: 14px
+- Padding: 14px 16px
+- Margin-bottom: 22px (separazione netta dal resto)
+
+Contenuto della card:
+- Label superiore: "CONTINUE WHERE YOU LEFT OFF" 
+  - color: rgba(217,119,6,0.85)
+  - font-size: 8px
+  - text-transform: uppercase
+  - letter-spacing: 0.6px
+  - font-weight: 600
+  - margin-bottom: 6px
+
+- Riga principale (display flex, justify-content space-between, align-items center):
+  - A SINISTRA:
+    - Riga 1 con emoji deck + nome deck + difficoltà (font-size 12px, font-weight 500, color white):
+      Esempio: "🎓 GRE · Hard" (per myverba: "⭐ My Verba")
+    - Riga 2: "<wordCount> words · <relative time>" 
+      (font-size 9px, opacity 0.55)
+      Per relative time: usa "today" se completedAt è oggi, "yesterday" se ieri, 
+      "<N> days ago" se più giorni
+  
+  - A DESTRA: bottone "Resume →"
+    - background: linear-gradient(90deg, #D97706 0%, #F59E0B 100%)
+    - color: white
+    - font-size: 11px
+    - font-weight: 500
+    - padding: 6px 14px
+    - border-radius: 14px
+    - cursor: pointer
+    - hover: scale(1.05), transition 0.2s ease
+
+## 2C. Click sul bottone Resume
+Naviga DIRETTAMENTE a /quiz con i parametri della sessione salvata:
+- /quiz?deck=<deckId>&difficulty=<difficulty>&wordCount=<wordCount>
+- Skip Difficulty Selection e Pre-Quiz Setup
+- Verifica che la pagina /quiz esistente accetti questi 3 query params senza rompersi
+
+# 3. TAG "LAST" NELLA DIFFICULTY SELECTION
+
+Nella schermata /difficulty?deck=<deckId>:
+Se esiste `verba_last_difficulty_<deckId>` in localStorage, mostra un piccolo tag 
+"LAST" sulla card della difficoltà corrispondente.
+
+## 3A. Design del tag
+Posizione: in alto a destra della card (position: absolute, top: 10px, right: 10px)
+- background: rgba(217,119,6,0.15)
+- border: 0.5px solid rgba(217,119,6,0.4)
+- color: rgba(217,119,6,0.95)
+- font-size: 7px
+- font-weight: 600
+- text-transform: uppercase
+- letter-spacing: 0.5px
+- padding: 2px 6px
+- border-radius: 4px
+
+Testo: "LAST"
+
+NON pre-selezionare la difficoltà: l'utente sceglie liberamente. Il tag è solo 
+un reminder visivo.
+
+# 4. EDGE CASE: MY VERBA VUOTA
+
+## 4A. Logica
+Sulla Deck Selection, leggi `verba_my_verba` da localStorage. 
+Se l'array è vuoto (length === 0), la card My Verba viene mostrata in stato 
+"empty":
+
+## 4B. Design stato empty
+- Opacity card: 0.6 (rispetto al default 1.0)
+- Stats: invece di "12 saved" mostra "Your collection is empty" 
+  (font-size 10px, opacity 0.5, color white)
+- Aggiungi un'icona ⓘ (info) a destra del nome "My Verba", piccola (font-size 11px, 
+  opacity 0.5, margin-left 6px, cursor pointer)
+
+## 4C. Click sulla card My Verba quando vuota
+NON naviga al Pre-Quiz Setup. 
+Mostra un toast in basso (centered, position fixed bottom 20px):
+- background: rgba(217,119,6,0.15)
+- border: 0.5px solid rgba(217,119,6,0.4)
+- color: rgba(255,255,255,0.9)
+- padding: 10px 16px
+- border-radius: 12px
+- font-size: 12px
+- max-width: 320px
+- text-align: center
+
+Testo: "Save words from quizzes by tapping the ⭐ next to them"
+
+Toast: fade-in da bottom (translateY 20px → 0), durata 0.35s ease.
+Autodismiss: 3 secondi.
+Fade-out: opacity 1 → 0 + translateY 0 → 20px, durata 0.35s.
+
+Quando la card My Verba ha invece almeno una parola salvata, comportamento 
+normale (naviga a /pre-quiz-setup?deck=myverba).
+
+# 5. ANIMAZIONI SLIDE LATERALE
+
+Implementa transizioni slide laterale stile iOS tra le pagine del flusso quiz, 
+usando Framer Motion (AnimatePresence + motion.div).
+
+## 5A. Pagine coinvolte
+- Welcome → Deck Selection
+- Deck Selection → Difficulty Selection
+- Deck Selection → Pre-Quiz Setup (caso My Verba)
+- Difficulty Selection → Pre-Quiz Setup
+- Pre-Quiz Setup → Quiz
+- Quiz → Results
+- Deck Selection → Quiz (dal bottone Resume)
+
+## 5B. Specifiche animazione
+- Avanti: nuova pagina entra da destra (initial: x=100%, animate: x=0)
+- Indietro: pagina precedente entra da sinistra (initial: x=-100%, animate: x=0)
+- Durata: 0.4s
+- Easing: cubic-bezier(0.4, 0, 0.2, 1) (ease-out)
+- La pagina che esce: animate: x=-100% (avanti) o x=100% (indietro), opacity 1
+
+Per detectare avanti/indietro: usa il pathname o un flag globale. Soluzione 
+più semplice: sempre slide-from-right per pulsanti "avanti", sempre slide-from-left 
+per pulsanti "back".
+
+# 6. FIX BUG: BACK BUTTON NEL PRE-QUIZ SETUP
+
+Bug attuale: il bottone "Back" nella schermata "Set up your session" 
+(/pre-quiz-setup) torna sempre alla Welcome, non alla pagina precedente.
+
+## 6A. Fix
+Sostituisci il comportamento del Back con `navigate(-1)` di react-router-dom 
+(invece che con un percorso hardcoded come `navigate('/')`).
+
+Verifica che:
+- Da /pre-quiz-setup → Back → torna a /difficulty (se utente arrivato da lì)
+- Da /pre-quiz-setup → Back → torna a /decks (se utente arrivato da lì, es. da My Verba)
+
+# COSA NON FARE
+- NON modificare il design della Welcome, del Quiz o della Results screen
+- NON modificare il sistema cromatico delle card già esistenti
+- NON aggiungere features extra non richieste
+- NON cambiare il sistema di routing esistente, solo navigate(-1) sul Back
+
+# TECH STACK
+React + Tailwind CSS + Framer Motion + react-router-dom + localStorage API
