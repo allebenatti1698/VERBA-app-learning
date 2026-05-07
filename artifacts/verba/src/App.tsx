@@ -4,6 +4,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import WelcomeScreen from "@/pages/WelcomeScreen";
+import DeckSelectionScreen from "@/pages/DeckSelectionScreen";
+import DifficultyScreen from "@/pages/DifficultyScreen";
 import PreQuizSetup from "@/pages/PreQuizSetup";
 import QuizScreen from "@/pages/QuizScreen";
 import ResultsScreen from "@/pages/ResultsScreen";
@@ -14,6 +16,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={WelcomeScreen} />
+      <Route path="/decks" component={DeckSelectionScreen} />
+      <Route path="/difficulty" component={DifficultyScreen} />
       <Route path="/setup" component={PreQuizSetup} />
       <Route path="/quiz" component={QuizScreen} />
       <Route path="/results" component={ResultsScreen} />

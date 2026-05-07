@@ -169,7 +169,7 @@ function StartButton() {
     >
       <motion.button
         data-testid="button-start"
-        onClick={() => setLocation("/setup")}
+        onClick={() => setLocation("/decks")}
         onMouseDown={() => setIsPressed(true)}
         onMouseUp={() => setIsPressed(false)}
         onMouseLeave={() => setIsPressed(false)}

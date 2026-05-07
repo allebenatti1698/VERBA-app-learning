@@ -1,0 +1,127 @@
+Crea una nuova schermata "Deck Selection" per Verba. Posizionala nel routing 
+tra la Welcome screen e il Pre-Quiz Setup esistente.
+
+# CONTESTO
+Verba è un'app di vocabolario GRE in dark mode con stile editorial-premium. 
+Identità visiva consolidata: background #0A0A0A, font Space Grotesk + Inter, 
+palette ambra (brand) / lavender (parole) / sage (sinonimi) / coral (antonimi).
+
+Per questa schermata introduciamo DUE NUOVI COLORI nella palette:
+- Soft blue #7DD3FC → famiglia "Foundations"  
+- Mauve #A78BFA → famiglia "Test Prep"
+
+REGOLA D'ORO: l'ambra resta riservata SOLO a brand fisso (logo, bottoni primari, 
+streak). NON usare ambra come colore identificativo dei deck. L'unico uso 
+dell'ambra in questa schermata è per la progress bar interna alle card.
+
+# TWEMOJI
+Carica Twemoji come web font o via CDN per garantire coerenza cross-platform 
+delle emoji. Le emoji nel codice restano caratteri Unicode standard, ma vengono 
+renderizzate identiche su iOS/Android/Windows.
+
+CDN consigliato: https://cdn.jsdelivr.net/npm/@twemoji/api/dist/twemoji.min.js
+Init dopo render: twemoji.parse(document.body)
+
+# HEADER DELLA SCHERMATA
+- Freccia "‹" in alto a sinistra (back button → torna alla Welcome o pagina precedente, 
+  usa navigate(-1) di react-router)
+- Wordmark "Verba" centrato in alto, font italic, opacity 0.6, font-size 12px, 
+  cliccabile (click → naviga alla home)
+- Sotto: titolo "Choose a deck" font-size 20px, font-weight 500, color white
+- Sottotitolo: "Pick what you want to study today" font-size 11px, opacity 0.5
+
+# SEZIONI FAMIGLIA (3 in totale)
+Ogni sezione ha un header tipografico sopra il gruppo di card:
+- All-caps, letter-spacing 1.6px, font-size 9px, font-weight 600
+- Colore famiglia (vedi sotto)
+- Margin-bottom 10px sotto l'header
+
+## FOUNDATIONS (color: rgba(125,211,252,0.55))
+Contiene 2 card:
+
+### Card 1: Essential English
+- Emoji: 📖 (in alto a sinistra, font-size 18px, margin-bottom 8px)
+- Nome: "Essential English" (font-size 13px, font-weight 500, color white)
+- Descrizione: "Words you need to know" (font-size 10px, opacity 0.5)
+- Stats: "1000 words · 0 mastered" (font-size 10px, opacity 0.45, "0 mastered" colorato in rgba(217,119,6,0.85))
+- Progress bar: height 3px, background rgba(255,255,255,0.06), border-radius 2px, riempimento 0% in #D97706
+- Bordo card: 0.5px solid rgba(125,211,252,0.35)
+- Background card: rgba(255,255,255,0.02)
+- Border-radius: 12px
+- Padding: 14px
+
+### Card 2: Advanced English
+Stessa struttura della precedente, ma:
+- Emoji: 📚
+- Nome: "Advanced English"
+- Descrizione: "Read newspapers and books fluently"
+- Stats: "1000 words · 0 mastered"
+- Progress 0%
+
+## TEST PREP (color: rgba(167,139,250,0.55))
+Contiene 1 card:
+
+### Card 3: GRE Vocabulary
+- Emoji: 🎓
+- Nome: "GRE Vocabulary"
+- Descrizione: "Advanced words for the GRE exam"
+- Stats: "800 words · 245 mastered" (245 in ambra rgba(217,119,6,0.85))
+- Progress: 30% (245/800), riempimento ambra #D97706
+- Bordo card: 0.5px solid rgba(167,139,250,0.4)
+- Background card: rgba(255,255,255,0.02)
+
+## PERSONAL (color: rgba(255,255,255,0.45))
+Contiene 1 card:
+
+### Card 4: My Verba
+- Emoji: ⭐
+- Nome: "My Verba"
+- Descrizione: "Words you've saved or added"
+- Stats: "12 saved" (no progress bar)
+- Bordo card: 0.5px solid rgba(255,255,255,0.18)
+- Background card: rgba(255,255,255,0.025)
+
+# STATI INTERATTIVI DELLE CARD
+Tutte le card sono cliccabili. Stati:
+
+## Default
+- Già descritto sopra (border opacity ~0.35, background neutro)
+
+## Hover (e tap su mobile)
+- Border opacity sale a 0.7 (es. da rgba(167,139,250,0.4) → rgba(167,139,250,0.7))
+- Background passa a rgba(255,255,255,0.04)
+- Transform: scale(1.03)
+- Transition: all 0.2s ease
+
+## Click
+- Card "Essential English" / "Advanced English" / "GRE Vocabulary" → naviga a /difficulty con il deck selezionato come param
+- Card "My Verba" → naviga DIRETTAMENTE a /pre-quiz-setup (skip difficulty)
+
+# ROUTING
+- Path nuovo: /decks → questa pagina
+- Path nuovo: /difficulty?deck=<deckId> → pagina vuota placeholder per ora 
+  (la facciamo nella Fase 2, scrivi solo "Difficulty Selection - WIP" come placeholder)
+- Path esistente: /pre-quiz-setup → invariato
+
+Aggiorna la welcome screen: il bottone "Begin" deve ora navigare a /decks invece 
+che direttamente a /pre-quiz-setup.
+
+# LAYOUT GENERALE
+- Mobile-first
+- Scroll verticale unico (no carosello, no tab)
+- Padding orizzontale 14px-16px
+- Spacing tra sezioni 22px
+- Spacing tra card della stessa sezione 8px
+- Background pagina: #0A0A0A
+- Modulare: ogni Card è un componente con prop `visible={true}` per future Settings
+
+# COSA NON FARE IN QUESTA FASE
+- NON implementare la card "Continue where you left off" (Fase 3)
+- NON implementare la memoria localStorage (Fase 3)
+- NON implementare la difficulty selection vera (Fase 2, qui basta placeholder)
+- NON implementare animazioni slide laterale tra pagine (Fase 3)
+- NON implementare l'edge case My Verba vuota (Fase 3)
+- NON aggiungere progress reali (i numeri sono hardcoded come specificato)
+
+# TECH STACK
+React + Tailwind CSS + Framer Motion (per hover) + Twemoji + react-router-dom
