@@ -378,7 +378,7 @@ function ActionButtons({ wordCount, visible = true }: ActionButtonsProps) {
       {/* New session */}
       <motion.button
         whileTap={{ scale: 0.97 }}
-        onClick={() => navigate("/setup")}
+        onClick={() => navigate("/decks")}
         style={{
           flex: 1,
           padding: "14px 0",
