@@ -45,7 +45,7 @@ function loadMyVerba(): string[] {
   } catch { return []; }
 }
 
-function deckEmoji(deckId: string) {
+function deckEmoji(deckId: string | null) {
   if (deckId === "essential") return "📖";
   if (deckId === "advanced")  return "📚";
   if (deckId === "gre")       return "🎓";
@@ -53,12 +53,12 @@ function deckEmoji(deckId: string) {
   return "📖";
 }
 
-function deckName(deckId: string) {
+function deckName(deckId: string | null) {
   if (deckId === "essential") return "Essential English";
   if (deckId === "advanced")  return "Advanced English";
   if (deckId === "gre")       return "GRE Vocabulary";
   if (deckId === "myverba")   return "My Verba";
-  return deckId;
+  return "Vocabulary";
 }
 
 function relativeTime(completedAt: string): string {
@@ -76,7 +76,7 @@ function ContinueCard({ session }: { session: LastSession }) {
 
   const deckLine = session.deck === "myverba"
     ? "⭐ My Verba"
-    : `${deckEmoji(session.deck)} ${deckName(session.deck)}${session.difficulty
+    : `${deckEmoji(session.deck ?? null)} ${deckName(session.deck ?? null)}${session.difficulty
         ? ` · ${session.difficulty.charAt(0).toUpperCase() + session.difficulty.slice(1)}`
         : ""}`;
 
@@ -101,7 +101,7 @@ function ContinueCard({ session }: { session: LastSession }) {
         fontWeight: 600,
         margin: "0 0 6px",
       }}>
-        Continue where you left off
+        Last session
       </p>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
         <div>
@@ -143,7 +143,7 @@ function ContinueCard({ session }: { session: LastSession }) {
             transition: "transform 0.2s ease",
           }}
         >
-          Resume →
+          Quick start →
         </motion.button>
       </div>
     </div>
