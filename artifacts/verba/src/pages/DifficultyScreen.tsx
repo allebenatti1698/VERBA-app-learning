@@ -1,13 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useLocation, useSearch } from "wouter";
+import { BookOpen, Library, GraduationCap } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
-
-declare global {
-  interface Window {
-    twemoji?: { parse: (node: Node | string, options?: Record<string, unknown>) => string };
-  }
-}
 
 // ─── Colour tokens per family ─────────────────────────────────────────────────
 const FAMILY = {
@@ -24,10 +19,20 @@ function deckColor(deck: DeckId) {
   return deck === "gre" ? FAMILY.mauve : FAMILY.blue;
 }
 
-function deckLabel(deck: DeckId) {
-  if (deck === "essential") return "📖 Essential English";
-  if (deck === "advanced")  return "📚 Advanced English";
-  return "🎓 GRE Vocabulary";
+const DECK_ICON_MAP: Record<DeckId, { Icon: React.FC<{ size?: number; strokeWidth?: number; color?: string }>; color: string; name: string }> = {
+  essential: { Icon: BookOpen,      color: "rgba(125,211,252,0.9)",  name: "Essential English" },
+  advanced:  { Icon: Library,       color: "rgba(125,211,252,0.9)",  name: "Advanced English"  },
+  gre:       { Icon: GraduationCap, color: "rgba(167,139,250,0.95)", name: "GRE Vocabulary"    },
+};
+
+function DeckHeaderLabel({ deck }: { deck: DeckId }) {
+  const { Icon, color, name } = DECK_ICON_MAP[deck];
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+      <Icon size={13} strokeWidth={1.5} color={color} />
+      <span>{name}</span>
+    </div>
+  );
 }
 
 function loadLastDifficulty(deck: DeckId): Difficulty | null {
@@ -159,8 +164,7 @@ export default function DifficultyScreen() {
   const isValid = VALID_DECKS.includes(rawDeck as DeckId);
 
   useEffect(() => {
-    if (!isValid) { navigate("/decks"); return; }
-    if (window.twemoji) window.twemoji.parse(document.body);
+    if (!isValid) { navigate("/decks"); }
   }, [isValid, navigate]);
 
   if (!isValid) return null;
@@ -234,14 +238,14 @@ export default function DifficultyScreen() {
         transition={{ duration: 0.3, ease: "easeOut", delay: 0.08 }}
         style={{ position: "relative", zIndex: 10, padding: "20px 16px 48px" }}
       >
-        <p style={{
+        <div style={{
           fontFamily: "'Inter', sans-serif",
           fontSize: 11,
           color: "rgba(255,255,255,0.5)",
           margin: "0 0 4px",
         }}>
-          {deckLabel(deck)}
-        </p>
+          <DeckHeaderLabel deck={deck} />
+        </div>
 
         <h1 style={{
           fontFamily: "'Space Grotesk', sans-serif",

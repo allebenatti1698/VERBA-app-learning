@@ -1,0 +1,70 @@
+Three fixes for the Deck Selection screen "LAST SESSION" card:
+
+# FIX 1 — Show full deck name
+The card currently shows partial deck names. It must show the FULL display name 
+based on deckId from verba_last_session in localStorage.
+
+Mapping (deckId → display name):
+- "essential" → "Essential English"
+- "advanced" → "Advanced English"
+- "gre" → "GRE Vocabulary"
+- "myverba" → "My Verba"
+
+If the saved deckId in localStorage is "gre", the card MUST show "GRE 
+Vocabulary", not "Vocabulary" or any partial version.
+
+# FIX 2 — Show difficulty after deck name
+The card must show the difficulty next to the deck name, separated by " · ":
+
+Display format: "<icon> <Full deck name> · <Difficulty capitalized>"
+
+Examples:
+- "<icon> GRE Vocabulary · Hard"
+- "<icon> Essential English · Easy"
+- "<icon> Advanced English · Medium"
+
+Exception: if deck is "myverba", show only "<icon> My Verba" (no difficulty 
+because My Verba doesn't have one).
+
+The difficulty value comes from verba_last_session.difficulty in localStorage.
+Capitalize the first letter: "easy" → "Easy", "medium" → "Medium", "hard" → "Hard".
+
+# FIX 3 — Replace ALL book/star emojis with Lucide icons
+Currently the app uses Twemoji emojis (📖 📚 🎓 ⭐) which look dated. Replace 
+them everywhere they appear with Lucide icons.
+
+Install lucide-react if not already installed.
+
+Required Lucide icons per deck:
+- "essential" → <BookOpen /> 
+- "advanced" → <Library />
+- "gre" → <GraduationCap />
+- "myverba" → <Star />
+
+Styling for Lucide icons:
+- size={20} (or 22 for hero cards if they look too small)
+- strokeWidth={1.5}
+- stroke="currentColor"
+- Use these CSS color overrides per deck:
+  - essential / advanced: rgba(125,211,252,0.9)
+  - gre: rgba(167,139,250,0.95)
+  - myverba: rgba(255,255,255,0.85)
+
+Replace emojis in ALL these locations:
+1. The 4 deck cards on Deck Selection screen
+2. The "LAST SESSION" card on Deck Selection
+3. The deck info header on Difficulty Selection screen ("📖 Essential English" 
+   small line at top)
+4. Anywhere else they currently appear
+
+# TESTING
+After applying all 3 fixes:
+1. Complete a quick GRE Hard quiz (5 words)
+2. Go back to Deck Selection
+3. Verify the LAST SESSION card shows: "<GraduationCap icon> GRE Vocabulary · Hard"
+4. Verify all 4 deck cards now use Lucide icons (no more book/star emojis)
+5. Click GRE → Difficulty Selection → verify the small deck info header at top 
+   uses the GraduationCap icon
+6. Verify "Quick start →" still navigates to /quiz with saved params
+
+Report what was changed and confirm tests passed.

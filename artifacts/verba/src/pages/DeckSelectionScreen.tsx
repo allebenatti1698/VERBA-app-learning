@@ -1,23 +1,42 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
+import { BookOpen, Library, GraduationCap, Star } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
-
-declare global {
-  interface Window {
-    twemoji?: { parse: (node: Node | string, options?: Record<string, unknown>) => string };
-  }
-}
 
 // ─── Family palette tokens ────────────────────────────────────────────────────
 const BLUE  = { label: "rgba(125,211,252,0.55)", border: "rgba(125,211,252,0.35)", hover: "rgba(125,211,252,0.7)"  };
 const MAUVE = { label: "rgba(167,139,250,0.55)", border: "rgba(167,139,250,0.4)",  hover: "rgba(167,139,250,0.7)"  };
 const GREY  = { label: "rgba(255,255,255,0.45)", border: "rgba(255,255,255,0.18)", hover: "rgba(255,255,255,0.4)"  };
 
+// ─── Icon system ──────────────────────────────────────────────────────────────
+type KnownDeckId = "essential" | "advanced" | "gre" | "myverba";
+
+const DECK_META: Record<KnownDeckId, { Icon: React.FC<{ size?: number; strokeWidth?: number; color?: string }>; color: string; name: string }> = {
+  essential: { Icon: BookOpen,       color: "rgba(125,211,252,0.9)",  name: "Essential English" },
+  advanced:  { Icon: Library,        color: "rgba(125,211,252,0.9)",  name: "Advanced English"  },
+  gre:       { Icon: GraduationCap,  color: "rgba(167,139,250,0.95)", name: "GRE Vocabulary"    },
+  myverba:   { Icon: Star,           color: "rgba(255,255,255,0.85)", name: "My Verba"          },
+};
+
+function getDeckMeta(deckId: string | null) {
+  if (deckId && deckId in DECK_META) return DECK_META[deckId as KnownDeckId];
+  return { Icon: BookOpen, color: "rgba(125,211,252,0.9)", name: "Vocabulary" };
+}
+
+function DeckIcon({ deckId, size = 20 }: { deckId: string | null; size?: number }) {
+  const { Icon, color } = getDeckMeta(deckId);
+  return <Icon size={size} strokeWidth={1.5} color={color} />;
+}
+
+function deckDisplayName(deckId: string | null): string {
+  return getDeckMeta(deckId).name;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 interface LastSession {
-  deck: string;
+  deck: string | null;
   difficulty: string | null;
   wordCount: number;
   completedAt: string;
@@ -45,22 +64,6 @@ function loadMyVerba(): string[] {
   } catch { return []; }
 }
 
-function deckEmoji(deckId: string | null) {
-  if (deckId === "essential") return "📖";
-  if (deckId === "advanced")  return "📚";
-  if (deckId === "gre")       return "🎓";
-  if (deckId === "myverba")   return "⭐";
-  return "📖";
-}
-
-function deckName(deckId: string | null) {
-  if (deckId === "essential") return "Essential English";
-  if (deckId === "advanced")  return "Advanced English";
-  if (deckId === "gre")       return "GRE Vocabulary";
-  if (deckId === "myverba")   return "My Verba";
-  return "Vocabulary";
-}
-
 function relativeTime(completedAt: string): string {
   const diffMs = Date.now() - new Date(completedAt).getTime();
   const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
@@ -69,16 +72,16 @@ function relativeTime(completedAt: string): string {
   return `${diffDays} days ago`;
 }
 
-// ─── Continue card ────────────────────────────────────────────────────────────
+// ─── Continue / Last session card ─────────────────────────────────────────────
 function ContinueCard({ session }: { session: LastSession }) {
   const [, navigate] = useLocation();
   const [btnHovered, setBtnHovered] = useState(false);
 
-  const deckLine = session.deck === "myverba"
-    ? "⭐ My Verba"
-    : `${deckEmoji(session.deck ?? null)} ${deckName(session.deck ?? null)}${session.difficulty
-        ? ` · ${session.difficulty.charAt(0).toUpperCase() + session.difficulty.slice(1)}`
-        : ""}`;
+  const isMyVerba = session.deck === "myverba";
+  const name = deckDisplayName(session.deck);
+  const diffLabel = !isMyVerba && session.difficulty
+    ? ` · ${session.difficulty.charAt(0).toUpperCase() + session.difficulty.slice(1)}`
+    : "";
 
   function resume() {
     navigate(`/quiz?words=${session.wordCount}&deck=${session.deck}&difficulty=${session.difficulty ?? ""}`);
@@ -105,15 +108,23 @@ function ContinueCard({ session }: { session: LastSession }) {
       </p>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
         <div>
-          <p style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: 12,
-            fontWeight: 500,
-            color: "#FFFFFF",
-            margin: "0 0 2px",
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            marginBottom: 2,
           }}>
-            {deckLine}
-          </p>
+            <DeckIcon deckId={session.deck} size={14} />
+            <p style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontSize: 12,
+              fontWeight: 500,
+              color: "#FFFFFF",
+              margin: 0,
+            }}>
+              {name}{diffLabel}
+            </p>
+          </div>
           <p style={{
             fontFamily: "'Inter', sans-serif",
             fontSize: 9,
@@ -183,7 +194,7 @@ function AmberProgressBar({ value }: { value: number }) {
 
 // ─── Deck card ────────────────────────────────────────────────────────────────
 interface DeckCardProps {
-  emoji: string;
+  deckId: KnownDeckId;
   name: string;
   description: string;
   statsPrefix: string;
@@ -193,16 +204,15 @@ interface DeckCardProps {
   progress?: number;
   borderDefault: string;
   borderHover: string;
-  deckId?: string;
   isEmpty?: boolean;
   onEmptyClick?: () => void;
   visible?: boolean;
 }
 
 function DeckCard({
-  emoji, name, description,
+  deckId, name, description,
   statsPrefix, masteredCount, statsSuffix, noMastered,
-  progress, borderDefault, borderHover, deckId,
+  progress, borderDefault, borderHover,
   isEmpty, onEmptyClick, visible = true,
 }: DeckCardProps) {
   const [, navigate] = useLocation();
@@ -212,7 +222,7 @@ function DeckCard({
 
   function handleClick() {
     if (isEmpty && onEmptyClick) { onEmptyClick(); return; }
-    if (deckId) navigate(`/difficulty?deck=${deckId}`);
+    if (deckId !== "myverba") navigate(`/difficulty?deck=${deckId}`);
     else navigate("/setup");
   }
 
@@ -234,7 +244,9 @@ function DeckCard({
         opacity: isEmpty ? 0.6 : 1,
       }}
     >
-      <div style={{ fontSize: 18, marginBottom: 8, lineHeight: 1 }}>{emoji}</div>
+      <div style={{ marginBottom: 8, lineHeight: 1 }}>
+        <DeckIcon deckId={deckId} size={20} />
+      </div>
 
       <p style={{
         fontFamily: "'Space Grotesk', sans-serif",
@@ -301,10 +313,6 @@ export default function DeckSelectionScreen() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const myVerbaEmpty = myVerba.length === 0;
-
-  useEffect(() => {
-    if (window.twemoji) window.twemoji.parse(document.body);
-  }, []);
 
   function handleMyVerbaEmptyClick() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -406,7 +414,7 @@ export default function DeckSelectionScreen() {
             gap: 22,
           }}
         >
-          {/* CONTINUE card — only when within 7 days */}
+          {/* LAST SESSION card — only when within 7 days */}
           {lastSession && <ContinueCard session={lastSession} />}
 
           {/* FOUNDATIONS */}
@@ -414,7 +422,7 @@ export default function DeckSelectionScreen() {
             <SectionHeader label="Foundations" color={BLUE.label} />
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <DeckCard
-                emoji="📖"
+                deckId="essential"
                 name="Essential English"
                 description="Words you need to know"
                 statsPrefix="1000 words · "
@@ -423,10 +431,9 @@ export default function DeckSelectionScreen() {
                 progress={0}
                 borderDefault={BLUE.border}
                 borderHover={BLUE.hover}
-                deckId="essential"
               />
               <DeckCard
-                emoji="📚"
+                deckId="advanced"
                 name="Advanced English"
                 description="Read newspapers and books fluently"
                 statsPrefix="1000 words · "
@@ -435,7 +442,6 @@ export default function DeckSelectionScreen() {
                 progress={0}
                 borderDefault={BLUE.border}
                 borderHover={BLUE.hover}
-                deckId="advanced"
               />
             </div>
           </div>
@@ -444,7 +450,7 @@ export default function DeckSelectionScreen() {
           <div>
             <SectionHeader label="Test Prep" color={MAUVE.label} />
             <DeckCard
-              emoji="🎓"
+              deckId="gre"
               name="GRE Vocabulary"
               description="Advanced words for the GRE exam"
               statsPrefix="800 words · "
@@ -453,7 +459,6 @@ export default function DeckSelectionScreen() {
               progress={30}
               borderDefault={MAUVE.border}
               borderHover={MAUVE.hover}
-              deckId="gre"
             />
           </div>
 
@@ -461,7 +466,7 @@ export default function DeckSelectionScreen() {
           <div>
             <SectionHeader label="Personal" color={GREY.label} />
             <DeckCard
-              emoji="⭐"
+              deckId="myverba"
               name="My Verba"
               description="Words you've saved or added"
               statsPrefix="12 saved"
@@ -475,7 +480,7 @@ export default function DeckSelectionScreen() {
         </motion.div>
       </div>
 
-      {/* Empty My Verba toast — portal so position:fixed ignores ancestor transforms */}
+      {/* Empty My Verba toast */}
       {createPortal(
         <AnimatePresence>
           {showEmptyToast && (
