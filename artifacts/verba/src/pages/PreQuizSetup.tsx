@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import AppBackground from "@/components/AppBackground";
 
 const cardStyle: React.CSSProperties = {
@@ -14,10 +14,17 @@ const cardStyle: React.CSSProperties = {
 
 export default function PreQuizSetup() {
   const [, setLocation] = useLocation();
+  const search = useSearch();
+  const params = new URLSearchParams(search);
+  const deck = params.get("deck") ?? null;
+  const difficulty = params.get("difficulty") ?? null;
   const [wordCount, setWordCount] = useState(10);
 
   function handleBegin() {
-    setLocation(`/quiz?words=${wordCount}`);
+    const queryParts = [`words=${wordCount}`];
+    if (deck) queryParts.push(`deck=${deck}`);
+    if (difficulty) queryParts.push(`difficulty=${difficulty}`);
+    setLocation(`/quiz?${queryParts.join("&")}`);
   }
 
   return (

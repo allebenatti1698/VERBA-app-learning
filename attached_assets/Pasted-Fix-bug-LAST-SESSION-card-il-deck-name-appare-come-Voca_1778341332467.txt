@@ -1,0 +1,53 @@
+Fix bug LAST SESSION card: il deck name appare come "Vocabulary" invece del 
+nome reale, e la difficoltà non appare. Root cause: PreQuizSetup.tsx non 
+propaga i query params deck e difficulty quando naviga a /quiz.
+
+# FILE DA MODIFICARE
+artifacts/verba/src/pages/PreQuizSetup.tsx
+
+# COSA FARE
+1. Importa useSearch da wouter (insieme a useLocation che è già importato)
+2. Leggi i query params deck e difficulty all'inizio del componente:
+   const search = useSearch();
+   const params = new URLSearchParams(search);
+   const deck = params.get("deck") ?? null;
+   const difficulty = params.get("difficulty") ?? null;
+3. Modifica handleBegin per propagare deck e difficulty a /quiz:
+
+function handleBegin() {
+  const queryParts = [`words=${wordCount}`];
+  if (deck) queryParts.push(`deck=${deck}`);
+  if (difficulty) queryParts.push(`difficulty=${difficulty}`);
+  setLocation(`/quiz?${queryParts.join("&")}`);
+}
+
+Il caso myverba (no difficulty) è gestito automaticamente: deck="myverba" 
+viene incluso, difficulty viene saltato.
+
+# TESTING
+PRIMA di testare, pulisci localStorage:
+- Apri DevTools Console
+- Esegui: localStorage.removeItem("verba_last_session")
+- Refresh
+
+Poi:
+1. Welcome → Start → Decks
+2. Click "Advanced English" → Difficulty → click "Medium"
+3. Pre-Quiz Setup → click "Begin"
+4. Verifica URL del quiz: deve essere /quiz?words=10&deck=advanced&difficulty=medium
+5. Completa il quiz (anche tutti sbagliati va bene)
+6. Sulla Results screen, apri DevTools Console:
+   localStorage.getItem("verba_last_session")
+   Deve mostrare: {"deck":"advanced","difficulty":"medium","wordCount":10,"completedAt":"..."}
+7. Torna su /decks
+8. La card LAST SESSION deve mostrare:
+   <Library icon> Advanced English · Medium
+   10 words · today
+
+Riporta cosa è stato modificato e conferma che il test passa.
+
+# COSA NON FARE
+- NON modificare DeckSelectionScreen.tsx, QuizScreen.tsx, ResultsScreen.tsx, 
+  DifficultyScreen.tsx — sono già corretti
+- NON modificare il design o gli stili
+- NON aggiungere features non richieste
