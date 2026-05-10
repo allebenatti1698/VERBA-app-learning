@@ -1,0 +1,152 @@
+Step 7 fase 1 di Verba: setup Supabase + schema DB + seed data di test.
+
+# OBIETTIVO
+Configurare Supabase per Verba (artifacts/verba/) e creare lo schema completo 
+del database. NESSUNA modifica alla UI esistente. NESSUNA sostituzione di 
+localStorage. Solo backend setup.
+
+# STEP 1 — SUPABASE SETUP
+1. Verifica se Supabase è già integrato. Se non lo è, configura la 
+   connessione (env: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
+2. Installa @supabase/supabase-js in artifacts/verba/
+3. Crea artifacts/verba/src/lib/supabase.ts che esporta un client configurato
+
+# STEP 2 — SCHEMA DB
+Crea le 7 tabelle seguenti via migration SQL (file: 
+artifacts/verba/supabase/migrations/0001_initial_schema.sql):
+
+-- 1. decks
+CREATE TABLE decks (
+  slug TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  color_family TEXT NOT NULL,
+  total_words INTEGER DEFAULT 0
+);
+
+-- 2. words
+CREATE TABLE words (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  deck_slug TEXT REFERENCES decks(slug) ON DELETE CASCADE,
+  word TEXT NOT NULL,
+  difficulty TEXT CHECK (difficulty IN ('easy','medium','hard')),
+  frequency_rank INTEGER,
+  italian_translation TEXT,
+  synonyms TEXT[] DEFAULT '{}',
+  antonyms TEXT[] DEFAULT '{}',
+  distractors TEXT[] DEFAULT '{}',
+  source TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX idx_words_deck_difficulty ON words(deck_slug, difficulty);
+
+-- 3. word_definitions (multi-def support)
+CREATE TABLE word_definitions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  word_id UUID REFERENCES words(id) ON DELETE CASCADE,
+  part_of_speech TEXT NOT NULL,
+  definition TEXT NOT NULL,
+  example TEXT,
+  display_order INTEGER DEFAULT 0
+);
+CREATE INDEX idx_word_definitions_word ON word_definitions(word_id);
+
+-- 4. user_word_progress (SRS + mastery)
+CREATE TABLE user_word_progress (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  word_id UUID REFERENCES words(id) ON DELETE CASCADE,
+  consecutive_correct INTEGER DEFAULT 0,
+  total_correct INTEGER DEFAULT 0,
+  total_seen INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'learning' CHECK (status IN ('learning','reviewing','mastered')),
+  last_seen_at TIMESTAMPTZ,
+  next_review_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, word_id)
+);
+CREATE INDEX idx_progress_user ON user_word_progress(user_id);
+
+-- 5. user_sessions
+CREATE TABLE user_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  deck_slug TEXT REFERENCES decks(slug),
+  difficulty TEXT,
+  word_count INTEGER,
+  correct_count INTEGER,
+  duration_ms INTEGER,
+  completed_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX idx_sessions_user ON user_sessions(user_id, completed_at DESC);
+
+-- 6. user_my_verba
+CREATE TABLE user_my_verba (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  word_id UUID REFERENCES words(id) ON DELETE CASCADE,
+  saved_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, word_id)
+);
+
+-- 7. user_settings
+CREATE TABLE user_settings (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  feedback_card_visible BOOLEAN DEFAULT true,
+  translation_language TEXT DEFAULT 'it',
+  quiz_mode_default TEXT DEFAULT 'multiple_choice',
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+# STEP 3 — RLS POLICIES (Row Level Security)
+Abilita RLS su tutte le tabelle user_*. Policies basic:
+- user_word_progress / user_sessions / user_my_verba / user_settings: 
+  ogni utente può SELECT/INSERT/UPDATE/DELETE solo le proprie righe 
+  (where user_id = auth.uid())
+- decks / words / word_definitions: lettura pubblica anonima (qualsiasi 
+  utente loggato o no può leggere)
+
+# STEP 4 — SEED DATA
+Crea artifacts/verba/supabase/migrations/0002_seed_data.sql con:
+
+Decks (4 INSERT):
+- ('essential', 'Essential English', 'Words you need to know', 'blue', 1000)
+- ('advanced', 'Advanced English', 'Read newspapers and books fluently', 'blue', 1000)
+- ('gre', 'GRE Vocabulary', 'Advanced words for the GRE exam', 'mauve', 800)
+- ('myverba', 'My Verba', 'Words you have saved or added', 'amber', 0)
+
+Words (15 INSERT, 5 per deck non-myverba):
+- Essential: 5 parole semplici (es. "run", "light", "study", "simple", "try")
+- Advanced: 5 parole intermedie (es. "resilience", "contemplate", "ambivalent", "profound", "mitigate")
+- GRE: 5 parole dal QuizScreen attuale (ephemeral, luminous, cogent, querulous, sanguine)
+
+Per ogni parola: difficulty="medium" (default test), italian_translation, 
+synonyms array (2-3), antonyms array (1-2), distractors array (3 stringhe), 
+source ("NGSL" o "GregMat-Group1" ecc.).
+
+Word_definitions: per ogni parola almeno 1 definizione con part_of_speech 
+e example. Per "sanguine" e "gall" se le includi, aggiungi 2-3 definizioni 
+con diversi part_of_speech per testare il multi-def.
+
+# STEP 5 — TEST QUERY SCRIPT
+Crea artifacts/verba/scripts/test-db.ts che:
+1. Fetcha tutti i decks
+2. Fetcha 3 words con difficulty='medium' dal deck 'gre'
+3. Per ogni word, fetcha le sue word_definitions
+4. Stampa risultati formattati in console
+Eseguibile via: pnpm tsx artifacts/verba/scripts/test-db.ts
+
+# COSA NON FARE
+- NON modificare nessun file in artifacts/verba/src/pages/ o components/
+- NON installare Drizzle ORM (usiamo @supabase/supabase-js direttamente)
+- NON testare la UI live, NON avviare il dev server
+- NON implementare auth UI (login/signup) — lo facciamo in fase 2
+
+# COSA RIPORTARE
+1. Conferma che Supabase è connesso (env vars, lib/supabase.ts creato)
+2. Output del test query script (deve mostrare 4 decks + 3 GRE words con definizioni)
+3. Lista dei file creati/modificati
+4. Eventuali warning o problemi
+
+Apply le migrations e verifica che tutto funzioni con il test script.
