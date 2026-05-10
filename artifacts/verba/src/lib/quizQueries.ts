@@ -1,0 +1,109 @@
+import { supabase } from "@/lib/supabase";
+
+export type QuizWordDefinition = {
+  part_of_speech: string;
+  definition: string;
+  example: string;
+  display_order: number;
+};
+
+export type QuizWord = {
+  id: string;
+  word: string;
+  phonetic?: string;
+  correctDefinition: string;
+  distractors: string[];
+  italianTranslation: string;
+  italianDefinition?: string;
+  exampleSentence: string;
+  synonyms: string[];
+  antonyms: string[];
+  etymology?: string;
+  allDefinitions: QuizWordDefinition[];
+};
+
+type DbWordRow = {
+  id: string;
+  word: string;
+  italian_translation: string | null;
+  synonyms: string[] | null;
+  antonyms: string[] | null;
+  distractors: string[] | null;
+  word_definitions:
+    | {
+        part_of_speech: string | null;
+        definition: string | null;
+        example: string | null;
+        display_order: number | null;
+      }[]
+    | null;
+};
+
+const CANDIDATE_POOL_SIZE = 200;
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+export async function fetchQuizWords(
+  deckSlug: string,
+  difficulty: string | null,
+  count: number,
+): Promise<QuizWord[]> {
+  let query = supabase
+    .from("words")
+    .select("id, word, italian_translation, synonyms, antonyms, distractors, word_definitions(part_of_speech, definition, example, display_order)")
+    .eq("deck_slug", deckSlug)
+    .limit(CANDIDATE_POOL_SIZE);
+
+  if (difficulty) {
+    query = query.eq("difficulty", difficulty);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) {
+    throw new Error(
+      `No words found for deck "${deckSlug}"${difficulty ? ` and difficulty "${difficulty}"` : ""}.`,
+    );
+  }
+
+  const rows = data as DbWordRow[];
+  const sampled = shuffleArray(rows).slice(0, count);
+
+  return sampled.map<QuizWord>((row) => {
+    const defs: QuizWordDefinition[] = (row.word_definitions ?? [])
+      .map((d) => ({
+        part_of_speech: d.part_of_speech ?? "",
+        definition: d.definition ?? "",
+        example: d.example ?? "",
+        display_order: d.display_order ?? 0,
+      }))
+      .sort((a, b) => a.display_order - b.display_order);
+
+    const primary = defs[0];
+    const correctDefinition = primary?.definition ?? "";
+    const exampleSentence = primary?.example ?? "";
+    const italianTranslation = row.italian_translation ?? "";
+
+    return {
+      id: row.id,
+      word: row.word,
+      correctDefinition,
+      distractors: row.distractors ?? [],
+      italianTranslation,
+      italianDefinition: italianTranslation || undefined,
+      exampleSentence,
+      synonyms: row.synonyms ?? [],
+      antonyms: row.antonyms ?? [],
+      allDefinitions: defs,
+      phonetic: undefined,
+      etymology: undefined,
+    };
+  });
+}

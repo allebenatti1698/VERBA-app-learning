@@ -1,0 +1,88 @@
+Fase 3 di Verba: sostituire QUIZ_WORDS hardcoded con fetch da Supabase. 
+Il database Supabase contiene 799 parole GRE reali (deck_slug='gre') con 
+definizioni, sinonimi, antonimi, distractors, italian_translation.
+
+# OBIETTIVO
+QuizScreen.tsx deve fetchare le parole dal DB invece di usare l'array 
+QUIZ_WORDS hardcoded. UX visiva INVARIATA, solo source dei dati cambia.
+
+# STEP 1 — CREA SERVICE
+Crea artifacts/verba/src/lib/quizQueries.ts che esporta:
+
+export type QuizWord = {
+  id: string;
+  word: string;
+  phonetic?: string;
+  correctDefinition: string;
+  distractors: string[];
+  italianTranslation: string;
+  italianDefinition?: string;
+  exampleSentence: string;
+  synonyms: string[];
+  antonyms: string[];
+  etymology?: string;
+  allDefinitions: { part_of_speech: string; definition: string; example: string; display_order: number }[];
+};
+
+export async function fetchQuizWords(
+  deckSlug: string,
+  difficulty: string | null,
+  count: number
+): Promise<QuizWord[]>
+
+Implementazione:
+- Usa supabase client da @/lib/supabase
+- Query .from('words').select('*, word_definitions(*)') con filter eq('deck_slug', deckSlug)
+- Se difficulty non è null, aggiungi .eq('difficulty', difficulty)
+- Limit alle N parole random — usa una RPC custom o un trucco: prendi 200 candidate, mescolale lato client con shuffleArray, slice(0, count)
+- Per ogni word: ordina word_definitions per display_order asc
+- Mappa al QuizWord type: 
+  - correctDefinition = prima definition.definition
+  - exampleSentence = prima definition.example
+  - allDefinitions = tutte le definizioni ordinate
+  - phonetic e etymology lasciati undefined (non sono nel DB attualmente)
+  - italianDefinition = italian_translation (fallback)
+
+# STEP 2 — MODIFICA QUIZSCREEN.TSX
+- Rimuovi l'array QUIZ_WORDS e tutti i 10 oggetti hardcoded (mantieni shuffleArray e playCorrectSound)
+- Aggiungi 3 useState: quizWords (QuizWord[]), loading (true di default), error (string|null)
+- Aggiungi useEffect (al mount, dipende da deck/difficulty/words da URL params):
+  - Imposta loading=true
+  - Chiama fetchQuizWords(deck || 'gre', difficulty, totalWords)
+  - On success: setQuizWords + loading=false
+  - On error: setError(message) + loading=false
+- Rendering condizionale:
+  - Se loading: mostra <AppBackground dimWords={true}> con un loader centrato (lucide Loader2 + animate-spin + testo "Loading words...")
+  - Se error: mostra <AppBackground> con error message + bottone "Try again" che riavvia il fetch (ghost button amber border)
+  - Se quizWords pronto: rendering normale identico a prima, ma usando quizWords invece di QUIZ_WORDS
+- IMPORTANTE: il valore di totalWords ora deve dipendere da quizWords.length, non da QUIZ_WORDS.length
+
+# STEP 3 — TEST SCRIPT
+Crea artifacts/verba/scripts/test-quiz-queries.ts che:
+- importa fetchQuizWords
+- chiama fetchQuizWords('gre', 'medium', 5)
+- stampa: id, word, correctDefinition, primo distractor, count allDefinitions
+Eseguibile via: pnpm --filter @workspace/verba exec tsx scripts/test-quiz-queries.ts
+
+# STEP 4 — TEST LIVE
+Dopo aver implementato, fai partire il dev server e visita:
+/quiz?words=10&deck=gre&difficulty=medium
+
+Verifica nel browser:
+1. Compare brevemente lo spinner
+2. Poi compare una parola che NON è ephemeral/luminous/cogent (deve essere una delle 799 nuove)
+3. Le 4 opzioni mostrano definizioni vere
+4. FeedbackCard funziona normalmente dopo aver risposto
+
+# COSA NON FARE
+- NON modificare design o stili
+- NON modificare FeedbackCard (multi-def display sarà task separato)
+- NON modificare DeckSelectionScreen, ResultsScreen, PreQuizSetup
+- NON installare nuove dipendenze
+- NON cambiare nomi/tipi nelle struct esistenti
+
+# COSA RIPORTARE
+1. Output del test-quiz-queries.ts script
+2. Conferma del test live nel browser (quale parola hai visto)
+3. Lista file creati/modificati
+4. Eventuali warning o errori

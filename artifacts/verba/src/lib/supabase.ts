@@ -1,7 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+// Read from import.meta.env (Vite/browser) and fall back to process.env (Node/tsx)
+const viteEnv = (typeof import.meta !== "undefined" ? import.meta.env : undefined) as
+  | Record<string, string | undefined>
+  | undefined;
+const nodeEnv = (typeof process !== "undefined" ? process.env : undefined) as
+  | Record<string, string | undefined>
+  | undefined;
+
+const supabaseUrl = viteEnv?.VITE_SUPABASE_URL ?? nodeEnv?.VITE_SUPABASE_URL;
+const supabaseAnonKey = viteEnv?.VITE_SUPABASE_ANON_KEY ?? nodeEnv?.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
