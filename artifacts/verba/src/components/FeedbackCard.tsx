@@ -23,16 +23,45 @@ function IconVolume() {
   );
 }
 
+let _cachedVoice: SpeechSynthesisVoice | null = null;
+
+function getBestEnglishVoice(): SpeechSynthesisVoice | null {
+  if (_cachedVoice) return _cachedVoice;
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) return null;
+
+  const preferred = [
+    (v: SpeechSynthesisVoice) => v.name === "Google US English",
+    (v: SpeechSynthesisVoice) => v.name.includes("Samantha"),
+    (v: SpeechSynthesisVoice) => v.name.includes("Aria") || v.name.includes("Jenny"),
+    (v: SpeechSynthesisVoice) => v.lang === "en-US",
+    (v: SpeechSynthesisVoice) => v.lang.startsWith("en"),
+  ];
+
+  for (const pred of preferred) {
+    const found = voices.find(pred);
+    if (found) { _cachedVoice = found; return found; }
+  }
+  return voices[0] ?? null;
+}
+
 function speakWord(word: string) {
   try {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(word);
     utterance.lang = "en-US";
-    utterance.rate = 0.9;
+    utterance.rate = 0.85;
+    utterance.pitch = 1.0;
+    const voice = getBestEnglishVoice();
+    if (voice) utterance.voice = voice;
     window.speechSynthesis.speak(utterance);
   } catch {
     // SpeechSynthesis not available
   }
+}
+
+if (typeof window !== "undefined" && "speechSynthesis" in window) {
+  window.speechSynthesis.onvoiceschanged = () => { _cachedVoice = null; };
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -162,10 +191,7 @@ export function FeedbackMultiDefinitions({ definitions, visible = true }: Feedba
   return (
     <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 18 }}>
       {definitions.map((def, idx) => (
-        <div key={idx} style={{
-          paddingLeft: idx === 0 ? 0 : 14,
-          borderLeft: idx === 0 ? "none" : "1px solid rgba(255,255,255,0.08)",
-        }}>
+        <div key={idx}>
           <p style={{
             fontFamily: "'Inter', sans-serif",
             fontWeight: 500,
@@ -176,12 +202,25 @@ export function FeedbackMultiDefinitions({ definitions, visible = true }: Feedba
             margin: "0 0 6px",
             fontStyle: "italic",
           }}>
+            {definitions.length > 1 && (
+              <span style={{
+                fontFamily: "'Inter', sans-serif",
+                fontWeight: 500,
+                fontSize: 11,
+                letterSpacing: "0.12em",
+                color: "rgba(199,184,232,0.5)",
+                marginRight: 6,
+                fontStyle: "italic",
+              }}>
+                {idx + 1}.
+              </span>
+            )}
             {def.part_of_speech}
           </p>
           <p style={{
             fontFamily: "'Inter', sans-serif",
             fontWeight: 400,
-            fontSize: idx === 0 ? 20 : 17,
+            fontSize: 18,
             color: "#FFFFFF",
             margin: 0,
             lineHeight: 1.4,
@@ -358,6 +397,7 @@ interface FeedbackEtymologyProps {
 }
 export function FeedbackEtymology({ etymology, visible = true }: FeedbackEtymologyProps) {
   if (!visible) return null;
+  if (!etymology || etymology.trim() === "") return null;
   return (
     <div style={{ marginTop: 24 }}>
       <p style={{

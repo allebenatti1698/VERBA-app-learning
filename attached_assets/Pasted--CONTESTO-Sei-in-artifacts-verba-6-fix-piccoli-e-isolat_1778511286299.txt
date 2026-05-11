@@ -1,0 +1,119 @@
+# CONTESTO
+Sei in artifacts/verba/. 6 fix piccoli e isolati. Non testare live, 
+li testo io manualmente dopo. Economy Mode.
+
+# FIX 1 — DeckSelectionScreen.tsx
+File: src/pages/DeckSelectionScreen.tsx
+Sulla DeckCard "GRE Vocabulary", cambia masteredCount={245} → 
+masteredCount={0}. Aggiungi commento sopra la riga:
+// TODO: Replace with real count from DB after Fase 2 (auth)
+
+# FIX 2-5 — FeedbackMultiDefinitions
+File: src/components/FeedbackCard.tsx
+Cerca il componente FeedbackMultiDefinitions. Modifiche al .map():
+
+(a) RIMUOVI dal wrapper div:
+    paddingLeft: idx === 0 ? 0 : 14,
+    borderLeft: idx === 0 ? "none" : "1px solid rgba(255,255,255,0.08)",
+    → sostituisci con un div SENZA padding/border (solo display flex 
+      column con gap interno se serve)
+
+(b) Cambia il fontSize della definizione da:
+    fontSize: idx === 0 ? 20 : 17
+    → fontSize: 18 (UGUALE per tutte le def)
+
+(c) AGGIUNGI numerazione prima del part_of_speech tag. Solo se 
+    definitions.length > 1 (per parole monosemiche niente "1."). 
+    Crea un span inline che precede {def.part_of_speech}:
+    
+    {definitions.length > 1 && (
+      <span style={{
+        fontFamily: "'Inter', sans-serif",
+        fontWeight: 500,
+        fontSize: 11,
+        letterSpacing: "0.12em",
+        color: "rgba(199,184,232,0.5)",
+        marginRight: 6,
+        fontStyle: "italic",
+      }}>
+        {idx + 1}.
+      </span>
+    )}
+    {def.part_of_speech}
+    
+    Il numero deve essere SAME color/size/font del part_of_speech tag 
+    (lavender semitrasparente, stessa famiglia).
+
+# FIX 6 — FeedbackEtymology hide if empty
+File: src/components/FeedbackCard.tsx
+Cerca il componente FeedbackEtymology. All'inizio aggiungi early return:
+
+  if (!visible) return null;
+  if (!etymology || etymology.trim() === "") return null;  ← AGGIUNGI
+
+Così se etymology è "", null, o undefined la sezione "Origin" non 
+viene renderizzata.
+
+# FIX 7 — Better TTS voice
+File: src/components/FeedbackCard.tsx
+Cerca la funzione speakWord(word: string). Sostituiscila INTERAMENTE con:
+
+let _cachedVoice: SpeechSynthesisVoice | null = null;
+
+function getBestEnglishVoice(): SpeechSynthesisVoice | null {
+  if (_cachedVoice) return _cachedVoice;
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) return null;
+  
+  // Priority order: Google US English > Samantha (macOS) > Microsoft 
+  // Aria/Jenny (Win) > any en-US > any en-*
+  const preferred = [
+    (v: SpeechSynthesisVoice) => v.name === "Google US English",
+    (v: SpeechSynthesisVoice) => v.name.includes("Samantha"),
+    (v: SpeechSynthesisVoice) => v.name.includes("Aria") || v.name.includes("Jenny"),
+    (v: SpeechSynthesisVoice) => v.lang === "en-US",
+    (v: SpeechSynthesisVoice) => v.lang.startsWith("en"),
+  ];
+  
+  for (const pred of preferred) {
+    const found = voices.find(pred);
+    if (found) { _cachedVoice = found; return found; }
+  }
+  return voices[0] ?? null;
+}
+
+function speakWord(word: string) {
+  try {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.lang = "en-US";
+    utterance.rate = 0.85;
+    utterance.pitch = 1.0;
+    const voice = getBestEnglishVoice();
+    if (voice) utterance.voice = voice;
+    window.speechSynthesis.speak(utterance);
+  } catch {
+    // SpeechSynthesis not available
+  }
+}
+
+NOTA: alcuni browser caricano le voci async. Per gestirlo aggiungi 
+all'avvio del file (top-level, fuori da componenti, dopo gli import):
+
+if (typeof window !== "undefined" && "speechSynthesis" in window) {
+  window.speechSynthesis.onvoiceschanged = () => { _cachedVoice = null; };
+}
+
+# COSA NON FARE
+- NON modificare altri componenti (FeedbackDefinition, FeedbackExample, 
+  FeedbackSynonyms, FeedbackAntonyms, FeedbackTranslation, ecc.)
+- NON cambiare design/colori
+- NON installare dipendenze
+- NON testare live, lo faccio io manualmente
+- NON toccare QuizScreen.tsx o ResultsScreen.tsx
+
+# COSA RIPORTARE
+1. Lista file modificati (dovrebbero essere 2: DeckSelectionScreen.tsx 
+   e FeedbackCard.tsx)
+2. Conferma typecheck pulito
+3. Eventuali warning

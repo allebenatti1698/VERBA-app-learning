@@ -454,7 +454,8 @@ export default function DeckSelectionScreen() {
               name="GRE Vocabulary"
               description="Advanced words for the GRE exam"
               statsPrefix="800 words · "
-              masteredCount={245}
+              // TODO: Replace with real count from DB after Fase 2 (auth)
+              masteredCount={0}
               statsSuffix=" mastered"
               progress={30}
               borderDefault={MAUVE.border}
