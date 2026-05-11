@@ -457,7 +457,8 @@ export default function DeckSelectionScreen() {
               // TODO: Replace with real count from DB after Fase 2 (auth)
               masteredCount={0}
               statsSuffix=" mastered"
-              progress={30}
+              // TODO: Calculate dynamically as (masteredCount / 800) * 100 after Fase 2 (auth)
+              progress={0}
               borderDefault={MAUVE.border}
               borderHover={MAUVE.hover}
             />
