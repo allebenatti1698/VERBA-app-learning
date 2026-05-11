@@ -26,6 +26,8 @@ type DbWordRow = {
   id: string;
   word: string;
   italian_translation: string | null;
+  italian_definition: string | null;
+  etymology: string | null;
   synonyms: string[] | null;
   antonyms: string[] | null;
   distractors: string[] | null;
@@ -57,7 +59,7 @@ export async function fetchQuizWords(
 ): Promise<QuizWord[]> {
   let query = supabase
     .from("words")
-    .select("id, word, italian_translation, synonyms, antonyms, distractors, word_definitions(part_of_speech, definition, example, display_order)")
+    .select("id, word, italian_translation, italian_definition, etymology, synonyms, antonyms, distractors, word_definitions(part_of_speech, definition, example, display_order)")
     .eq("deck_slug", deckSlug)
     .limit(CANDIDATE_POOL_SIZE);
 
@@ -97,13 +99,13 @@ export async function fetchQuizWords(
       correctDefinition,
       distractors: row.distractors ?? [],
       italianTranslation,
-      italianDefinition: italianTranslation || undefined,
+      italianDefinition: row.italian_definition ?? undefined,
       exampleSentence,
       synonyms: row.synonyms ?? [],
       antonyms: row.antonyms ?? [],
       allDefinitions: defs,
       phonetic: undefined,
-      etymology: undefined,
+      etymology: row.etymology ?? undefined,
     };
   });
 }

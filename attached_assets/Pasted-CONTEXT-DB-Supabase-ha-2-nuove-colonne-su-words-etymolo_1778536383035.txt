@@ -1,0 +1,56 @@
+CONTEXT
+DB Supabase ha 2 nuove colonne su `words`:
+- `etymology` (TEXT, popolato per tutte le 799 parole GRE)
+- `italian_definition` (TEXT, popolato per tutte le 799 parole GRE)
+Inoltre `antonyms` ora ha sempre 3 elementi.
+
+PROBLEMA
+Il frontend non fetcha né mostra questi nuovi campi. Sintomi:
+1. "Origin" non compare mai nella FeedbackCard
+2. "show italian translation" mostra "barocco / barocco" duplicato invece di 
+   "barocco" header + definizione italiana completa sotto
+3. L'hint tooltip mostra anche lui "barocco / barocco" duplicato
+
+ROOT CAUSE
+La query in `src/lib/quizQueries.ts` non include `etymology` e 
+`italian_definition` nel SELECT.
+
+TASK
+1. `src/lib/quizQueries.ts`: aggiungi `etymology` e `italian_definition` 
+   al SELECT della tabella `words`. Se usa `*` già, verifica che il 
+   mapping al type Word li passi avanti.
+
+2. Type/interface Word (in `src/types/word.ts` o inline): aggiungi
+   - etymology: string | null
+   - italian_definition: string | null
+
+3. `src/components/FeedbackCard.tsx` → FeedbackEtymology:
+   - Verifica che riceva `etymology` come prop dal parent
+   - Verifica che venga renderizzato quando etymology è una stringa non vuota
+   - L'early return `if (!etymology) return null` deve rimanere, ma adesso 
+     etymology arriva valorizzata
+
+4. `src/components/FeedbackCard.tsx` → FeedbackTranslation (la card 
+   ambra "barocco / barocco"):
+   - Header: italian_translation (es. "barocco")
+   - Body: italian_definition (la definizione lunga)
+   - Se italian_definition è null/vuoto, fallback su italian_translation 
+     (ma con i dati attuali non dovrebbe mai succedere)
+
+5. HintTooltip (probabilmente `src/components/HintTooltip.tsx`, è quello 
+   che si apre cliccando "hint" sopra la parola del quiz):
+   - Stessa struttura: header italian_translation, body italian_definition
+
+NON modificare:
+- distrattori, definizioni, antonimi
+- stile/colori della card
+- QuizScreen layout
+
+DO NOT test live, lo testo io.
+
+Riporta solo:
+- Lista file modificati
+- Typecheck pulito
+- Eventuali warning
+
+ECONOMY MODE.
