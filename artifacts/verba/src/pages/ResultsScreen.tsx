@@ -23,6 +23,12 @@ export interface MissedWord {
   italianTranslation: string;
   italianDefinition: string;
   selectedAnswer: string;
+  allDefinitions?: {
+    part_of_speech: string;
+    definition: string;
+    example: string;
+    display_order: number;
+  }[];
 }
 
 export interface SessionResult {

@@ -1,0 +1,155 @@
+Fase 3.5 di Verba: implementare il Multi-Definition Display nella FeedbackCard 
+per parole polisemiche (Magoosh-style).
+
+# CONTESTO
+- quizQueries.ts già ritorna QuizWord.allDefinitions: array di { part_of_speech, 
+  definition, example, display_order } già ordinato per display_order.
+- Per parole monosemiche (1 def) FeedbackCard mostra già correctDefinition + 
+  exampleSentence — questo comportamento DEVE rimanere invariato.
+- Per parole polisemiche (2-3 def) vogliamo mostrare TUTTE le definizioni come 
+  blocchi separati con part-of-speech tag, ognuno con il proprio esempio.
+- Sample DB con multi-def: la parola "sanguine" ha 3 definizioni (adjective: 
+  optimistic / adjective: ruddy / noun: blood-red colour).
+
+# STEP 1 — AGGIORNA QuizWord TYPE IN FeedbackCard
+File: artifacts/verba/src/components/FeedbackCard.tsx
+
+Aggiungi un campo opzionale allDefinitions all'export interface QuizWord:
+
+export interface QuizWord {
+  word: string;
+  phonetic: string;
+  correctDefinition: string;
+  exampleSentence: string;
+  synonyms: string[];
+  antonyms: string[];
+  etymology: string;
+  italianTranslation: string;
+  italianDefinition: string;
+  allDefinitions?: { 
+    part_of_speech: string; 
+    definition: string; 
+    example: string; 
+    display_order: number; 
+  }[];  // ← NUOVO, opzionale per backward compat
+}
+
+# STEP 2 — CREA SUB-COMPONENT FeedbackMultiDefinitions
+Nello stesso file FeedbackCard.tsx, sotto FeedbackExample, aggiungi:
+
+interface FeedbackMultiDefinitionsProps {
+  definitions: { part_of_speech: string; definition: string; example: string; display_order: number }[];
+  visible?: boolean;
+}
+export function FeedbackMultiDefinitions({ definitions, visible = true }: FeedbackMultiDefinitionsProps) {
+  if (!visible || !definitions || definitions.length === 0) return null;
+  
+  return (
+    <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 18 }}>
+      {definitions.map((def, idx) => (
+        <div key={idx} style={{ 
+          paddingLeft: idx === 0 ? 0 : 14, 
+          borderLeft: idx === 0 ? "none" : "1px solid rgba(255,255,255,0.08)",
+        }}>
+          {/* Part-of-speech tag */}
+          <p style={{
+            fontFamily: "'Inter', sans-serif",
+            fontWeight: 500,
+            fontSize: 11,
+            letterSpacing: "0.12em",
+            textTransform: "lowercase",
+            color: "rgba(199,184,232,0.5)",
+            margin: "0 0 6px",
+            fontStyle: "italic",
+          }}>
+            {def.part_of_speech}
+          </p>
+          {/* Definition */}
+          <p style={{
+            fontFamily: "'Inter', sans-serif",
+            fontWeight: 400,
+            fontSize: idx === 0 ? 20 : 17,
+            color: "#FFFFFF",
+            margin: 0,
+            lineHeight: 1.4,
+          }}>
+            {def.definition}
+          </p>
+          {/* Example */}
+          {def.example && (
+            <p style={{
+              fontFamily: "'Inter', sans-serif",
+              fontWeight: 300,
+              fontSize: 15,
+              fontStyle: "italic",
+              color: "rgba(255,255,255,0.6)",
+              margin: "8px 0 0",
+              lineHeight: 1.5,
+            }}>
+              "{def.example}"
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+# STEP 3 — INTEGRA NELLA MAIN FeedbackCard
+Nel rendering principale del componente FeedbackCard (dove ora ci sono 
+<FeedbackDefinition definition={word.correctDefinition} /> e 
+<FeedbackExample sentence={word.exampleSentence} />):
+
+SOSTITUISCI quei due con un conditional render:
+
+{word.allDefinitions && word.allDefinitions.length > 1 ? (
+  <FeedbackMultiDefinitions definitions={word.allDefinitions} />
+) : (
+  <>
+    <FeedbackDefinition definition={word.correctDefinition} />
+    <FeedbackExample sentence={word.exampleSentence} />
+  </>
+)}
+
+# STEP 4 — PROPAGA allDefinitions DA QUIZSCREEN
+File: artifacts/verba/src/pages/QuizScreen.tsx
+
+Nella funzione toFeedbackWord(), aggiungi il campo allDefinitions:
+
+function toFeedbackWord(w: QuizWord): FeedbackQuizWord {
+  return {
+    word: w.word,
+    phonetic: w.phonetic ?? "",
+    correctDefinition: w.correctDefinition,
+    exampleSentence: w.exampleSentence,
+    synonyms: w.synonyms,
+    antonyms: w.antonyms,
+    etymology: w.etymology ?? "",
+    italianTranslation: w.italianTranslation,
+    italianDefinition: w.italianDefinition ?? "",
+    allDefinitions: w.allDefinitions,  // ← NUOVO
+  };
+}
+
+# STEP 5 — PROPAGA anche da ResultsScreen (review missed words)
+File: artifacts/verba/src/pages/ResultsScreen.tsx
+
+Nell'interface MissedWord aggiungi:
+  allDefinitions?: { part_of_speech: string; definition: string; example: string; display_order: number }[];
+
+E quando QuizScreen salva il sessionResult, assicurati che missedWords 
+contenga allDefinitions di ogni parola sbagliata (probabilmente già funziona 
+perché spread/copy intero, ma verifica).
+
+# COSA NON FARE
+- NON modificare design colori/fonts globali
+- NON modificare FeedbackDefinition o FeedbackExample (devono restare 
+  funzionanti per il caso mono-def)
+- NON installare nuove dipendenze
+- DO NOT test live, I will test manually
+
+# COSA RIPORTARE
+1. Conferma struttura: parole con 1 def → vecchio rendering, 
+   parole con 2+ def → nuovo FeedbackMultiDefinitions
+2. Lista file modificati
+3. Eventuali typecheck errors

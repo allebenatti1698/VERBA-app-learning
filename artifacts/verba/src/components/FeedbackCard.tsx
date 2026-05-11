@@ -152,6 +152,61 @@ export function FeedbackExample({ sentence, visible = true }: FeedbackExamplePro
   );
 }
 
+interface FeedbackMultiDefinitionsProps {
+  definitions: { part_of_speech: string; definition: string; example: string; display_order: number }[];
+  visible?: boolean;
+}
+export function FeedbackMultiDefinitions({ definitions, visible = true }: FeedbackMultiDefinitionsProps) {
+  if (!visible || !definitions || definitions.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 18 }}>
+      {definitions.map((def, idx) => (
+        <div key={idx} style={{
+          paddingLeft: idx === 0 ? 0 : 14,
+          borderLeft: idx === 0 ? "none" : "1px solid rgba(255,255,255,0.08)",
+        }}>
+          <p style={{
+            fontFamily: "'Inter', sans-serif",
+            fontWeight: 500,
+            fontSize: 11,
+            letterSpacing: "0.12em",
+            textTransform: "lowercase",
+            color: "rgba(199,184,232,0.5)",
+            margin: "0 0 6px",
+            fontStyle: "italic",
+          }}>
+            {def.part_of_speech}
+          </p>
+          <p style={{
+            fontFamily: "'Inter', sans-serif",
+            fontWeight: 400,
+            fontSize: idx === 0 ? 20 : 17,
+            color: "#FFFFFF",
+            margin: 0,
+            lineHeight: 1.4,
+          }}>
+            {def.definition}
+          </p>
+          {def.example && (
+            <p style={{
+              fontFamily: "'Inter', sans-serif",
+              fontWeight: 300,
+              fontSize: 15,
+              fontStyle: "italic",
+              color: "rgba(255,255,255,0.6)",
+              margin: "8px 0 0",
+              lineHeight: 1.5,
+            }}>
+              "{def.example}"
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 interface FeedbackSynonymsProps {
   synonyms: string[];
   visible?: boolean;
@@ -382,6 +437,12 @@ export interface QuizWord {
   etymology: string;
   italianTranslation: string;
   italianDefinition: string;
+  allDefinitions?: {
+    part_of_speech: string;
+    definition: string;
+    example: string;
+    display_order: number;
+  }[];
 }
 
 interface FeedbackCardProps {
@@ -498,8 +559,14 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
 
             <FeedbackStatus isCorrect={isCorrect} visible={true} />
             <FeedbackWord word={word.word} phonetic={word.phonetic} visible={true} />
-            <FeedbackDefinition definition={word.correctDefinition} visible={true} />
-            <FeedbackExample sentence={word.exampleSentence} visible={true} />
+            {word.allDefinitions && word.allDefinitions.length > 1 ? (
+              <FeedbackMultiDefinitions definitions={word.allDefinitions} />
+            ) : (
+              <>
+                <FeedbackDefinition definition={word.correctDefinition} visible={true} />
+                <FeedbackExample sentence={word.exampleSentence} visible={true} />
+              </>
+            )}
 
             <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 6 }}>
               <FeedbackSynonyms synonyms={word.synonyms} visible={true} />

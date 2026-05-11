@@ -44,6 +44,7 @@ function toFeedbackWord(w: QuizWord): FeedbackQuizWord {
     etymology: w.etymology ?? "",
     italianTranslation: w.italianTranslation,
     italianDefinition: w.italianDefinition ?? "",
+    allDefinitions: w.allDefinitions,
   };
 }
 
