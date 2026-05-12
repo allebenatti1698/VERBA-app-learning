@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useLocation, useSearch } from "wouter";
 import { BookOpen, Library, GraduationCap } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
+import { getDifficultyLabel, getDifficultyDescription } from "@/lib/difficultyLabel";
 
 // ─── Colour tokens per family ─────────────────────────────────────────────────
 const FAMILY = {
@@ -259,8 +260,8 @@ export default function DifficultyScreen() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <DiffCard
-            label="Easy"
-            description="Most common words"
+            label={getDifficultyLabel("easy", deck)}
+            description={getDifficultyDescription("easy", deck)}
             filledDots={1}
             borderDefault={color(0.25)}
             borderHover={color(0.55)}
@@ -270,8 +271,8 @@ export default function DifficultyScreen() {
             isLast={lastDifficulty === "easy"}
           />
           <DiffCard
-            label="Medium"
-            description="Mid-frequency"
+            label={getDifficultyLabel("medium", deck)}
+            description={getDifficultyDescription("medium", deck)}
             filledDots={2}
             borderDefault={color(0.5)}
             borderHover={color(0.75)}
@@ -281,8 +282,8 @@ export default function DifficultyScreen() {
             isLast={lastDifficulty === "medium"}
           />
           <DiffCard
-            label="Hard"
-            description="Rare and tricky"
+            label={getDifficultyLabel("hard", deck)}
+            description={getDifficultyDescription("hard", deck)}
             filledDots={3}
             borderDefault={color(0.75)}
             borderHover={color(1.0)}

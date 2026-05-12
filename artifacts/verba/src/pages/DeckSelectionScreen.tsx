@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { BookOpen, Library, GraduationCap, Star } from "lucide-react";
+import { getDifficultyLabel } from "@/lib/difficultyLabel";
 import AppBackground from "@/components/AppBackground";
 
 // ─── Family palette tokens ────────────────────────────────────────────────────
@@ -79,8 +80,8 @@ function ContinueCard({ session }: { session: LastSession }) {
 
   const isMyVerba = session.deck === "myverba";
   const name = deckDisplayName(session.deck);
-  const diffLabel = !isMyVerba && session.difficulty
-    ? ` · ${session.difficulty.charAt(0).toUpperCase() + session.difficulty.slice(1)}`
+  const diffLabel = !isMyVerba && session.difficulty && session.deck
+    ? ` · ${getDifficultyLabel(session.difficulty, session.deck)}`
     : "";
 
   function resume() {
