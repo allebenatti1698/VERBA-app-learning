@@ -122,7 +122,7 @@ export default function ReviewCompleteScreen() {
           transition={{ delay: 0.6, duration: 0.3 }}
           whileTap={{ scale: 0.97 }}
           onClick={() => navigate("/results")}
-          style={{ width: 280, padding: "12px 32px", borderRadius: 9999, border: "none", background: "linear-gradient(to right, #B45309, #C2410C)", fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 14, color: "#FFFFFF", cursor: "pointer", outline: "none", letterSpacing: "0.02em", boxShadow: "0 0 12px rgba(217,119,6,0.25)", margin: "0 auto" }}
+          style={{ display: "block", width: "auto", maxWidth: 200, margin: "0 auto", padding: "12px 32px", borderRadius: 9999, border: "none", cursor: "pointer", background: "linear-gradient(to right, #B45309, #C2410C)", fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 15, letterSpacing: "0.04em", color: "#FFFFFF", outline: "none", boxShadow: "0 0 12px rgba(217,119,6,0.25)" }}
         >
           Continue →
         </motion.button>
