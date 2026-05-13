@@ -206,8 +206,7 @@ export default function QuizScreen() {
         setReverseOptions([current.word]);
         setReverseOptionsLoading(false);
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReverseMode, reverseWordKey]);
+  }, [isReverseMode, reverseWordKey, reviewQueue[0]?.id]);
 
   const handleRetry = useCallback(() => setFetchKey((k) => k + 1), []);
 
@@ -429,34 +428,6 @@ export default function QuizScreen() {
                   {currentReviewWord!.correctDefinition}
                 </p>
 
-                {/* Hint: shows italian translation */}
-                <motion.button
-                  onClick={() => setShowTranslation((v) => !v)}
-                  whileTap={{ scale: 0.95 }}
-                  style={{ marginTop: 4, background: "none", border: "1px solid rgba(217,119,6,0.6)", borderRadius: 9999, padding: "4px 12px", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: "0.72rem", color: "rgba(217,119,6,0.8)", letterSpacing: "0.03em", display: "flex", alignItems: "center", gap: 5, opacity: 0.7, transition: "color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease" }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.9)"; (e.currentTarget as HTMLButtonElement).style.opacity = "1"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.8)"; (e.currentTarget as HTMLButtonElement).style.opacity = "0.7"; }}
-                >
-                  💡 hint
-                </motion.button>
-
-                <AnimatePresence>
-                  {showTranslation && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10, height: 0 }}
-                      animate={{ opacity: 1, y: 0, height: "auto" }}
-                      exit={{ opacity: 0, y: -10, height: 0 }}
-                      transition={{ duration: 0.25, ease: "easeOut" }}
-                      style={{ overflow: "hidden", width: "100%" }}
-                    >
-                      <div style={{ marginTop: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(217,119,6,0.2)", borderRadius: 12, padding: "14px 18px" }}>
-                        <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500, fontSize: "1rem", color: "#D97706", margin: 0 }}>
-                          {currentReviewWord!.italianTranslation}
-                        </p>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </>
             ) : (
               <>
