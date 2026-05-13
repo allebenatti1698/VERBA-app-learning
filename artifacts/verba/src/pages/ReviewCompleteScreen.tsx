@@ -56,11 +56,12 @@ export default function ReviewCompleteScreen() {
       {/* Soft amber radial orb */}
       <div style={{ position: "absolute", top: "-10%", left: "50%", transform: "translateX(-50%)", width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle, rgba(217,119,6,0.12) 0%, transparent 70%)", pointerEvents: "none", zIndex: 1 }} />
 
+      {/* Top content — vertically centred in remaining space */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
-        style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: 440, padding: "72px 24px 48px", boxSizing: "border-box" }}
+        style={{ position: "relative", zIndex: 10, flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", width: "100%", maxWidth: 440, padding: "48px 24px 0", boxSizing: "border-box" }}
       >
         {/* Check circle */}
         <div style={{ width: 50, height: 50, borderRadius: "50%", border: "0.5px solid rgba(217,119,6,0.6)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
@@ -111,19 +112,21 @@ export default function ReviewCompleteScreen() {
             );
           })}
         </div>
+      </motion.div>
 
-        {/* Continue button */}
+      {/* Continue button — anchored to bottom */}
+      <div style={{ position: "relative", zIndex: 10, display: "flex", justifyContent: "center", padding: "20px 24px", paddingBottom: "calc(env(safe-area-inset-bottom) + 32px)", boxSizing: "border-box" }}>
         <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6, duration: 0.3 }}
           whileTap={{ scale: 0.97 }}
           onClick={() => navigate("/results")}
-          style={{ marginTop: 36, width: "100%", maxWidth: 280, padding: "14px 0", borderRadius: 9999, border: "none", background: "linear-gradient(to right, #B45309, #C2410C)", fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 15, color: "#FFFFFF", cursor: "pointer", outline: "none", letterSpacing: "0.03em", boxShadow: "0 0 16px rgba(217,119,6,0.2)" }}
+          style={{ width: 280, padding: "12px 32px", borderRadius: 9999, border: "none", background: "linear-gradient(to right, #B45309, #C2410C)", fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 14, color: "#FFFFFF", cursor: "pointer", outline: "none", letterSpacing: "0.02em", boxShadow: "0 0 12px rgba(217,119,6,0.25)", margin: "0 auto" }}
         >
           Continue →
         </motion.button>
-      </motion.div>
+      </div>
     </div>
   );
 }
