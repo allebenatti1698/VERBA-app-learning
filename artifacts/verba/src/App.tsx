@@ -10,6 +10,7 @@ import DifficultyScreen from "@/pages/DifficultyScreen";
 import PreQuizSetup from "@/pages/PreQuizSetup";
 import QuizScreen from "@/pages/QuizScreen";
 import ResultsScreen from "@/pages/ResultsScreen";
+import ReviewCompleteScreen from "@/pages/ReviewCompleteScreen";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ function Router() {
             <Route path="/setup" component={PreQuizSetup} />
             <Route path="/quiz" component={QuizScreen} />
             <Route path="/results" component={ResultsScreen} />
+            <Route path="/review-complete" component={ReviewCompleteScreen} />
             <Route component={NotFound} />
           </Switch>
         </motion.div>

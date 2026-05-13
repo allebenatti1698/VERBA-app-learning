@@ -1,0 +1,149 @@
+OBIETTIVO
+Implementare Step 9 di Verba: la feature "Test these again" sui missed words con modalità Reverse, loop fino a successo, e schermata celebrativa "Review complete" al termine.
+FLUSSO UTENTE
+
+ResultsScreen → click "Test these again →"
+Naviga a /quiz?mode=reverse&source=review
+QuizScreen in Reverse mode con le missed words: mostra DEFINIZIONE → l'utente sceglie la PAROLA corretta tra 4 opzioni
+Loop: parole sbagliate tornano in coda finché tutte sono state risposte correttamente almeno una volta
+Quando la coda è vuota → naviga a /review-complete
+ReviewCompleteScreen mostra le parole mastered con design celebrativo + stelle preferiti
+Click "Continue →" → torna a ResultsScreen
+
+STEP 1 — Modifica ResultsScreen.tsx
+
+Rimuovi la logica handleQuickReview che mostra il toast "Coming in Step 9..."
+Sostituiscila con:
+
+ts  function handleQuickReview() {
+    sessionStorage.setItem("verbaReviewQueue", JSON.stringify(missedWords));
+    navigate("/quiz?mode=reverse&source=review");
+  }
+
+Mantieni invariati: layout, stile bottone, animazioni
+
+STEP 2 — Estendi QuizScreen.tsx con Reverse mode
+Detection del mode:
+
+Leggi mode da URL params. Se mode === "reverse", attiva Reverse mode.
+Se source === "review", le parole NON arrivano da fetchQuizWords() ma da sessionStorage.verbaReviewQueue (parsa JSON).
+
+Layout differente in Reverse mode:
+
+Al posto della parola grande in lavender: mostra la DEFINIZIONE corretta (correctDefinition) come testo prominente. Font: Space Grotesk weight 400, font-size 22-24px, color rgba(255,255,255,0.95), line-height 1.4, max-width 480px, centrato.
+Le 4 opzioni ora sono PAROLE (non definizioni). Ognuna in lavender #C7B8E8, font-size 18px, Space Grotesk weight 500, padding 14px 18px, stessa pill style già esistente.
+Hint button (se cliccato): mostra la traduzione italiana della parola corretta (italianTranslation) invece dell'inglese. Stessa pill style.
+Tutti gli altri elementi (progress bar, timer opzionale, FeedbackCard dopo risposta) rimangono uguali.
+
+Generazione distrattori (3 parole sbagliate):
+
+Crea funzione getReverseDistractors(correctWord, deckSlug, difficulty, count = 3) in src/lib/quizQueries.ts:
+
+Query Supabase: .from('words').select('word').eq('deck_slug', deckSlug).eq('difficulty', difficulty).neq('word', correctWord).limit(50)
+Shuffle client-side, prendi i primi count
+
+
+Chiamata: ad ogni nuova question del Reverse mode (anche durante il loop, quando una parola rientra), genera nuovi distrattori freschi.
+
+Logica del loop:
+
+Mantieni una reviewQueue: QuizWord[] (state).
+All'inizio: reviewQueue = JSON.parse(sessionStorage.verbaReviewQueue).
+Quando l'utente risponde a una parola:
+
+Se corretta: rimuovi da queue, passa alla prossima.
+Se sbagliata: rimuovi da queue, poi PUSH in fondo alla queue (rientrerà).
+
+
+Quando reviewQueue.length === 0 E currentWord è stata risposta correttamente → completion.
+Counter visibile in alto: usa il progress bar esistente, ma calcola progress su (initialQueueSize - reviewQueue.length - 1) / initialQueueSize.
+
+Completion:
+
+Quando il loop finisce:
+
+Estrai i wordId di tutte le parole mastered (le original missed words)
+Aggiungi questi ID a verba_mastered_words localStorage (Set serializzato come Array)
+Salva in sessionStorage verbaReviewMastered un array di oggetti { id, word, retries } (retries = quante volte è stata sbagliata prima di azzeccarla)
+navigate("/review-complete")
+
+
+
+STEP 3 — Crea nuova schermata ReviewCompleteScreen.tsx
+File: src/pages/ReviewCompleteScreen.tsx
+Routing: aggiungi /review-complete route puntando a questo componente.
+Layout (mobile-first, design system Verba esistente):
+[AppBackground showWords={false}]
+
+   [Soft amber orb radial behind, like Welcome screen]
+
+   [Cerchio 50x50 con icona check ambra, border amber 0.5px]
+   
+   "Review complete"  (Space Grotesk 22px weight 500, white)
+   "All {N} words mastered"  (Inter 13px rgba(255,255,255,0.55))
+   
+   [Spacing 22-28px]
+   
+   [Lista numbered editorial — V2 design]
+   01    chicanery       ☆
+   02    obviate         ★  (ambra filled)
+   03    truculent       ☆
+   04    pellucid        ★
+   05    venal           ☆
+   
+   [Spacing ~30px]
+   
+   [Bottone "Continue →" amber gradient pill, max-width 280px]
+Specifiche tipografiche delle righe:
+
+Numero: Space Grotesk 10px, weight 500, letter-spacing 0.12em, color #BA7517, width 18px (allinea)
+Parola: Space Grotesk 15px, color #C7B8E8, letter-spacing -0.2px
+Stella: Lucide Star icon, 14px
+
+Default (outline): color rgba(255,255,255,0.3)
+Filled (in My Words): color #D97706, fill props attivi
+
+
+Gap tra righe: 12px
+Padding orizzontale della lista: 6px
+
+Logica stelle:
+
+Al mount, leggi verba_my_words da localStorage (Set serializzato come Array).
+Per ogni parola, check se wordId è già presente → stella inizia filled.
+Click stella: toggle (add/remove dalla Set, ri-serializza in localStorage).
+Click stella NON deve propagare ad altri eventi (e.stopPropagation()).
+
+Bottone Continue:
+
+Stile: gradient linear-gradient(to right, #B45309, #C2410C), border-radius 9999, padding 14px 0, max-width 280px, full-width margin auto
+Click: navigate("/results") (la sessionStorage verbaSessionResult esiste ancora dalla sessione originale).
+
+Animazione entrance:
+
+Container: opacity 0→1 + y 16→0, durata 0.4s
+Lista parole: stagger children con delay 0.06s ognuna
+Bottone: fade in al delay 0.6s
+
+STEP 4 — Edge cases
+
+Se verbaReviewQueue è vuoto/null all'arrivo su /quiz?mode=reverse → redirect immediato a /results.
+Se il deck ha meno di 4 parole con stessa difficulty per i distrattori → fai fallback a tutto il deck.
+Se l'utente preme back durante Reverse mode → torna a Results, niente "Review complete" salvato.
+
+COSA NON FARE
+
+NON modificare il design o lo stile della ResultsScreen al di fuori del refactor del bottone
+NON modificare la FeedbackCard
+NON modificare DeckSelectionScreen, DifficultyScreen, PreQuizSetup
+NON installare nuove dipendenze
+NON modificare il database o lo schema Supabase
+NON modificare le query del quiz normale (fetchQuizWords)
+DO NOT test live, testo io manualmente
+
+OUTPUT
+
+Lista file creati e modificati
+Diff principali (almeno per ResultsScreen, QuizScreen, ReviewCompleteScreen)
+Typecheck pulito
+Eventuali warning

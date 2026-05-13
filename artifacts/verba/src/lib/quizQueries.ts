@@ -43,6 +43,40 @@ type DbWordRow = {
 
 const CANDIDATE_POOL_SIZE = 200;
 
+export async function getReverseDistractors(
+  correctWord: string,
+  deckSlug: string,
+  difficulty: string | null,
+  count = 3,
+): Promise<string[]> {
+  // Try with difficulty filter first
+  let query = supabase
+    .from("words")
+    .select("word")
+    .eq("deck_slug", deckSlug)
+    .neq("word", correctWord)
+    .limit(50);
+
+  if (difficulty) {
+    query = query.eq("difficulty", difficulty);
+  }
+
+  const { data } = await query;
+  const words = shuffleArray((data ?? []).map((r: { word: string }) => r.word));
+
+  if (words.length >= count) return words.slice(0, count);
+
+  // Fallback: remove difficulty filter
+  const { data: fallback } = await supabase
+    .from("words")
+    .select("word")
+    .eq("deck_slug", deckSlug)
+    .neq("word", correctWord)
+    .limit(50);
+
+  return shuffleArray((fallback ?? []).map((r: { word: string }) => r.word)).slice(0, count);
+}
+
 function shuffleArray<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {

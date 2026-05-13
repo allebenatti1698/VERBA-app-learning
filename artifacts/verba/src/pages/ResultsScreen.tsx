@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { Clock, Flame, BookOpen, Star } from "lucide-react";
@@ -412,10 +411,9 @@ interface MissedWordsListProps {
   visible?: boolean;
 }
 function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) {
+  const [, navigate] = useLocation();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reviewIndex, setReviewIndex] = useState<number | null>(null);
-  const [showToast, setShowToast] = useState(false);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // TODO: Migrate to user database (Step 7). My Words syncs across devices and drives spaced repetition.
   const [myWords, setMyWords] = useState<Set<string>>(() => {
@@ -444,9 +442,8 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
   }
 
   function handleQuickReview() {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setShowToast(true);
-    toastTimer.current = setTimeout(() => setShowToast(false), 2500);
+    sessionStorage.setItem("verbaReviewQueue", JSON.stringify(missedWords));
+    navigate("/quiz?mode=reverse&source=review");
   }
 
   if (!visible || missedWords.length === 0) return null;
@@ -722,38 +719,6 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
         )}
       </motion.div>
 
-      {/* Toast — rendered via portal so position:fixed is unaffected by ancestor transforms */}
-      {createPortal(
-        <AnimatePresence>
-          {showToast && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={{ duration: 0.25 }}
-              style={{
-                position: "fixed",
-                bottom: 28,
-                left: "50%",
-                transform: "translateX(-50%)",
-                background: "rgba(217,119,6,0.15)",
-                border: "0.5px solid rgba(217,119,6,0.4)",
-                color: "#D97706",
-                padding: "10px 16px",
-                borderRadius: 12,
-                fontFamily: "'Inter', sans-serif",
-                fontSize: 13,
-                zIndex: 300,
-                whiteSpace: "nowrap",
-                pointerEvents: "none",
-              }}
-            >
-              Coming in Step 9 — practice missed words with Reverse mode 🔁
-            </motion.div>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
     </>
   );
 }
