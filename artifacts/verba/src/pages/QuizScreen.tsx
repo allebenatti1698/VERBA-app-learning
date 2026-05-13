@@ -276,7 +276,6 @@ export default function QuizScreen() {
       const key = String(currentReviewWord.id);
       reverseRetryCountRef.current.set(key, (reverseRetryCountRef.current.get(key) ?? 0) + 1);
     }
-    setTimeout(() => setShowFeedback(true), 400);
   }
 
   function handleReverseNext() {
@@ -520,35 +519,63 @@ export default function QuizScreen() {
           </motion.div>
         </AnimatePresence>
 
-        {/* Floating Next button */}
+        {/* Floating Next button — normal mode only */}
+        {!isReverseMode && (
+          <AnimatePresence>
+            {isAnswered && !showFeedback && (
+              <motion.button
+                data-testid="button-next-floating"
+                onClick={handleNext}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.2 }}
+                whileTap={{ scale: 0.96 }}
+                style={{ display: "block", width: "auto", maxWidth: 200, margin: "8px auto 0", padding: "12px 32px", borderRadius: 9999, border: "none", cursor: "pointer", background: "linear-gradient(to right, #B45309, #C2410C)", fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 15, letterSpacing: "0.04em", color: "#FFFFFF", outline: "none", boxShadow: "0 0 12px rgba(217,119,6,0.25)" }}
+              >
+                {isLastNormal ? "Finish" : "Next →"}
+              </motion.button>
+            )}
+          </AnimatePresence>
+        )}
+      </div>
+
+      {/* Reverse mode: bottom-anchored Next button */}
+      {isReverseMode && (
         <AnimatePresence>
-          {isAnswered && !showFeedback && (
-            <motion.button
-              data-testid="button-next-floating"
-              onClick={handleNextActive}
+          {isAnswered && (
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.2 }}
-              whileTap={{ scale: 0.96 }}
-              style={{ display: "block", width: "auto", maxWidth: 200, margin: "8px auto 0", padding: "12px 32px", borderRadius: 9999, border: "none", cursor: "pointer", background: "linear-gradient(to right, #B45309, #C2410C)", fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 15, letterSpacing: "0.04em", color: "#FFFFFF", outline: "none", boxShadow: "0 0 12px rgba(217,119,6,0.25)" }}
+              style={{ position: "relative", zIndex: 20, display: "flex", justifyContent: "center", padding: "20px 24px", paddingBottom: "calc(env(safe-area-inset-bottom) + 24px)", boxSizing: "border-box" }}
             >
-              {isLastNormal ? "Finish" : "Next →"}
-            </motion.button>
+              <motion.button
+                data-testid="button-next-reverse"
+                onClick={handleReverseNext}
+                whileTap={{ scale: 0.97 }}
+                style={{ width: 280, padding: "12px 32px", borderRadius: 9999, border: "none", background: "linear-gradient(to right, #B45309, #C2410C)", fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 14, color: "#FFFFFF", cursor: "pointer", outline: "none", letterSpacing: "0.02em", boxShadow: "0 0 12px rgba(217,119,6,0.25)", margin: "0 auto" }}
+              >
+                Next →
+              </motion.button>
+            </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      )}
 
-      {/* Feedback card */}
-      <FeedbackCard
-        show={showFeedback}
-        word={feedbackWord}
-        isCorrect={isCorrect}
-        isLast={isLastNormal}
-        onDismiss={() => setShowFeedback(false)}
-        onNext={handleNextActive}
-        allowMinimize={true}
-      />
+      {/* Feedback card — normal mode only */}
+      {!isReverseMode && (
+        <FeedbackCard
+          show={showFeedback}
+          word={feedbackWord}
+          isCorrect={isCorrect}
+          isLast={isLastNormal}
+          onDismiss={() => setShowFeedback(false)}
+          onNext={handleNext}
+          allowMinimize={true}
+        />
+      )}
     </div>
   );
 }
