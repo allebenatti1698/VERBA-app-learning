@@ -295,7 +295,7 @@ function QuickStats({ elapsedMs, visible = true }: QuickStatsProps) {
           key={card.label}
           style={{
             flex: 1,
-            padding: 16,
+            padding: "clamp(10px, 3.2vw, 16px)",
             borderRadius: 12,
             border: card.border,
             background: `rgba(0,0,0,0.4)`,
@@ -322,11 +322,12 @@ function QuickStats({ elapsedMs, visible = true }: QuickStatsProps) {
           <p style={{
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
-            fontSize: 20,
+            fontSize: "clamp(15px, 4.2vw, 20px)",
             color: "#FFFFFF",
             margin: 0,
             textAlign: "center",
             lineHeight: 1.2,
+            whiteSpace: "nowrap",
           }}>
             {card.value}
           </p>
@@ -370,11 +371,12 @@ function ActionButtons({ wordCount, visible = true }: ActionButtonsProps) {
           background: "transparent",
           fontFamily: "'Inter', sans-serif",
           fontWeight: 500,
-          fontSize: 15,
+          fontSize: "clamp(13px, 3.7vw, 15px)",
           color: "#FFFFFF",
           cursor: "pointer",
           outline: "none",
           letterSpacing: "0.02em",
+          whiteSpace: "nowrap",
         }}
       >
         Another round →
@@ -392,11 +394,12 @@ function ActionButtons({ wordCount, visible = true }: ActionButtonsProps) {
           background: "linear-gradient(to right, #B45309, #C2410C)",
           fontFamily: "'Inter', sans-serif",
           fontWeight: 500,
-          fontSize: 15,
+          fontSize: "clamp(13px, 3.7vw, 15px)",
           color: "#FFFFFF",
           cursor: "pointer",
           outline: "none",
           letterSpacing: "0.02em",
+          whiteSpace: "nowrap",
           boxShadow: "0 0 12px rgba(217,119,6,0.25)",
         }}
       >
