@@ -7,6 +7,7 @@ function LogoMark() {
   return (
     <motion.div
       data-testid="logo-mark"
+      data-roam-exclude
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}

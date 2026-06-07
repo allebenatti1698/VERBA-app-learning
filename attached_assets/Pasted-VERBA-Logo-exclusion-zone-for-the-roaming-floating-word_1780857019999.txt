@@ -1,0 +1,41 @@
+VERBA — Logo exclusion zone for the roaming floating words.
+NOTE: read the current files first — my reference copy may be behind your Replit
+workspace, so trust the real code. Read src/components/AppBackground.tsx (the
+roaming-words component with the requestAnimationFrame loop) and
+src/pages/WelcomeScreen.tsx (the Verba logo / LogoMark). DO NOT test live — I
+test manually.
+
+GOAL: the roaming floating words must NEVER cross or overlap the Verba logo on
+the Welcome screen. They should drift AROUND it as if it were a solid obstacle.
+
+IMPLEMENTATION (generic, attribute-based, so it works for any protected element):
+
+1) In the roaming-words component (the one running the rAF loop that moves the
+   words — RoamingWords inside AppBackground.tsx; if WelcomeScreen renders its
+   own roaming copy, apply there too):
+   - On mount AND on window resize, query
+     document.querySelectorAll('[data-roam-exclude]'). For each element call
+     getBoundingClientRect(), convert to coordinates RELATIVE to the roaming
+     container, and build a keep-out CIRCLE: center = rect center,
+     radius = max(rect.width, rect.height)/2 + ~14px margin. Store these.
+     Express them in the SAME units the loop already uses for word positions
+     (if words move in %, convert the rect to % of the container size; if in
+     px, keep px). Recompute on resize.
+   - Each frame, for every word, after computing its next position: if it lies
+     inside any keep-out circle, push it back onto the circle's edge and REFLECT
+     its velocity along the normal (n = normalize(pos − center);
+     v = v − 2*(v·n)*n; pos = center + n*radius). This makes it bounce away.
+   - Keep the existing edge-bounce, center-fade and prefers-reduced-motion
+     behavior unchanged. In reduced-motion (static) mode, just make sure no
+     word's static position lands inside a keep-out circle (nudge it out if so).
+
+2) In src/pages/WelcomeScreen.tsx: add the attribute  data-roam-exclude  to the
+   Verba logo element (the LogoMark wrapper / circular mark container). No
+   visual change — only the attribute, so the roaming loop treats it as an
+   obstacle.
+
+DO NOT change the logo design, the words' look/speed, the center-fade, or any
+other screen. Words on screens without a [data-roam-exclude] element behave
+exactly as now.
+
+DO NOT test live — I will test manually.
