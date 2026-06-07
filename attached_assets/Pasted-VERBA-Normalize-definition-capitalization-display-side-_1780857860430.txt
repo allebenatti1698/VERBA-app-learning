@@ -1,0 +1,46 @@
+VERBA — Normalize definition capitalization (display-side, lowercase initial).
+Read first: src/components/FeedbackCard.tsx, src/pages/QuizScreen.tsx,
+src/pages/ResultsScreen.tsx. DO NOT test live — I test manually.
+
+GOAL: every DEFINITION renders with a lowercase initial, for consistency
+(dictionary style). DISPLAY ONLY — never change stored values or any string
+used for answer matching/comparison. Do NOT touch example sentences, words/
+headwords, synonyms, antonyms, or part-of-speech tags.
+
+STEP 1 — New helper: src/lib/formatText.ts
+  export function lowercaseFirst(s: string): string {
+    if (!s) return s;
+    return s.charAt(0).toLowerCase() + s.slice(1);
+  }
+
+STEP 2 — FeedbackCard.tsx
+  import { lowercaseFirst } from "@/lib/formatText";
+  - In FeedbackDefinition: render {lowercaseFirst(definition)} (was {definition}).
+  - In FeedbackMultiDefinitions: render {lowercaseFirst(def.definition)}
+    (was {def.definition}).
+  - Leave examples ("{sentence}", "{def.example}"), headword, POS tags,
+    synonyms and antonyms UNCHANGED.
+
+STEP 3 — QuizScreen.tsx
+  import { lowercaseFirst } from "@/lib/formatText";
+  - Normal-mode answer options: the option button renders {option}. Change the
+    DISPLAYED text to {isReverseMode ? option : lowercaseFirst(option)} — lowercase
+    only in normal mode (options are definitions); in reverse mode options are
+    WORDS, leave as-is.
+    IMPORTANT: change displayed text only. The value passed to the click handler
+    and used in selectedOption/correctAnswer comparisons MUST stay the raw option.
+  - Reverse-mode prompt: where the correct DEFINITION is shown as the large
+    centered prompt text (the definition the user reads to pick the word), wrap
+    it with lowercaseFirst(...). Display only.
+
+STEP 4 — ResultsScreen.tsx (MissedWordsList carousel card)
+  import { lowercaseFirst } from "@/lib/formatText";
+  - Wrong answer: render {lowercaseFirst(mw.selectedAnswer)} (was {mw.selectedAnswer}).
+  - Correct answer: render {lowercaseFirst(mw.correctDefinition)}
+    (was {mw.correctDefinition}).
+  (The FeedbackCard opened from this screen is already covered by STEP 2.)
+
+DO NOT change stored data, comparison/matching logic, examples, words, POS tags,
+synonyms/antonyms, colors, or layout. Display-only normalization.
+
+DO NOT test live — I will test manually.

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronUp } from "lucide-react";
+import { lowercaseFirst } from "@/lib/formatText";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -155,7 +156,7 @@ export function FeedbackDefinition({ definition, visible = true }: FeedbackDefin
       margin: "16px 0 0",
       lineHeight: 1.4,
     }}>
-      {definition}
+      {lowercaseFirst(definition)}
     </p>
   );
 }
@@ -225,7 +226,7 @@ export function FeedbackMultiDefinitions({ definitions, visible = true }: Feedba
             margin: 0,
             lineHeight: 1.4,
           }}>
-            {def.definition}
+            {lowercaseFirst(def.definition)}
           </p>
           {def.example && (
             <p style={{

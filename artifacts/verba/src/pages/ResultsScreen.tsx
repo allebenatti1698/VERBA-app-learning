@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { Clock, Flame, BookOpen, Star } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
+import { lowercaseFirst } from "@/lib/formatText";
 import FeedbackCard from "@/components/FeedbackCard";
 
 // TODO: Replace `visible={true}` with user preferences from settings (Step 8)
@@ -577,13 +578,13 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
             {/* Wrong answer */}
             <p style={{ margin: "0 0 4px", fontFamily: "'Inter', sans-serif", fontSize: 13, color: "#F87171" }}>✗</p>
             <p style={{ margin: "0 0 14px", fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-              {mw.selectedAnswer}
+              {lowercaseFirst(mw.selectedAnswer)}
             </p>
 
             {/* Correct answer */}
             <p style={{ margin: "0 0 4px", fontFamily: "'Inter', sans-serif", fontSize: 13, color: "#84A98C" }}>✓</p>
             <p style={{ margin: 0, fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.95)", lineHeight: 1.5 }}>
-              {mw.correctDefinition}
+              {lowercaseFirst(mw.correctDefinition)}
             </p>
 
             {/* Three-dots hint — decorative, bottom right */}

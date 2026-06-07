@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useSearch } from "wouter";
 import { Loader2 } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
+import { lowercaseFirst } from "@/lib/formatText";
 import FeedbackCard, { type QuizWord as FeedbackQuizWord } from "@/components/FeedbackCard";
 import { fetchQuizWords, getReverseDistractors, type QuizWord, type QuizWordDefinition } from "@/lib/quizQueries";
 
@@ -432,7 +433,7 @@ export default function QuizScreen() {
                   textAlign: "center",
                   padding: "20px 8px 28px",
                 }}>
-                  {currentReviewWord!.correctDefinition}
+                  {lowercaseFirst(currentReviewWord!.correctDefinition)}
                 </p>
 
               </>
@@ -520,7 +521,7 @@ export default function QuizScreen() {
                     lineHeight: 1.4,
                   }}
                 >
-                  {option}
+                  {isReverseMode ? option : lowercaseFirst(option)}
                 </motion.button>
               ))
             )}
