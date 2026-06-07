@@ -377,7 +377,7 @@ function ActionButtons({ wordCount, visible = true }: ActionButtonsProps) {
           letterSpacing: "0.02em",
         }}
       >
-        Try again
+        Another round →
       </motion.button>
 
       {/* New session */}
@@ -524,7 +524,7 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
               background: "rgba(255,255,255,0.015)",
               border: "0.5px solid rgba(217,119,6,0.18)",
               borderRadius: 12,
-              padding: "18px 16px",
+              padding: "18px 16px 30px",
               cursor: "pointer",
               position: "relative",
               userSelect: "none",
@@ -696,7 +696,7 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
               transition: "color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease",
             }}
           >
-            Test these again →
+            Review mistakes →
           </motion.button>
         </div>
 

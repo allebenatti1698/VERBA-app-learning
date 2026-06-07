@@ -1,0 +1,111 @@
+VERBA — v0.1 polish batch (5 fix). Read the real files before editing:
+src/pages/ResultsScreen.tsx, src/pages/QuizScreen.tsx,
+src/components/AppBackground.tsx, src/pages/WelcomeScreen.tsx.
+DO NOT test live — I will test manually.
+
+────────────────────────────────────────────────────────
+FIX A (punto 1) — Rename "review missed words" button — ResultsScreen.tsx
+In MissedWordsList, the button whose onClick calls handleQuickReview()
+(navigates to /quiz?mode=reverse&source=review). Change ONLY its visible
+label to:  Review mistakes →
+(whatever it currently says — "Test these again" or "Quick review").
+Keep its style and behavior identical.
+
+────────────────────────────────────────────────────────
+FIX B (punto 2) — Rename "Try again" — ResultsScreen.tsx
+In ActionButtons, the ghost button with onClick navigate(`/quiz?words=${wordCount}`)
+currently labeled "Try again". Change ONLY its label to:  Another round →
+Leave the other button ("New session") and everything else unchanged.
+
+────────────────────────────────────────────────────────
+FIX C (punto 4) — Missed-words card bottom spacing — ResultsScreen.tsx
+In the MissedWordsList carousel card, the decorative ⋯ span is
+position:absolute; bottom:10; right:14, and the correct-answer text can sit
+too close to it. Change the card's padding from "18px 16px" to "18px 16px 30px"
+(reserve a clear strip at the bottom for ⋯). Do NOT move the ⋯ or change
+anything else in the card.
+
+────────────────────────────────────────────────────────
+FIX D (punto 9) — Auto-advance in Reverse mode — QuizScreen.tsx
+Goal: in reverse mode, after the user selects an option, auto-advance to the
+next question with no manual Next click. Timing: 900ms if correct, 1300ms if
+wrong (so the user briefly sees the result).
+
+1) Add this useEffect near the reverse handlers:
+   useEffect(() => {
+     if (!isReverseMode || !isAnswered) return;
+     const correct = selectedOption === currentReviewWord?.word;
+     const t = setTimeout(() => handleReverseNext(), correct ? 900 : 1300);
+     return () => clearTimeout(t);
+   }, [isReverseMode, isAnswered, selectedOption, currentReviewWord]);
+   (Use a useEffect — do NOT call handleReverseNext directly inside
+   handleSelectReverseOption — to avoid a stale-closure on selectedOption.)
+
+2) Remove the manual reverse Next button entirely: delete the whole block that
+   renders <motion.button data-testid="button-next-reverse"> (the
+   `{isReverseMode && (<AnimatePresence>{isAnswered && (<motion.div ...>Next →
+   </motion.div>)}</AnimatePresence>)}` block).
+
+Leave normal-mode Next, FeedbackCard, scoring, and handleReverseNext/
+handleSelectReverseOption otherwise unchanged.
+
+────────────────────────────────────────────────────────
+FIX E (punto 3) — Roaming floating words — AppBackground.tsx + WelcomeScreen.tsx
+Replace the static fixed-position floating words with words that drift and
+bounce across the whole screen, with a center fade-out so they never compete
+with central fixed text.
+
+E1) src/components/AppBackground.tsx
+ - Keep ChromaticOrbs and BackgroundHalos EXACTLY as they are.
+ - Replace FLOATING_WORDS with word + baseOpacity + fontSize only (drop x/y/delay):
+     { word: "luminous",   baseOpacity: 0.5,  fontSize: "0.82rem" },
+     { word: "ephemeral",  baseOpacity: 0.46, fontSize: "0.8rem"  },
+     { word: "cogent",     baseOpacity: 0.48, fontSize: "0.82rem" },
+     { word: "liminal",    baseOpacity: 0.3,  fontSize: "0.75rem" },
+     { word: "reverie",    baseOpacity: 0.32, fontSize: "0.77rem" },
+     { word: "querulous",  baseOpacity: 0.28, fontSize: "0.73rem" },
+     { word: "sanguine",   baseOpacity: 0.3,  fontSize: "0.75rem" },
+     { word: "ineffable",  baseOpacity: 0.18, fontSize: "0.68rem" },
+     { word: "tenuous",    baseOpacity: 0.16, fontSize: "0.67rem" },
+     { word: "obsequious", baseOpacity: 0.16, fontSize: "0.66rem" },
+ - Replace the FloatingWord usage with a single <RoamingWords /> component,
+   rendered only when showWords is true:
+     * Container: position absolute, inset 0, pointerEvents none,
+       zIndex 3 (above orbs/halos z1–2, below content z10), overflow hidden.
+     * Each word = a <span>: Inter weight 300, letterSpacing 0.13em,
+       color #D97706, the SAME amber textShadow glow as the old FloatingWord,
+       whiteSpace nowrap, position absolute, transform translate(-50%,-50%),
+       fontSize from the data.
+     * Motion via ONE requestAnimationFrame loop in a useEffect.
+       Per-word state {x,y,vx,vy} in % units: init x,y random in [6,94],
+       random direction, speed magnitude ~0.02–0.05 %/frame. Each frame:
+       x+=vx; y+=vy; bounce at x<3 / x>97 and y<4 / y>96 (invert velocity +
+       clamp). Write el.style.left/top in %.
+     * Center fade each frame: d = Math.hypot(x-50, y-50);
+       opacity = d < 30 ? baseOpacity * Math.max(0.08, d/30) : baseOpacity.
+       Write el.style.opacity.
+     * prefers-reduced-motion: if
+       window.matchMedia('(prefers-reduced-motion: reduce)').matches → do NOT
+       start the rAF loop; place words at static scattered positions at their
+       baseOpacity (apply the center-fade once).
+     * cancelAnimationFrame on unmount.
+ - AppBackground signature stays ({ showWords = true }); render <RoamingWords />
+   only when showWords.
+
+E2) src/pages/WelcomeScreen.tsx (refactor to remove duplication)
+ - Replace its inline background (its own ChromaticOrbs + BackgroundHalos +
+   FLOATING_WORDS.map(FloatingWord)) with a single  <AppBackground />.
+ - Delete the now-unused duplicate definitions in WelcomeScreen.tsx:
+   FLOATING_WORDS, FloatingWord, ChromaticOrbs, BackgroundHalos.
+   Add: import AppBackground from "@/components/AppBackground";
+ - Keep all foreground content (LogoMark, VerbaTitle, Tagline, StartButton) and
+   the content wrapper (position relative, zIndex 10) exactly as is.
+
+────────────────────────────────────────────────────────
+DO NOT:
+ - change showWords on QuizScreen / DifficultyScreen (they stay false / clean).
+ - alter quiz answer logic, scoring, FeedbackCard, or any other ResultsScreen
+   section.
+ - add new deps (no hammer.js etc.) — plain requestAnimationFrame only.
+
+DO NOT test live — I will test manually.

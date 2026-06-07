@@ -278,6 +278,14 @@ export default function QuizScreen() {
     }
   }
 
+  // Auto-advance in reverse mode after the user picks an option
+  useEffect(() => {
+    if (!isReverseMode || !isAnswered) return;
+    const correct = selectedOption === currentReviewWord?.word;
+    const t = setTimeout(() => handleReverseNext(), correct ? 900 : 1300);
+    return () => clearTimeout(t);
+  }, [isReverseMode, isAnswered, selectedOption, currentReviewWord]);
+
   function handleReverseNext() {
     setShowFeedback(false);
     setTimeout(() => {
@@ -539,30 +547,6 @@ export default function QuizScreen() {
           </AnimatePresence>
         )}
       </div>
-
-      {/* Reverse mode: bottom-anchored Next button */}
-      {isReverseMode && (
-        <AnimatePresence>
-          {isAnswered && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={{ duration: 0.2 }}
-              style={{ position: "relative", zIndex: 20, display: "flex", justifyContent: "center", padding: "20px 24px", paddingBottom: "calc(env(safe-area-inset-bottom) + 24px)", boxSizing: "border-box" }}
-            >
-              <motion.button
-                data-testid="button-next-reverse"
-                onClick={handleReverseNext}
-                whileTap={{ scale: 0.97 }}
-                style={{ display: "block", width: "auto", maxWidth: 200, margin: "0 auto", padding: "12px 32px", borderRadius: 9999, border: "none", cursor: "pointer", background: "linear-gradient(to right, #B45309, #C2410C)", fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 15, letterSpacing: "0.04em", color: "#FFFFFF", outline: "none", boxShadow: "0 0 12px rgba(217,119,6,0.25)" }}
-              >
-                Next →
-              </motion.button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      )}
 
       {/* Feedback card — normal mode only */}
       {!isReverseMode && (
