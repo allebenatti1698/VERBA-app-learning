@@ -379,7 +379,7 @@ function ActionButtons({ wordCount, visible = true }: ActionButtonsProps) {
           whiteSpace: "nowrap",
         }}
       >
-        Another round →
+        Another round
       </motion.button>
 
       {/* New session */}
