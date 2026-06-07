@@ -603,10 +603,45 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
             {word.allDefinitions && word.allDefinitions.length > 1 ? (
               <FeedbackMultiDefinitions definitions={word.allDefinitions} />
             ) : (
-              <>
-                <FeedbackDefinition definition={word.correctDefinition} visible={true} />
-                <FeedbackExample sentence={word.exampleSentence} visible={true} />
-              </>
+              <div style={{ marginTop: 16 }}>
+                {word.allDefinitions?.[0]?.part_of_speech && (
+                  <p style={{
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: 500,
+                    fontSize: 11,
+                    letterSpacing: "0.12em",
+                    textTransform: "lowercase",
+                    color: "rgba(199,184,232,0.5)",
+                    fontStyle: "italic",
+                    margin: "0 0 6px",
+                  }}>
+                    {word.allDefinitions[0].part_of_speech}
+                  </p>
+                )}
+                <p style={{
+                  fontFamily: "'Inter', sans-serif",
+                  fontWeight: 400,
+                  fontSize: 20,
+                  color: "#FFFFFF",
+                  margin: 0,
+                  lineHeight: 1.4,
+                }}>
+                  {lowercaseFirst(word.correctDefinition)}
+                </p>
+                {word.exampleSentence && (
+                  <p style={{
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: 300,
+                    fontSize: 16,
+                    fontStyle: "italic",
+                    color: "rgba(255,255,255,0.7)",
+                    margin: "12px 0 0",
+                    lineHeight: 1.5,
+                  }}>
+                    "{word.exampleSentence}"
+                  </p>
+                )}
+              </div>
             )}
 
             <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 6 }}>

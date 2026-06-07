@@ -1,0 +1,74 @@
+VERBA — Show the part-of-speech tag on single-definition words too.
+Read src/components/FeedbackCard.tsx first. DO NOT test live — I test manually.
+
+CONTEXT: the POS tag already shows for multi-definition words (via
+FeedbackMultiDefinitions). Single-definition words go through the else branch
+(FeedbackDefinition + FeedbackExample) and show NO tag. Add the tag there,
+keeping the single definition at its current large 20px size.
+
+In the FeedbackCard main render, the current conditional is:
+
+  {word.allDefinitions && word.allDefinitions.length > 1 ? (
+    <FeedbackMultiDefinitions definitions={word.allDefinitions} />
+  ) : (
+    <>
+      <FeedbackDefinition definition={word.correctDefinition} visible={true} />
+      <FeedbackExample sentence={word.exampleSentence} visible={true} />
+    </>
+  )}
+
+Leave the multi-def branch UNCHANGED. Replace ONLY the else branch (the fragment)
+with this block:
+
+  ) : (
+    <div style={{ marginTop: 16 }}>
+      {word.allDefinitions?.[0]?.part_of_speech && (
+        <p style={{
+          fontFamily: "'Inter', sans-serif",
+          fontWeight: 500,
+          fontSize: 11,
+          letterSpacing: "0.12em",
+          textTransform: "lowercase",
+          color: "rgba(199,184,232,0.5)",
+          fontStyle: "italic",
+          margin: "0 0 6px",
+        }}>
+          {word.allDefinitions[0].part_of_speech}
+        </p>
+      )}
+      <p style={{
+        fontFamily: "'Inter', sans-serif",
+        fontWeight: 400,
+        fontSize: 20,
+        color: "#FFFFFF",
+        margin: 0,
+        lineHeight: 1.4,
+      }}>
+        {lowercaseFirst(word.correctDefinition)}
+      </p>
+      {word.exampleSentence && (
+        <p style={{
+          fontFamily: "'Inter', sans-serif",
+          fontWeight: 300,
+          fontSize: 16,
+          fontStyle: "italic",
+          color: "rgba(255,255,255,0.7)",
+          margin: "12px 0 0",
+          lineHeight: 1.5,
+        }}>
+          "{word.exampleSentence}"
+        </p>
+      )}
+    </div>
+  )}
+
+Notes:
+- lowercaseFirst is already imported in this file — reuse it.
+- The POS tag only renders when part_of_speech exists (graceful if missing).
+- FeedbackDefinition / FeedbackExample stay defined (just no longer used in this
+  branch) — leave them, don't delete.
+
+DO NOT change the multi-def branch, colors, the headword, synonyms/antonyms,
+translation, etymology, or any other screen.
+
+DO NOT test live — I will test manually.
