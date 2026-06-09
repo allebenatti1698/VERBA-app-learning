@@ -389,10 +389,14 @@ export default function QuizScreen() {
 
   const isLastNormal = !isReverseMode && currentIndex + 1 >= quizWords.length;
 
+  const wlen = currentWord?.word.length ?? 0;
+  const wordFontSize =
+    wlen <= 13 ? "clamp(34px, 8.5vw, 50px)" :
+    wlen <= 15 ? "clamp(28px, 7vw, 42px)" :
+                 "clamp(26px, 6vw, 38px)";
+
   return (
     <div style={{ minHeight: "100dvh", width: "100%", background: "#0A0A0A", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
-      {/* TEMP: center line diagnostic */}
-      <div style={{ position: "fixed", left: "50%", top: 0, bottom: 0, width: 1, transform: "translateX(-0.5px)", background: "rgba(255,80,80,0.7)", zIndex: 99999, pointerEvents: "none" }} />
       <AppBackground showWords={false} />
 
       {/* Progress bar */}
@@ -442,7 +446,7 @@ export default function QuizScreen() {
             ) : (
               <>
                 {/* Normal: show word */}
-                <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "clamp(36px, 9vw, 64px)", lineHeight: 1.3, color: "#C7B8E8", margin: 0, textAlign: "center", width: "100%", maxWidth: "100%", padding: "20px 32px 32px 32px", boxSizing: "border-box", overflow: "visible", whiteSpace: "nowrap", wordBreak: "keep-all" }}>
+                <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: wordFontSize, lineHeight: 1.3, color: "#C7B8E8", margin: 0, textAlign: "center", width: "100%", maxWidth: "100%", padding: "20px 14px 32px 14px", boxSizing: "border-box", overflow: "visible", whiteSpace: "nowrap", wordBreak: "keep-all" }}>
                   {currentWord!.word}
                 </h2>
 
