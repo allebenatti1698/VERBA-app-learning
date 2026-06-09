@@ -391,6 +391,8 @@ export default function QuizScreen() {
 
   return (
     <div style={{ minHeight: "100dvh", width: "100%", background: "#0A0A0A", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+      {/* TEMP: center line diagnostic */}
+      <div style={{ position: "fixed", left: "50%", top: 0, bottom: 0, width: 1, transform: "translateX(-0.5px)", background: "rgba(255,80,80,0.7)", zIndex: 99999, pointerEvents: "none" }} />
       <AppBackground showWords={false} />
 
       {/* Progress bar */}
