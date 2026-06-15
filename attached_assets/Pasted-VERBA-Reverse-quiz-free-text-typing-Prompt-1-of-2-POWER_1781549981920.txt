@@ -1,0 +1,185 @@
+VERBA — Reverse quiz: free-text typing (Prompt 1 of 2). POWER MODE.
+Read first (do NOT assume code state): src/pages/QuizScreen.tsx, src/lib/formatText.ts.
+DO NOT test live — I test manually.
+
+CONTEXT
+Reverse mode today shows the definition as the prompt + 4 word "pills"
+(multiple-choice). This prompt REPLACES those pills with a free-text input
+where the user TYPES the word, with typo-tolerant validation and three
+feedback states. NORMAL MODE MUST STAY 100% UNTOUCHED.
+(Prompt 2 — later — will swap the retry view to a letter word bank. Not now.)
+
+────────────────────────────────────────────────
+STEP 1 — New file: src/lib/typoMatch.ts
+export function damerauLevenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const d: number[][] = [];
+  for (let i = 0; i <= m; i++) { d[i] = []; d[i][0] = i; }
+  for (let j = 0; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
+      d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + cost);
+      if (i > 1 && j > 1 && a.charAt(i-1) === b.charAt(j-2) && a.charAt(i-2) === b.charAt(j-1)) {
+        d[i][j] = Math.min(d[i][j], d[i-2][j-2] + 1);
+      }
+    }
+  }
+  return d[m][n];
+}
+// Balanced policy: <=1 typo up to 7 letters, <=2 from 8 letters on.
+export function nearMissThreshold(len: number): number {
+  return len >= 8 ? 2 : 1;
+}
+
+────────────────────────────────────────────────
+STEP 2 — QuizScreen.tsx imports
+- Add: import { damerauLevenshtein, nearMissThreshold } from "@/lib/typoMatch";
+- Ensure useAnimationControls is imported from "framer-motion"
+  (add it to the existing framer-motion import).
+- playCorrectSound is already imported — keep it.
+
+────────────────────────────────────────────────
+STEP 3 — New reverse state (add next to the other reverse-mode state)
+const [typedAnswer, setTypedAnswer] = useState("");
+const [reverseResult, setReverseResult] = useState<null | "correct" | "near" | "wrong">(null);
+const reverseInputRef = useRef<HTMLInputElement>(null);
+const shakeControls = useAnimationControls();
+
+────────────────────────────────────────────────
+STEP 4 — Reset + autofocus on word change (add a useEffect)
+useEffect(() => {
+  if (!isReverseMode) return;
+  setTypedAnswer("");
+  setReverseResult(null);
+  const t = setTimeout(() => reverseInputRef.current?.focus(), 60);
+  return () => clearTimeout(t);
+}, [isReverseMode, reverseWordKey]);
+
+────────────────────────────────────────────────
+STEP 5 — Refactor handleReverseNext to take an explicit result
+Change the signature to:  function handleReverseNext(wasCorrect: boolean) {
+Inside, REMOVE the line that computes
+  const isCorrect = selectedOption === currentReviewWord.word;
+and use the wasCorrect argument instead (rename the local to wasCorrect).
+EVERYTHING ELSE stays identical: queue slice, re-push to the end when
+!wasCorrect, mastered++ when wasCorrect, the review-complete navigation,
+and the internal setReverseWordKey bump.
+
+────────────────────────────────────────────────
+STEP 6 — New submit handler + shake helper (add near the reverse handlers)
+function shakeReverse(kind: "hard" | "soft") {
+  shakeControls.start({
+    x: kind === "hard" ? [0,-11,10,-8,6,-4,2,0] : [0,-4,3,-2,0],
+    transition: { duration: kind === "hard" ? 0.42 : 0.3, ease: "easeInOut" },
+  });
+}
+function submitReverseTyping() {
+  if (!currentReviewWord || reverseResult === "correct" || reverseResult === "wrong") return;
+  const target = currentReviewWord.word;
+  const guess = typedAnswer.trim().toLowerCase();
+  if (!guess) return;
+  const dist = damerauLevenshtein(guess, target.toLowerCase());
+  const thr = nearMissThreshold(target.length);
+  if (dist === 0) {
+    setReverseResult("correct");
+    playCorrectSound();
+    setTimeout(() => handleReverseNext(true), 900);
+  } else if (dist <= thr) {
+    setReverseResult("near");
+    shakeReverse("soft");
+    setTimeout(() => reverseInputRef.current?.focus(), 0);
+    // do NOT advance — user edits and resubmits
+  } else {
+    setReverseResult("wrong");
+    shakeReverse("hard");
+    const key = String(currentReviewWord.id);
+    reverseRetryCountRef.current.set(key, (reverseRetryCountRef.current.get(key) ?? 0) + 1);
+    setTimeout(() => handleReverseNext(false), 1300);
+  }
+}
+
+────────────────────────────────────────────────
+STEP 7 — Replace the reverse rendering inside the Options block
+Find the Options <motion.div>. Today it renders:
+  {isReverseMode && reverseOptionsLoading ? (<spinner/>) : ( activeOptions.map(...) )}
+Change the branching to:
+  {isReverseMode ? (
+    <motion.div animate={shakeControls} style={{ width: "100%" }}>
+      <input
+        ref={reverseInputRef}
+        value={typedAnswer}
+        onChange={(e) => { setTypedAnswer(e.target.value); if (reverseResult === "near") setReverseResult(null); }}
+        onKeyDown={(e) => { if (e.key === "Enter") submitReverseTyping(); }}
+        disabled={reverseResult === "correct" || reverseResult === "wrong"}
+        placeholder="type the word…"
+        autoComplete="off"
+        style={{
+          width: "100%", boxSizing: "border-box",
+          background: "rgba(255,255,255,0.03)",
+          border: `1px solid ${
+            reverseResult === "correct" ? "rgba(52,211,153,0.6)" :
+            reverseResult === "near"    ? "rgba(250,204,21,0.65)" :
+            reverseResult === "wrong"   ? "rgba(248,113,113,0.6)" :
+                                          "rgba(217,119,6,0.28)"
+          }`,
+          borderRadius: 14, padding: "14px 16px",
+          fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500,
+          fontSize: "1.05rem", color: "#C7B8E8", textAlign: "center", outline: "none",
+        }}
+      />
+      <motion.button
+        whileTap={{ scale: 0.97 }}
+        onClick={submitReverseTyping}
+        disabled={reverseResult === "correct" || reverseResult === "wrong"}
+        style={{
+          display: "block", width: "100%", marginTop: 10,
+          background: "linear-gradient(90deg, #B45309, #C2410C)", border: "none",
+          borderRadius: 9999, padding: "13px", color: "#FFFFFF",
+          fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 15,
+          letterSpacing: "0.02em", cursor: "pointer", outline: "none",
+        }}
+      >
+        Check
+      </motion.button>
+      <p style={{
+        minHeight: 20, marginTop: 14, textAlign: "center",
+        fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: "0.9rem",
+        color:
+          reverseResult === "correct" ? "#34D399" :
+          reverseResult === "near"    ? "#FACC15" :
+          reverseResult === "wrong"   ? "#F87171" : "transparent",
+      }}>
+        {reverseResult === "correct" ? "Correct" :
+         reverseResult === "near"    ? "Almost there — try again" :
+         reverseResult === "wrong"   ? `It was ${currentReviewWord!.word}` : ""}
+      </p>
+    </motion.div>
+  ) : (
+    activeOptions.map(/* NORMAL MODE — leave this map exactly as it is */)
+  )}
+Keep the reverse prompt (the lowercaseFirst(correctDefinition) paragraph) UNCHANGED.
+
+────────────────────────────────────────────────
+STEP 8 — Cleanup: remove the dead reverse multiple-choice machinery
+1. DELETE the reverse auto-advance useEffect (the one starting with
+   `if (!isReverseMode || !isAnswered) return;` that sets a 900/1300 timeout
+   to handleReverseNext). Its role now lives in submitReverseTyping.
+2. DELETE function handleSelectReverseOption entirely.
+3. DELETE state reverseOptions and reverseOptionsLoading (and any setter calls).
+4. DELETE the useEffect that loads getReverseDistractors for reverse options.
+   If the getReverseDistractors import is now unused, remove the import.
+5. Fix the computed lines that referenced removed things:
+   - `const activeOptions = isReverseMode ? reverseOptions : shuffledOptions;`
+       → `const activeOptions = shuffledOptions;`
+   - `const handleSelectActive = isReverseMode ? handleSelectReverseOption : handleSelectOption;`
+       → `const handleSelectActive = handleSelectOption;`
+   - `const handleNextActive = isReverseMode ? handleReverseNext : handleNext;`
+       → `const handleNextActive = handleNext;`
+
+DO NOT TOUCH: normal mode (options map, FeedbackCard, floating Next, scoring,
+hint/translation), the progress bar, the counter, the reverse prompt definition,
+the review-complete navigation, and the queue/mastered logic inside
+handleReverseNext (other than the wasCorrect refactor above).
+
+DO NOT test live — I test manually.
