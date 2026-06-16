@@ -516,6 +516,17 @@ export default function QuizScreen() {
                       color: reverseResult === "correct" ? "#10B981" : "#EF4444" }}>
                       {reverseResult === "correct" ? "✓ Correct" : "✗ Incorrect"}
                     </p>
+                    {reverseResult === "correct" && (
+                      <motion.p
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.34, ease: [0.2, 1.3, 0.4, 1] }}
+                        style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500, fontSize: 26,
+                          color: "#C7B8E8", margin: "12px 0 0", textAlign: "center" }}
+                      >
+                        {currentReviewWord!.word}
+                      </motion.p>
+                    )}
                     {reverseResult === "wrong" && (
                       <div style={{ textAlign: "center", marginTop: 12 }}>
                         <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 11,
