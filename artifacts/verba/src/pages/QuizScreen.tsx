@@ -539,9 +539,10 @@ export default function QuizScreen() {
                 ) : (
                   <>
                     {reverseResult === "near" && (
-                      <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: "0.85rem",
-                        textAlign: "center", color: "#FACC15", margin: "0 0 10px" }}>
-                        Almost — check your spelling
+                      <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 13,
+                        letterSpacing: "0.1em", textTransform: "uppercase", textAlign: "center",
+                        color: "#FACC15", margin: "0 0 12px" }}>
+                        ≈ Almost — check your spelling
                       </p>
                     )}
                     <input
