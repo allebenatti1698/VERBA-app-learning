@@ -1,0 +1,147 @@
+VERBA — Reverse typing: layout + feedback polish. POWER MODE.
+Read first (do NOT assume): src/pages/QuizScreen.tsx, src/components/FeedbackCard.tsx.
+DO NOT test live — I test manually.
+
+CONTEXT
+The reverse quiz already uses free-text typing (typedAnswer, reverseResult,
+submitReverseTyping, handleReverseNext(wasCorrect), shakeControls). This prompt
+only RESHAPES that reverse screen: lower the definition, anchor the action at
+the bottom, left-align the input, switch the result to the main-quiz identity
+(✓ Correct / ✗ Incorrect + word), compact the buttons, and make advancing a
+MANUAL Next press (no more auto-advance). NORMAL MODE STAYS 100% UNTOUCHED.
+
+────────────────────────────────────────────────
+STEP 1 — Layout (only in reverse mode)
+In the return JSX:
+a) The "Main content" wrapper div currently has:
+     padding: "0 20px 120px", gap: 16  (and no justifyContent)
+   Make it reverse-aware:
+     justifyContent: isReverseMode ? "space-between" : "flex-start",
+     padding: isReverseMode ? "0 20px 40px" : "0 20px 120px",
+   (Leave everything else on that div as-is. This pushes the prompt up top
+   and the action block to the bottom in reverse.)
+b) The Prompt <motion.div> currently has paddingTop: 24. Make it:
+     paddingTop: isReverseMode ? 80 : 24,
+   (80px = the "medium-high" definition position — tune this single number to
+   taste later.)
+
+────────────────────────────────────────────────
+STEP 2 — Optional part-of-speech tag (only if the data exists)
+Above the reverse definition <p> (the lowercaseFirst(correctDefinition) one):
+IF the ReviewItem type already exposes a part-of-speech field, render it as a
+small tag with this exact style; if the field does NOT exist on ReviewItem,
+SKIP this step entirely (do not add any fetch/query):
+  <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 11,
+    letterSpacing: "0.12em", fontStyle: "italic", color: "rgba(199,184,232,0.5)",
+    margin: "0 0 8px", textAlign: "center" }}>{/* the POS value */}</p>
+
+────────────────────────────────────────────────
+STEP 3 — submitReverseTyping: remove auto-advance
+Replace the body so it sets the result but does NOT schedule any timeout:
+function submitReverseTyping() {
+  if (!currentReviewWord || reverseResult === "correct" || reverseResult === "wrong") return;
+  const target = currentReviewWord.word;
+  const guess = typedAnswer.trim().toLowerCase();
+  if (!guess) return;
+  const dist = damerauLevenshtein(guess, target.toLowerCase());
+  const thr = nearMissThreshold(target.length);
+  if (dist === 0) {
+    setReverseResult("correct");
+    playCorrectSound();
+  } else if (dist <= thr) {
+    setReverseResult("near");
+    shakeReverse("soft");
+    setTimeout(() => reverseInputRef.current?.focus(), 0);
+  } else {
+    setReverseResult("wrong");
+    shakeReverse("hard");
+    const key = String(currentReviewWord.id);
+    reverseRetryCountRef.current.set(key, (reverseRetryCountRef.current.get(key) ?? 0) + 1);
+  }
+}
+Then: DELETE advanceTimerRef (its declaration AND the unmount cleanup useEffect
+that clears it). In the reset-on-word-change useEffect, KEEP the line
+`reverseAdvancingRef.current = false;`.
+
+────────────────────────────────────────────────
+STEP 4 — handleReverseNext: guard against double-press
+At the very top of handleReverseNext(wasCorrect), before setShowFeedback(false):
+  if (reverseAdvancingRef.current) return;
+  reverseAdvancingRef.current = true;
+(Everything else in handleReverseNext stays identical.)
+
+────────────────────────────────────────────────
+STEP 5 — Replace the reverse rendering block
+Inside the Options <motion.div>, the reverse branch currently renders
+<motion.div animate={shakeControls}> with an input + a full-width Check + a <p>
+feedback line. Replace that whole reverse branch with:
+
+  <motion.div animate={shakeControls} style={{ width: "100%" }}>
+    {reverseResult === "correct" || reverseResult === "wrong" ? (
+      <>
+        <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 13,
+          letterSpacing: "0.1em", textTransform: "uppercase", textAlign: "center", margin: 0,
+          color: reverseResult === "correct" ? "#10B981" : "#EF4444" }}>
+          {reverseResult === "correct" ? "✓ Correct" : "✗ Incorrect"}
+        </p>
+        {reverseResult === "wrong" && (
+          <div style={{ textAlign: "center", marginTop: 12 }}>
+            <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 11,
+              letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)",
+              margin: "0 0 2px" }}>the word was</p>
+            <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500, fontSize: 26,
+              color: "#C7B8E8", margin: 0 }}>{currentReviewWord!.word}</p>
+          </div>
+        )}
+        <motion.button
+          whileTap={{ scale: 0.96 }}
+          onClick={() => handleReverseNext(reverseResult === "correct")}
+          style={{ display: "block", width: "auto", maxWidth: 200, margin: "20px auto 0",
+            padding: "12px 32px", borderRadius: 9999, border: "none", cursor: "pointer",
+            background: "linear-gradient(to right, #B45309, #C2410C)", fontFamily: "'Inter', sans-serif",
+            fontWeight: 500, fontSize: 15, letterSpacing: "0.04em", color: "#FFFFFF", outline: "none",
+            boxShadow: "0 0 12px rgba(217,119,6,0.25)" }}>
+          {reverseResult === "correct" && reviewQueue.length <= 1 ? "Finish" : "Next →"}
+        </motion.button>
+      </>
+    ) : (
+      <>
+        {reverseResult === "near" && (
+          <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: "0.85rem",
+            textAlign: "center", color: "#FACC15", margin: "0 0 10px" }}>
+            Almost — check your spelling
+          </p>
+        )}
+        <input
+          ref={reverseInputRef}
+          value={typedAnswer}
+          onChange={(e) => { setTypedAnswer(e.target.value); if (reverseResult === "near") setReverseResult(null); }}
+          onKeyDown={(e) => { if (e.key === "Enter") submitReverseTyping(); }}
+          placeholder="type the word…"
+          autoComplete="off"
+          style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.03)",
+            border: `1px solid ${reverseResult === "near" ? "rgba(250,204,21,0.65)" : "rgba(217,119,6,0.28)"}`,
+            borderRadius: 14, padding: "14px 18px", fontFamily: "'Space Grotesk', sans-serif",
+            fontWeight: 500, fontSize: "1.05rem", color: "#C7B8E8", textAlign: "left", outline: "none" }}
+        />
+        <motion.button
+          whileTap={{ scale: 0.96 }}
+          onClick={submitReverseTyping}
+          style={{ display: "block", width: "auto", maxWidth: 200, margin: "10px auto 0",
+            padding: "12px 32px", borderRadius: 9999, border: "none", cursor: "pointer",
+            background: "linear-gradient(to right, #B45309, #C2410C)", fontFamily: "'Inter', sans-serif",
+            fontWeight: 500, fontSize: 15, letterSpacing: "0.04em", color: "#FFFFFF", outline: "none",
+            boxShadow: "0 0 12px rgba(217,119,6,0.25)" }}>
+          Check
+        </motion.button>
+      </>
+    )}
+  </motion.div>
+
+────────────────────────────────────────────────
+DO NOT TOUCH: normal mode (options map, FeedbackCard, floating Next, scoring,
+hint/translation), the progress bar + counter, the reverse definition text,
+AppBackground (already showWords={false}), and the queue/mastered logic inside
+handleReverseNext (other than the double-press guard).
+
+DO NOT test live — I test manually.

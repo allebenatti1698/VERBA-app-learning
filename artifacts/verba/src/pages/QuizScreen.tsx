@@ -144,7 +144,6 @@ export default function QuizScreen() {
   const reverseInputRef = useRef<HTMLInputElement>(null);
   const shakeControls = useAnimationControls();
   const reverseAdvancingRef = useRef(false);
-  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Normal mode: fetch words ─────────────────────────────────────────────
   useEffect(() => {
@@ -208,9 +207,6 @@ export default function QuizScreen() {
     const t = setTimeout(() => reverseInputRef.current?.focus(), 60);
     return () => clearTimeout(t);
   }, [isReverseMode, reverseWordKey]);
-
-  // Cancel any pending reverse advance timer on unmount
-  useEffect(() => () => { if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current); }, []);
 
   const handleRetry = useCallback(() => setFetchKey((k) => k + 1), []);
 
@@ -278,33 +274,30 @@ export default function QuizScreen() {
   }
 
   function submitReverseTyping() {
-    if (!currentReviewWord || reverseAdvancingRef.current || reverseResult === "correct" || reverseResult === "wrong") return;
+    if (!currentReviewWord || reverseResult === "correct" || reverseResult === "wrong") return;
     const target = currentReviewWord.word;
     const guess = typedAnswer.trim().toLowerCase();
     if (!guess) return;
     const dist = damerauLevenshtein(guess, target.toLowerCase());
     const thr = nearMissThreshold(target.length);
     if (dist === 0) {
-      reverseAdvancingRef.current = true;
       setReverseResult("correct");
       playCorrectSound();
-      advanceTimerRef.current = setTimeout(() => handleReverseNext(true), 900);
     } else if (dist <= thr) {
       setReverseResult("near");
       shakeReverse("soft");
       setTimeout(() => reverseInputRef.current?.focus(), 0);
-      // do NOT advance — user edits and resubmits
     } else {
-      reverseAdvancingRef.current = true;
       setReverseResult("wrong");
       shakeReverse("hard");
       const key = String(currentReviewWord.id);
       reverseRetryCountRef.current.set(key, (reverseRetryCountRef.current.get(key) ?? 0) + 1);
-      advanceTimerRef.current = setTimeout(() => handleReverseNext(false), 1300);
     }
   }
 
   function handleReverseNext(wasCorrect: boolean) {
+    if (reverseAdvancingRef.current) return;
+    reverseAdvancingRef.current = true;
     setShowFeedback(false);
     setTimeout(() => {
       if (!currentReviewWord) return;
@@ -430,7 +423,7 @@ export default function QuizScreen() {
       </div>
 
       {/* Main content */}
-      <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", flex: 1, alignItems: "center", padding: "0 20px 120px", gap: 16 }}>
+      <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", flex: 1, alignItems: "center", justifyContent: isReverseMode ? "space-between" : "flex-start", padding: isReverseMode ? "0 20px 40px" : "0 20px 120px", gap: 16 }}>
 
         {/* Prompt */}
         <AnimatePresence mode="wait">
@@ -440,7 +433,7 @@ export default function QuizScreen() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 24, paddingBottom: 8, width: "100%", maxWidth: 440 }}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: isReverseMode ? 80 : 24, paddingBottom: 8, width: "100%", maxWidth: 440 }}
           >
             {isReverseMode ? (
               <>
@@ -516,54 +509,65 @@ export default function QuizScreen() {
           >
             {isReverseMode ? (
               <motion.div animate={shakeControls} style={{ width: "100%" }}>
-                <input
-                  ref={reverseInputRef}
-                  value={typedAnswer}
-                  onChange={(e) => { setTypedAnswer(e.target.value); if (reverseResult === "near") setReverseResult(null); }}
-                  onKeyDown={(e) => { if (e.key === "Enter") submitReverseTyping(); }}
-                  disabled={reverseResult === "correct" || reverseResult === "wrong"}
-                  placeholder="type the word…"
-                  autoComplete="off"
-                  style={{
-                    width: "100%", boxSizing: "border-box",
-                    background: "rgba(255,255,255,0.03)",
-                    border: `1px solid ${
-                      reverseResult === "correct" ? "rgba(52,211,153,0.6)" :
-                      reverseResult === "near"    ? "rgba(250,204,21,0.65)" :
-                      reverseResult === "wrong"   ? "rgba(248,113,113,0.6)" :
-                                                    "rgba(217,119,6,0.28)"
-                    }`,
-                    borderRadius: 14, padding: "14px 16px",
-                    fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500,
-                    fontSize: "1.05rem", color: "#C7B8E8", textAlign: "center", outline: "none",
-                  }}
-                />
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  onClick={submitReverseTyping}
-                  disabled={reverseResult === "correct" || reverseResult === "wrong"}
-                  style={{
-                    display: "block", width: "100%", marginTop: 10,
-                    background: "linear-gradient(90deg, #B45309, #C2410C)", border: "none",
-                    borderRadius: 9999, padding: "13px", color: "#FFFFFF",
-                    fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 15,
-                    letterSpacing: "0.02em", cursor: "pointer", outline: "none",
-                  }}
-                >
-                  Check
-                </motion.button>
-                <p style={{
-                  minHeight: 20, marginTop: 14, textAlign: "center",
-                  fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: "0.9rem",
-                  color:
-                    reverseResult === "correct" ? "#34D399" :
-                    reverseResult === "near"    ? "#FACC15" :
-                    reverseResult === "wrong"   ? "#F87171" : "transparent",
-                }}>
-                  {reverseResult === "correct" ? "Correct" :
-                   reverseResult === "near"    ? "Almost there — try again" :
-                   reverseResult === "wrong"   ? `It was ${currentReviewWord!.word}` : ""}
-                </p>
+                {reverseResult === "correct" || reverseResult === "wrong" ? (
+                  <>
+                    <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 13,
+                      letterSpacing: "0.1em", textTransform: "uppercase", textAlign: "center", margin: 0,
+                      color: reverseResult === "correct" ? "#10B981" : "#EF4444" }}>
+                      {reverseResult === "correct" ? "✓ Correct" : "✗ Incorrect"}
+                    </p>
+                    {reverseResult === "wrong" && (
+                      <div style={{ textAlign: "center", marginTop: 12 }}>
+                        <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 11,
+                          letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)",
+                          margin: "0 0 2px" }}>the word was</p>
+                        <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500, fontSize: 26,
+                          color: "#C7B8E8", margin: 0 }}>{currentReviewWord!.word}</p>
+                      </div>
+                    )}
+                    <motion.button
+                      whileTap={{ scale: 0.96 }}
+                      onClick={() => handleReverseNext(reverseResult === "correct")}
+                      style={{ display: "block", width: "auto", maxWidth: 200, margin: "20px auto 0",
+                        padding: "12px 32px", borderRadius: 9999, border: "none", cursor: "pointer",
+                        background: "linear-gradient(to right, #B45309, #C2410C)", fontFamily: "'Inter', sans-serif",
+                        fontWeight: 500, fontSize: 15, letterSpacing: "0.04em", color: "#FFFFFF", outline: "none",
+                        boxShadow: "0 0 12px rgba(217,119,6,0.25)" }}>
+                      {reverseResult === "correct" && reviewQueue.length <= 1 ? "Finish" : "Next →"}
+                    </motion.button>
+                  </>
+                ) : (
+                  <>
+                    {reverseResult === "near" && (
+                      <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: "0.85rem",
+                        textAlign: "center", color: "#FACC15", margin: "0 0 10px" }}>
+                        Almost — check your spelling
+                      </p>
+                    )}
+                    <input
+                      ref={reverseInputRef}
+                      value={typedAnswer}
+                      onChange={(e) => { setTypedAnswer(e.target.value); if (reverseResult === "near") setReverseResult(null); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") submitReverseTyping(); }}
+                      placeholder="type the word…"
+                      autoComplete="off"
+                      style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.03)",
+                        border: `1px solid ${reverseResult === "near" ? "rgba(250,204,21,0.65)" : "rgba(217,119,6,0.28)"}`,
+                        borderRadius: 14, padding: "14px 18px", fontFamily: "'Space Grotesk', sans-serif",
+                        fontWeight: 500, fontSize: "1.05rem", color: "#C7B8E8", textAlign: "left", outline: "none" }}
+                    />
+                    <motion.button
+                      whileTap={{ scale: 0.96 }}
+                      onClick={submitReverseTyping}
+                      style={{ display: "block", width: "auto", maxWidth: 200, margin: "10px auto 0",
+                        padding: "12px 32px", borderRadius: 9999, border: "none", cursor: "pointer",
+                        background: "linear-gradient(to right, #B45309, #C2410C)", fontFamily: "'Inter', sans-serif",
+                        fontWeight: 500, fontSize: 15, letterSpacing: "0.04em", color: "#FFFFFF", outline: "none",
+                        boxShadow: "0 0 12px rgba(217,119,6,0.25)" }}>
+                      Check
+                    </motion.button>
+                  </>
+                )}
               </motion.div>
             ) : (
               activeOptions.map((option, i) => (
