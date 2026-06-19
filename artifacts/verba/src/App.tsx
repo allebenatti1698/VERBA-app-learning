@@ -11,6 +11,10 @@ import PreQuizSetup from "@/pages/PreQuizSetup";
 import QuizScreen from "@/pages/QuizScreen";
 import ResultsScreen from "@/pages/ResultsScreen";
 import ReviewCompleteScreen from "@/pages/ReviewCompleteScreen";
+import StudyScreen from "@/pages/StudyScreen";
+import ProgressScreen from "@/pages/ProgressScreen";
+import ProfileScreen from "@/pages/ProfileScreen";
+import BottomNav, { TAB_PATHS } from "@/components/BottomNav";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +27,7 @@ const SLIDE = {
 
 function Router() {
   const [location] = useLocation();
+  const showNav = TAB_PATHS.includes(location);
   return (
     <div style={{ position: "relative", overflow: "hidden", height: "100dvh", width: "100%", background: "#0A0A0A" }}>
       <AnimatePresence initial={false}>
@@ -32,11 +37,19 @@ function Router() {
           animate={SLIDE.animate}
           exit={SLIDE.exit}
           transition={SLIDE.transition}
-          style={{ position: "absolute", inset: 0, overflowY: "auto" }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            overflowY: "auto",
+            paddingBottom: showNav ? "calc(64px + env(safe-area-inset-bottom))" : 0,
+          }}
         >
           <Switch>
             <Route path="/" component={WelcomeScreen} />
+            <Route path="/study" component={StudyScreen} />
             <Route path="/decks" component={DeckSelectionScreen} />
+            <Route path="/progress" component={ProgressScreen} />
+            <Route path="/profile" component={ProfileScreen} />
             <Route path="/difficulty" component={DifficultyScreen} />
             <Route path="/setup" component={PreQuizSetup} />
             <Route path="/quiz" component={QuizScreen} />
@@ -46,6 +59,7 @@ function Router() {
           </Switch>
         </motion.div>
       </AnimatePresence>
+      <BottomNav />
     </div>
   );
 }
