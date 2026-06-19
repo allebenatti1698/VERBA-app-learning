@@ -1,0 +1,193 @@
+VERBA — STEP 1/4 (Study mode foundation). Economy Mode. Stima: molto contenuto (~$0.20–0.50, due file di sola logica, niente UI, niente dipendenze nuove). DO NOT test live — I test manually.
+
+Crea DUE nuovi file nella cartella src/lib/. NON modificare nessun altro file. NON aggiungere UI. NON eseguire test live.
+
+=== FILE 1: src/lib/studySets.ts ===
+
+import { supabase } from "@/lib/supabase";
+
+export const STUDY_SET_TARGET = 25;
+
+export type StudySet = {
+  setNumber: number; // 1-based
+  wordIds: string[];
+  wordCount: number;
+};
+
+type RankRow = { id: string; frequency_rank: number | null };
+
+const cache = new Map<string, StudySet[]>();
+
+function cacheKey(deckSlug: string, difficulty: string) {
+  return `${deckSlug}::${difficulty}`;
+}
+
+// Divide una fascia di difficoltà in set di ~STUDY_SET_TARGET parole,
+// ordinate per frequency_rank (più comuni prima), distribuite in modo
+// uniforme (dimensioni che differiscono al massimo di 1, nessun set orfano).
+export async function getStudySets(deckSlug: string, difficulty: string): Promise<StudySet[]> {
+  const key = cacheKey(deckSlug, difficulty);
+  const cached = cache.get(key);
+  if (cached) return cached;
+
+  const { data, error } = await supabase
+    .from("words")
+    .select("id, frequency_rank")
+    .eq("deck_slug", deckSlug)
+    .eq("difficulty", difficulty);
+
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as RankRow[];
+
+  // Ordine deterministico: frequency_rank asc (null in fondo), tiebreak per id.
+  rows.sort((a, b) => {
+    const ra = a.frequency_rank ?? Number.POSITIVE_INFINITY;
+    const rb = b.frequency_rank ?? Number.POSITIVE_INFINITY;
+    if (ra !== rb) return ra - rb;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+
+  const ids = rows.map((r) => r.id);
+  const sets = chunkEvenly(ids, STUDY_SET_TARGET);
+  cache.set(key, sets);
+  return sets;
+}
+
+// Numero di set = round(N / target); dimensioni che differiscono al massimo di 1.
+function chunkEvenly(ids: string[], target: number): StudySet[] {
+  const n = ids.length;
+  if (n === 0) return [];
+  const numSets = Math.max(1, Math.round(n / target));
+  const base = Math.floor(n / numSets);
+  const remainder = n % numSets; // i primi `remainder` set hanno una parola in più
+  const sets: StudySet[] = [];
+  let cursor = 0;
+  for (let i = 0; i < numSets; i++) {
+    const size = base + (i < remainder ? 1 : 0);
+    const wordIds = ids.slice(cursor, cursor + size);
+    cursor += size;
+    sets.push({ setNumber: i + 1, wordIds, wordCount: wordIds.length });
+  }
+  return sets;
+}
+
+export function getWordIdsForSets(sets: StudySet[], selectedSetNumbers: number[]): string[] {
+  const selected = new Set(selectedSetNumbers);
+  return sets.filter((s) => selected.has(s.setNumber)).flatMap((s) => s.wordIds);
+}
+
+export function totalWordsInSets(sets: StudySet[], selectedSetNumbers: number[]): number {
+  return getWordIdsForSets(sets, selectedSetNumbers).length;
+}
+
+export function clearStudySetsCache(): void {
+  cache.clear();
+}
+
+=== FILE 2: src/lib/studyProgress.ts ===
+
+import type { StudySet } from "@/lib/studySets";
+
+const PROGRESS_KEY = "verba_study_progress";
+const LAST_STUDY_KEY = "verba_last_study";
+
+// { [deckSlug]: { [difficulty]: { [setNumber]: string[] (id parole viste) } } }
+type ProgressMap = Record<string, Record<string, Record<string, string[]>>>;
+
+function readProgress(): ProgressMap {
+  try {
+    const raw = localStorage.getItem(PROGRESS_KEY);
+    return raw ? (JSON.parse(raw) as ProgressMap) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeProgress(map: ProgressMap): void {
+  try {
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(map));
+  } catch {
+    /* storage non disponibile */
+  }
+}
+
+export function markWordsSeen(
+  deckSlug: string,
+  difficulty: string,
+  setNumber: number,
+  wordIds: string[],
+): void {
+  if (wordIds.length === 0) return;
+  const map = readProgress();
+  const deck = (map[deckSlug] ??= {});
+  const diff = (deck[difficulty] ??= {});
+  const existing = new Set(diff[String(setNumber)] ?? []);
+  wordIds.forEach((id) => existing.add(id));
+  diff[String(setNumber)] = [...existing];
+  writeProgress(map);
+}
+
+export function getSeenWordIds(deckSlug: string, difficulty: string, setNumber: number): string[] {
+  const map = readProgress();
+  return map[deckSlug]?.[difficulty]?.[String(setNumber)] ?? [];
+}
+
+export function getSeenCount(deckSlug: string, difficulty: string, setNumber: number): number {
+  return getSeenWordIds(deckSlug, difficulty, setNumber).length;
+}
+
+export function isSetCompleted(
+  deckSlug: string,
+  difficulty: string,
+  setNumber: number,
+  setSize: number,
+): boolean {
+  if (setSize <= 0) return false;
+  return getSeenCount(deckSlug, difficulty, setNumber) >= setSize;
+}
+
+// Set completati (tutte le parole viste), date le dimensioni reali dei set.
+export function getCompletedSetNumbers(
+  deckSlug: string,
+  difficulty: string,
+  sets: StudySet[],
+): number[] {
+  return sets
+    .filter((s) => isSetCompleted(deckSlug, difficulty, s.setNumber, s.wordCount))
+    .map((s) => s.setNumber);
+}
+
+// ── Ultimo set studiato (per la card "Continue") ──────────────────────────
+export type LastStudy = {
+  deck: string;
+  difficulty: string;
+  setNumber: number;
+  updatedAt: string; // ISO
+};
+
+export function setLastStudied(deckSlug: string, difficulty: string, setNumber: number): void {
+  try {
+    const payload: LastStudy = {
+      deck: deckSlug,
+      difficulty,
+      setNumber,
+      updatedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(LAST_STUDY_KEY, JSON.stringify(payload));
+  } catch {
+    /* storage non disponibile */
+  }
+}
+
+export function getLastStudied(): LastStudy | null {
+  try {
+    const raw = localStorage.getItem(LAST_STUDY_KEY);
+    return raw ? (JSON.parse(raw) as LastStudy) : null;
+  } catch {
+    return null;
+  }
+}
+
+=== FINE ===
+
+Conferma quali file hai creato. Non modificare altro, non aggiungere UI, non eseguire test.
