@@ -86,6 +86,45 @@ function shuffleArray<T>(arr: T[]): T[] {
   return a;
 }
 
+export async function fetchWordsByIds(ids: string[]): Promise<QuizWord[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from("words")
+    .select("id, word, italian_translation, italian_definition, etymology, synonyms, antonyms, distractors, word_definitions(part_of_speech, definition, example, display_order)")
+    .in("id", ids);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as DbWordRow[];
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return ids
+    .map((id) => byId.get(id))
+    .filter((row): row is DbWordRow => Boolean(row))
+    .map<QuizWord>((row) => {
+      const defs: QuizWordDefinition[] = (row.word_definitions ?? [])
+        .map((d) => ({
+          part_of_speech: d.part_of_speech ?? "",
+          definition: d.definition ?? "",
+          example: d.example ?? "",
+          display_order: d.display_order ?? 0,
+        }))
+        .sort((a, b) => a.display_order - b.display_order);
+      const primary = defs[0];
+      return {
+        id: row.id,
+        word: row.word,
+        correctDefinition: primary?.definition ?? "",
+        distractors: row.distractors ?? [],
+        italianTranslation: row.italian_translation ?? "",
+        italianDefinition: row.italian_definition ?? undefined,
+        exampleSentence: primary?.example ?? "",
+        synonyms: row.synonyms ?? [],
+        antonyms: row.antonyms ?? [],
+        allDefinitions: defs,
+        phonetic: undefined,
+        etymology: row.etymology ?? undefined,
+      };
+    });
+}
+
 export async function fetchQuizWords(
   deckSlug: string,
   difficulty: string | null,

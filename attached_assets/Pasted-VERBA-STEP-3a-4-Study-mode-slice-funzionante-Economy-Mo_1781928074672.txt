@@ -1,3 +1,63 @@
+VERBA — STEP 3a/4 (Study mode, slice funzionante). Economy Mode. Stima ~$0.80–1.50 (1 query aggiunta + export su FeedbackCard + StudyScreen riscritto). DO NOT test live — I test manually.
+
+Tre interventi. NON modificare altri file. NON eseguire test live.
+
+────────────────────────────────────────
+INTERVENTO 1 — src/lib/quizQueries.ts
+Aggiungi in FONDO al file questa funzione esportata. NON modificare le funzioni esistenti.
+
+export async function fetchWordsByIds(ids: string[]): Promise<QuizWord[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from("words")
+    .select("id, word, italian_translation, italian_definition, etymology, synonyms, antonyms, distractors, word_definitions(part_of_speech, definition, example, display_order)")
+    .in("id", ids);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as DbWordRow[];
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return ids
+    .map((id) => byId.get(id))
+    .filter((row): row is DbWordRow => Boolean(row))
+    .map<QuizWord>((row) => {
+      const defs: QuizWordDefinition[] = (row.word_definitions ?? [])
+        .map((d) => ({
+          part_of_speech: d.part_of_speech ?? "",
+          definition: d.definition ?? "",
+          example: d.example ?? "",
+          display_order: d.display_order ?? 0,
+        }))
+        .sort((a, b) => a.display_order - b.display_order);
+      const primary = defs[0];
+      return {
+        id: row.id,
+        word: row.word,
+        correctDefinition: primary?.definition ?? "",
+        distractors: row.distractors ?? [],
+        italianTranslation: row.italian_translation ?? "",
+        italianDefinition: row.italian_definition ?? undefined,
+        exampleSentence: primary?.example ?? "",
+        synonyms: row.synonyms ?? [],
+        antonyms: row.antonyms ?? [],
+        allDefinitions: defs,
+        phonetic: undefined,
+        etymology: row.etymology ?? undefined,
+      };
+    });
+}
+
+────────────────────────────────────────
+INTERVENTO 2 — src/components/FeedbackCard.tsx
+Assicurati che questi sotto-componenti siano ESPORTATI (aggiungi la keyword `export` davanti a `function` SOLO se manca). NON cambiare la loro implementazione né le loro props:
+- FeedbackWord
+- FeedbackSynonyms
+- FeedbackAntonyms
+- FeedbackTranslation
+(FeedbackMultiDefinitions e FeedbackEtymology sono già esportati.)
+Se uno di questi ha props con nomi diversi da quelli che uso nell'Intervento 3, FERMATI e segnalalo invece di indovinare.
+
+────────────────────────────────────────
+INTERVENTO 3 — SOSTITUISCI INTERAMENTE src/pages/StudyScreen.tsx
+
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Check, Play } from "lucide-react";
@@ -213,3 +273,6 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
     </div>
   );
 }
+
+────────────────────────────────────────
+Conferma i file modificati, typecheck pulito, eventuali warning. Non toccare altri file, non eseguire test.
