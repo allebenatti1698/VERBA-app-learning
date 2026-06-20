@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Check, Play } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Check, Play, Eye, EyeOff, Star } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
 import { lowercaseFirst } from "@/lib/formatText";
 import { getStudySets, type StudySet } from "@/lib/studySets";
@@ -17,6 +17,35 @@ const TIERS = [
 ];
 
 type SetsByDifficulty = Record<string, StudySet[]>;
+
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function highlightWord(text: string, word: string) {
+  if (!text || !word) return text;
+  const parts = text.split(new RegExp(`(${escapeRegExp(word)})`, "gi"));
+  return parts.map((p, i) =>
+    p.toLowerCase() === word.toLowerCase()
+      ? <span key={i} style={{ color: "#C7B8E8" }}>{p}</span>
+      : <span key={i}>{p}</span>,
+  );
+}
+const MY_WORDS_KEY = "verba_my_words";
+function loadMyWords(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(MY_WORDS_KEY) ?? "[]") as string[]); }
+  catch { return new Set(); }
+}
+function isInMyWords(id: string): boolean {
+  return loadMyWords().has(id);
+}
+function toggleMyWord(id: string): boolean {
+  const set = loadMyWords();
+  let nowSaved: boolean;
+  if (set.has(id)) { set.delete(id); nowSaved = false; }
+  else { set.add(id); nowSaved = true; }
+  try { localStorage.setItem(MY_WORDS_KEY, JSON.stringify([...set])); } catch { /* storage non disponibile */ }
+  return nowSaved;
+}
 
 export default function StudyScreen() {
   const [setsByDiff, setSetsByDiff] = useState<SetsByDifficulty>({});
@@ -144,6 +173,9 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
   const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
   const [dir, setDir] = useState(1);
+  const [selfTest, setSelfTest] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!set) { setError("Set non trovato"); setLoading(false); return; }
@@ -155,17 +187,23 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
     return () => { active = false; };
   }, [set]);
 
-  useEffect(() => {
-    if (!set || words.length === 0) return;
-    const w = words[index];
-    if (w) { markWordsSeen(DECK, difficulty, set.setNumber, [w.id]); setLastStudied(DECK, difficulty, set.setNumber); }
-  }, [index, words, set, difficulty]);
-
   const total = words.length;
   const current = words[index];
 
+  useEffect(() => {
+    if (!set || !current) return;
+    markWordsSeen(DECK, difficulty, set.setNumber, [current.id]);
+    setLastStudied(DECK, difficulty, set.setNumber);
+  }, [index, current, set, difficulty]);
+
+  useEffect(() => { setRevealed(false); }, [index, selfTest]);
+  useEffect(() => { if (current) setSaved(isInMyWords(current.id)); }, [current]);
+
   function goNext() { setDir(1); setIndex((i) => Math.min(total - 1, i + 1)); }
   function goPrev() { setDir(-1); setIndex((i) => Math.max(0, i - 1)); }
+  function toggleStar() { if (!current) return; setSaved(toggleMyWord(current.id)); }
+
+  const showContent = !selfTest || revealed;
 
   return (
     <div style={{ minHeight: "100%", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
@@ -175,7 +213,15 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
           <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, color: "rgba(255,255,255,0.55)", fontFamily: "'Inter', sans-serif", fontSize: 12, padding: 0, outline: "none" }}>
             <ChevronLeft size={18} /> {label}
           </button>
-          {total > 0 && (<span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: LAVENDER }}>{index + 1} / {total}</span>)}
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            {total > 0 && (<span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: LAVENDER }}>{index + 1} / {total}</span>)}
+            <button onClick={() => setSelfTest((s) => !s)} aria-label="Self-test" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", outline: "none" }}>
+              {selfTest ? <EyeOff size={18} color={LAVENDER} /> : <Eye size={18} color="rgba(255,255,255,0.45)" />}
+            </button>
+            <button onClick={toggleStar} aria-label="Save to My Verba" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", outline: "none" }}>
+              <Star size={19} color={saved ? "#F59E0B" : "rgba(255,255,255,0.45)"} fill={saved ? "#F59E0B" : "none"} />
+            </button>
+          </div>
         </div>
 
         {loading && (<div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}><Loader2 size={26} color={LAVENDER} className="animate-spin" /></div>)}
@@ -204,28 +250,39 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
                 style={{ cursor: "grab", touchAction: "pan-y" }}
               >
                 <FeedbackWord word={current.word} phonetic={current.phonetic ?? ""} visible={true} />
-                {current.allDefinitions && current.allDefinitions.length > 1 ? (
-                  <FeedbackMultiDefinitions definitions={current.allDefinitions} />
+
+                {!showContent ? (
+                  <button onClick={() => setRevealed(true)} style={{ display: "block", margin: "28px auto", padding: "10px 22px", borderRadius: 9999, border: "0.5px solid rgba(199,184,232,0.4)", background: "rgba(199,184,232,0.06)", color: LAVENDER, fontFamily: "'Inter', sans-serif", fontSize: 13, cursor: "pointer", outline: "none" }}>
+                    Reveal definition
+                  </button>
                 ) : (
-                  <div style={{ marginTop: 16 }}>
-                    {current.allDefinitions?.[0]?.part_of_speech && (
-                      <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 11, letterSpacing: "0.12em", textTransform: "lowercase", color: "rgba(199,184,232,0.5)", fontStyle: "italic", margin: "0 0 6px" }}>{current.allDefinitions[0].part_of_speech}</p>
+                  <>
+                    {current.allDefinitions && current.allDefinitions.length > 1 ? (
+                      <FeedbackMultiDefinitions definitions={current.allDefinitions} />
+                    ) : (
+                      <div style={{ marginTop: 16 }}>
+                        {current.allDefinitions?.[0]?.part_of_speech && (
+                          <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 11, letterSpacing: "0.12em", textTransform: "lowercase", color: "rgba(199,184,232,0.5)", fontStyle: "italic", margin: "0 0 6px" }}>{current.allDefinitions[0].part_of_speech}</p>
+                        )}
+                        <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 20, color: "#FFFFFF", margin: 0, lineHeight: 1.4 }}>{lowercaseFirst(current.correctDefinition)}</p>
+                        {current.exampleSentence && (<p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: 16, fontStyle: "italic", color: "rgba(255,255,255,0.7)", margin: "12px 0 0", lineHeight: 1.5 }}>"{highlightWord(current.exampleSentence, current.word)}"</p>)}
+                      </div>
                     )}
-                    <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 20, color: "#FFFFFF", margin: 0, lineHeight: 1.4 }}>{lowercaseFirst(current.correctDefinition)}</p>
-                    {current.exampleSentence && (<p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: 16, fontStyle: "italic", color: "rgba(255,255,255,0.7)", margin: "12px 0 0", lineHeight: 1.5 }}>"{current.exampleSentence}"</p>)}
-                  </div>
+                    <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+                      <FeedbackSynonyms synonyms={current.synonyms} visible={true} />
+                      <FeedbackAntonyms antonyms={current.antonyms} visible={true} />
+                    </div>
+                    <FeedbackTranslation italianTranslation={current.italianTranslation} italianDefinition={current.italianDefinition ?? ""} visible={true} />
+                    <FeedbackEtymology etymology={current.etymology ?? ""} visible={true} />
+                  </>
                 )}
-                <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 6 }}>
-                  <FeedbackSynonyms synonyms={current.synonyms} visible={true} />
-                  <FeedbackAntonyms antonyms={current.antonyms} visible={true} />
-                </div>
-                <FeedbackTranslation italianTranslation={current.italianTranslation} italianDefinition={current.italianDefinition ?? ""} visible={true} />
-                <FeedbackEtymology etymology={current.etymology ?? ""} visible={true} />
               </motion.div>
             </AnimatePresence>
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "22px 0 8px", color: "#5A5A5A", fontFamily: "'Inter', sans-serif", fontSize: 11 }}>
-              <ChevronLeft size={13} /> swipe to flip <ChevronRight size={13} />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 0 8px" }}>
+              <button onClick={goPrev} disabled={index === 0} style={{ width: 46, height: 46, borderRadius: "50%", border: "0.5px solid rgba(255,255,255,0.16)", background: "none", color: index === 0 ? "rgba(255,255,255,0.2)" : "#C8C8C8", cursor: index === 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", outline: "none" }}><ChevronLeft size={22} /></button>
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "#6E6E6E" }}>swipe or tap</span>
+              <button onClick={goNext} disabled={index >= total - 1} style={{ width: 46, height: 46, borderRadius: "50%", border: "none", background: index >= total - 1 ? "rgba(245,158,11,0.3)" : "#F59E0B", color: "#1A1206", cursor: index >= total - 1 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", outline: "none" }}><ChevronRight size={22} /></button>
             </div>
           </>
         )}

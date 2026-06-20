@@ -1,0 +1,165 @@
+VERBA — STEP 3c (chicche della card di sfoglio + frecce ripristinate). Economy Mode. Stima ~$0.50–0.90 (tutto dentro StudyScreen.tsx). DO NOT test live — I test manually.
+
+Un solo file: src/pages/StudyScreen.tsx. NON toccare altri file. NON eseguire test live.
+
+1) AGGIUNGI Eye, EyeOff, Star all'import esistente da "lucide-react":
+   import { Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Check, Play, Eye, EyeOff, Star } from "lucide-react";
+
+2) AGGIUNGI queste funzioni helper a livello di modulo (es. subito dopo la costante TIERS):
+
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function highlightWord(text: string, word: string) {
+  if (!text || !word) return text;
+  const parts = text.split(new RegExp(`(${escapeRegExp(word)})`, "gi"));
+  return parts.map((p, i) =>
+    p.toLowerCase() === word.toLowerCase()
+      ? <span key={i} style={{ color: "#C7B8E8" }}>{p}</span>
+      : <span key={i}>{p}</span>,
+  );
+}
+const MY_WORDS_KEY = "verba_my_words";
+function loadMyWords(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(MY_WORDS_KEY) ?? "[]") as string[]); }
+  catch { return new Set(); }
+}
+function isInMyWords(id: string): boolean {
+  return loadMyWords().has(id);
+}
+function toggleMyWord(id: string): boolean {
+  const set = loadMyWords();
+  let nowSaved: boolean;
+  if (set.has(id)) { set.delete(id); nowSaved = false; }
+  else { set.add(id); nowSaved = true; }
+  try { localStorage.setItem(MY_WORDS_KEY, JSON.stringify([...set])); } catch { /* storage non disponibile */ }
+  return nowSaved;
+}
+
+3) SOSTITUISCI INTERAMENTE la funzione BrowseView con questa versione:
+
+function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; label: string; set?: StudySet; onBack: () => void }) {
+  const [words, setWords] = useState<QuizWord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [index, setIndex] = useState(0);
+  const [dir, setDir] = useState(1);
+  const [selfTest, setSelfTest] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!set) { setError("Set non trovato"); setLoading(false); return; }
+    let active = true;
+    setLoading(true); setError(null);
+    fetchWordsByIds(set.wordIds)
+      .then((w) => { if (!active) return; setWords(w); setIndex(0); setDir(1); setLoading(false); })
+      .catch((e) => { if (active) { setError(e?.message ?? "Errore di caricamento"); setLoading(false); } });
+    return () => { active = false; };
+  }, [set]);
+
+  const total = words.length;
+  const current = words[index];
+
+  useEffect(() => {
+    if (!set || !current) return;
+    markWordsSeen(DECK, difficulty, set.setNumber, [current.id]);
+    setLastStudied(DECK, difficulty, set.setNumber);
+  }, [index, current, set, difficulty]);
+
+  useEffect(() => { setRevealed(false); }, [index, selfTest]);
+  useEffect(() => { if (current) setSaved(isInMyWords(current.id)); }, [current]);
+
+  function goNext() { setDir(1); setIndex((i) => Math.min(total - 1, i + 1)); }
+  function goPrev() { setDir(-1); setIndex((i) => Math.max(0, i - 1)); }
+  function toggleStar() { if (!current) return; setSaved(toggleMyWord(current.id)); }
+
+  const showContent = !selfTest || revealed;
+
+  return (
+    <div style={{ minHeight: "100%", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
+      <AppBackground showWords={false} />
+      <div style={{ position: "relative", zIndex: 10, padding: "18px 18px 0", maxWidth: 480, margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, color: "rgba(255,255,255,0.55)", fontFamily: "'Inter', sans-serif", fontSize: 12, padding: 0, outline: "none" }}>
+            <ChevronLeft size={18} /> {label}
+          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            {total > 0 && (<span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: LAVENDER }}>{index + 1} / {total}</span>)}
+            <button onClick={() => setSelfTest((s) => !s)} aria-label="Self-test" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", outline: "none" }}>
+              {selfTest ? <EyeOff size={18} color={LAVENDER} /> : <Eye size={18} color="rgba(255,255,255,0.45)" />}
+            </button>
+            <button onClick={toggleStar} aria-label="Save to My Verba" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", outline: "none" }}>
+              <Star size={19} color={saved ? "#F59E0B" : "rgba(255,255,255,0.45)"} fill={saved ? "#F59E0B" : "none"} />
+            </button>
+          </div>
+        </div>
+
+        {loading && (<div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}><Loader2 size={26} color={LAVENDER} className="animate-spin" /></div>)}
+        {error && (<p style={{ fontFamily: "'Inter', sans-serif", color: "rgba(255,255,255,0.6)", fontSize: 13, textAlign: "center", padding: "40px 0" }}>{error}</p>)}
+
+        {!loading && !error && current && (
+          <>
+            <AnimatePresence mode="wait" custom={dir}>
+              <motion.div
+                key={index}
+                custom={dir}
+                drag="x"
+                dragSnapToOrigin
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.18}
+                onDragEnd={(_, info) => {
+                  const swipe = info.offset.x;
+                  const vel = info.velocity.x;
+                  if ((swipe < -60 || vel < -450) && index < total - 1) goNext();
+                  else if ((swipe > 60 || vel > 450) && index > 0) goPrev();
+                }}
+                initial={{ opacity: 0, x: dir >= 0 ? 48 : -48 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: dir >= 0 ? -48 : 48 }}
+                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                style={{ cursor: "grab", touchAction: "pan-y" }}
+              >
+                <FeedbackWord word={current.word} phonetic={current.phonetic ?? ""} visible={true} />
+
+                {!showContent ? (
+                  <button onClick={() => setRevealed(true)} style={{ display: "block", margin: "28px auto", padding: "10px 22px", borderRadius: 9999, border: "0.5px solid rgba(199,184,232,0.4)", background: "rgba(199,184,232,0.06)", color: LAVENDER, fontFamily: "'Inter', sans-serif", fontSize: 13, cursor: "pointer", outline: "none" }}>
+                    Reveal definition
+                  </button>
+                ) : (
+                  <>
+                    {current.allDefinitions && current.allDefinitions.length > 1 ? (
+                      <FeedbackMultiDefinitions definitions={current.allDefinitions} />
+                    ) : (
+                      <div style={{ marginTop: 16 }}>
+                        {current.allDefinitions?.[0]?.part_of_speech && (
+                          <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 11, letterSpacing: "0.12em", textTransform: "lowercase", color: "rgba(199,184,232,0.5)", fontStyle: "italic", margin: "0 0 6px" }}>{current.allDefinitions[0].part_of_speech}</p>
+                        )}
+                        <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 20, color: "#FFFFFF", margin: 0, lineHeight: 1.4 }}>{lowercaseFirst(current.correctDefinition)}</p>
+                        {current.exampleSentence && (<p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: 16, fontStyle: "italic", color: "rgba(255,255,255,0.7)", margin: "12px 0 0", lineHeight: 1.5 }}>"{highlightWord(current.exampleSentence, current.word)}"</p>)}
+                      </div>
+                    )}
+                    <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+                      <FeedbackSynonyms synonyms={current.synonyms} visible={true} />
+                      <FeedbackAntonyms antonyms={current.antonyms} visible={true} />
+                    </div>
+                    <FeedbackTranslation italianTranslation={current.italianTranslation} italianDefinition={current.italianDefinition ?? ""} visible={true} />
+                    <FeedbackEtymology etymology={current.etymology ?? ""} visible={true} />
+                  </>
+                )}
+              </motion.div>
+            </AnimatePresence>
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 0 8px" }}>
+              <button onClick={goPrev} disabled={index === 0} style={{ width: 46, height: 46, borderRadius: "50%", border: "0.5px solid rgba(255,255,255,0.16)", background: "none", color: index === 0 ? "rgba(255,255,255,0.2)" : "#C8C8C8", cursor: index === 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", outline: "none" }}><ChevronLeft size={22} /></button>
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "#6E6E6E" }}>swipe or tap</span>
+              <button onClick={goNext} disabled={index >= total - 1} style={{ width: 46, height: 46, borderRadius: "50%", border: "none", background: index >= total - 1 ? "rgba(245,158,11,0.3)" : "#F59E0B", color: "#1A1206", cursor: index >= total - 1 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", outline: "none" }}><ChevronRight size={22} /></button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+Conferma file modificato, typecheck pulito, eventuali warning. Non toccare altro, non eseguire test.
