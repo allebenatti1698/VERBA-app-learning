@@ -203,7 +203,7 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
   function goPrev() { setDir(-1); setIndex((i) => Math.max(0, i - 1)); }
   function toggleStar() { if (!current) return; setSaved(toggleMyWord(current.id)); }
 
-  const showContent = !selfTest || revealed;
+  const blurDef = selfTest && !revealed;
 
   return (
     <div style={{ minHeight: "100%", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
@@ -251,31 +251,35 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
               >
                 <FeedbackWord word={current.word} phonetic={current.phonetic ?? ""} visible={true} />
 
-                {!showContent ? (
-                  <button onClick={() => setRevealed(true)} style={{ display: "block", margin: "28px auto", padding: "10px 22px", borderRadius: 9999, border: "0.5px solid rgba(199,184,232,0.4)", background: "rgba(199,184,232,0.06)", color: LAVENDER, fontFamily: "'Inter', sans-serif", fontSize: 13, cursor: "pointer", outline: "none" }}>
-                    Reveal definition
-                  </button>
-                ) : (
-                  <>
+                <div onClick={() => { if (blurDef) setRevealed(true); }} style={{ position: "relative", marginTop: 16, cursor: blurDef ? "pointer" : "default" }}>
+                  <div style={{ filter: blurDef ? "blur(7px)" : "none", transition: "filter 0.3s ease", userSelect: blurDef ? "none" : "auto", pointerEvents: blurDef ? "none" : "auto" }}>
                     {current.allDefinitions && current.allDefinitions.length > 1 ? (
                       <FeedbackMultiDefinitions definitions={current.allDefinitions} />
                     ) : (
-                      <div style={{ marginTop: 16 }}>
+                      <>
                         {current.allDefinitions?.[0]?.part_of_speech && (
                           <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 11, letterSpacing: "0.12em", textTransform: "lowercase", color: "rgba(199,184,232,0.5)", fontStyle: "italic", margin: "0 0 6px" }}>{current.allDefinitions[0].part_of_speech}</p>
                         )}
                         <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 20, color: "#FFFFFF", margin: 0, lineHeight: 1.4 }}>{lowercaseFirst(current.correctDefinition)}</p>
                         {current.exampleSentence && (<p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: 16, fontStyle: "italic", color: "rgba(255,255,255,0.7)", margin: "12px 0 0", lineHeight: 1.5 }}>"{highlightWord(current.exampleSentence, current.word)}"</p>)}
-                      </div>
+                      </>
                     )}
-                    <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 6 }}>
-                      <FeedbackSynonyms synonyms={current.synonyms} visible={true} />
-                      <FeedbackAntonyms antonyms={current.antonyms} visible={true} />
+                  </div>
+                  {blurDef && (
+                    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                      <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.75)", background: "rgba(10,10,10,0.55)", padding: "5px 13px", borderRadius: 9999, display: "flex", alignItems: "center", gap: 6 }}>
+                        <Eye size={13} /> tap to reveal
+                      </span>
                     </div>
-                    <FeedbackTranslation italianTranslation={current.italianTranslation} italianDefinition={current.italianDefinition ?? ""} visible={true} />
-                    <FeedbackEtymology etymology={current.etymology ?? ""} visible={true} />
-                  </>
-                )}
+                  )}
+                </div>
+
+                <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <FeedbackSynonyms synonyms={current.synonyms} visible={true} />
+                  <FeedbackAntonyms antonyms={current.antonyms} visible={true} />
+                </div>
+                <FeedbackTranslation italianTranslation={current.italianTranslation} italianDefinition={current.italianDefinition ?? ""} visible={true} />
+                <FeedbackEtymology etymology={current.etymology ?? ""} visible={true} />
               </motion.div>
             </AnimatePresence>
 
