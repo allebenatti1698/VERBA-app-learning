@@ -201,9 +201,23 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
 
   function goNext() { setDir(1); setIndex((i) => Math.min(total - 1, i + 1)); }
   function goPrev() { setDir(-1); setIndex((i) => Math.max(0, i - 1)); }
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "ArrowRight") goNext();
+      else if (e.key === "ArrowLeft") goPrev();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [index, total]);
+
   function toggleStar() { if (!current) return; setSaved(toggleMyWord(current.id)); }
 
   const blurDef = selfTest && !revealed;
+  function toggleEye() {
+    if (blurDef) { setSelfTest(false); }
+    else { setSelfTest(true); setRevealed(false); }
+  }
 
   return (
     <div style={{ minHeight: "100%", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
@@ -215,8 +229,8 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
           </button>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             {total > 0 && (<span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: LAVENDER }}>{index + 1} / {total}</span>)}
-            <button onClick={() => setSelfTest((s) => !s)} aria-label="Self-test" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", outline: "none" }}>
-              {selfTest ? <EyeOff size={18} color={LAVENDER} /> : <Eye size={18} color="rgba(255,255,255,0.45)" />}
+            <button onClick={toggleEye} aria-label="Self-test" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", outline: "none" }}>
+              {blurDef ? <EyeOff size={18} color={LAVENDER} /> : <Eye size={18} color="rgba(255,255,255,0.45)" />}
             </button>
             <button onClick={toggleStar} aria-label="Save to My Verba" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", outline: "none" }}>
               <Star size={19} color={saved ? "#F59E0B" : "rgba(255,255,255,0.45)"} fill={saved ? "#F59E0B" : "none"} />
@@ -283,10 +297,8 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
               </motion.div>
             </AnimatePresence>
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 0 8px" }}>
-              <button onClick={goPrev} disabled={index === 0} style={{ width: 46, height: 46, borderRadius: "50%", border: "0.5px solid rgba(255,255,255,0.16)", background: "none", color: index === 0 ? "rgba(255,255,255,0.2)" : "#C8C8C8", cursor: index === 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", outline: "none" }}><ChevronLeft size={22} /></button>
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "#6E6E6E" }}>swipe or tap</span>
-              <button onClick={goNext} disabled={index >= total - 1} style={{ width: 46, height: 46, borderRadius: "50%", border: "none", background: index >= total - 1 ? "rgba(245,158,11,0.3)" : "#F59E0B", color: "#1A1206", cursor: index >= total - 1 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", outline: "none" }}><ChevronRight size={22} /></button>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "26px 0 10px", color: "#5A5A5A", fontFamily: "'Inter', sans-serif", fontSize: 11 }}>
+              <ChevronLeft size={13} /> swipe to flip <ChevronRight size={13} />
             </div>
           </>
         )}
