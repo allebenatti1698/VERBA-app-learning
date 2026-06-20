@@ -81,7 +81,10 @@ export default function StudyScreen() {
     <div style={{ minHeight: "100%", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
       <AppBackground showWords={false} />
       <div style={{ position: "absolute", top: -40, left: -30, width: 220, height: 200, background: "radial-gradient(circle, rgba(167,139,250,0.16), transparent 70%)", pointerEvents: "none" }} />
-      <div style={{ position: "relative", zIndex: 10, padding: "22px 18px 0", maxWidth: 480, margin: "0 auto" }}>
+      <div style={{ position: "relative", zIndex: 10, padding: "22px 18px 0", maxWidth: 640, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 14 }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.6)", letterSpacing: "0.04em" }}>Verba</span>
+        </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 24, color: "#F0EDF7", margin: 0 }}>Study</h1>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontFamily: "'Inter', sans-serif", fontSize: 12, color: "#C8C8C8", border: "0.5px solid rgba(255,255,255,0.16)", borderRadius: 20, padding: "5px 11px" }}>
@@ -222,7 +225,7 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
   return (
     <div style={{ minHeight: "100%", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
       <AppBackground showWords={false} />
-      <div style={{ position: "relative", zIndex: 10, padding: "18px 18px 0", maxWidth: 480, margin: "0 auto" }}>
+      <div style={{ position: "relative", zIndex: 10, padding: "18px 18px 0", maxWidth: 640, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, color: "rgba(255,255,255,0.55)", fontFamily: "'Inter', sans-serif", fontSize: 12, padding: 0, outline: "none" }}>
             <ChevronLeft size={18} /> {label}

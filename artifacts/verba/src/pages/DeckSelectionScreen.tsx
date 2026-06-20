@@ -340,27 +340,9 @@ export default function DeckSelectionScreen() {
           alignItems: "center",
           justifyContent: "center",
           padding: "18px 16px 0",
+          maxWidth: 640,
+          margin: "0 auto",
         }}>
-          <button
-            onClick={() => window.history.back()}
-            style={{
-              position: "absolute",
-              left: 16,
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontFamily: "'Inter', sans-serif",
-              fontSize: 22,
-              color: "rgba(255,255,255,0.55)",
-              padding: "2px 6px",
-              lineHeight: 1,
-              outline: "none",
-            }}
-            aria-label="Go back"
-          >
-            ‹
-          </button>
-
           <button
             onClick={() => navigate("/")}
             style={{
@@ -381,7 +363,7 @@ export default function DeckSelectionScreen() {
         </div>
 
         {/* ── Page title ───────────────────────────────────────────────────────── */}
-        <div style={{ position: "relative", zIndex: 10, padding: "20px 16px 0" }}>
+        <div style={{ position: "relative", zIndex: 10, padding: "20px 16px 0", maxWidth: 640, margin: "0 auto" }}>
           <h1 style={{
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 500,
@@ -413,6 +395,8 @@ export default function DeckSelectionScreen() {
             display: "flex",
             flexDirection: "column",
             gap: 22,
+            maxWidth: 640,
+            margin: "0 auto",
           }}
         >
           {/* LAST SESSION card — only when within 7 days */}
