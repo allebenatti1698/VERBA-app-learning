@@ -143,13 +143,14 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
+  const [dir, setDir] = useState(1);
 
   useEffect(() => {
     if (!set) { setError("Set non trovato"); setLoading(false); return; }
     let active = true;
     setLoading(true); setError(null);
     fetchWordsByIds(set.wordIds)
-      .then((w) => { if (!active) return; setWords(w); setIndex(0); setLoading(false); })
+      .then((w) => { if (!active) return; setWords(w); setIndex(0); setDir(1); setLoading(false); })
       .catch((e) => { if (active) { setError(e?.message ?? "Errore di caricamento"); setLoading(false); } });
     return () => { active = false; };
   }, [set]);
@@ -162,6 +163,9 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
 
   const total = words.length;
   const current = words[index];
+
+  function goNext() { setDir(1); setIndex((i) => Math.min(total - 1, i + 1)); }
+  function goPrev() { setDir(-1); setIndex((i) => Math.max(0, i - 1)); }
 
   return (
     <div style={{ minHeight: "100%", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
@@ -179,8 +183,26 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
 
         {!loading && !error && current && (
           <>
-            <AnimatePresence mode="wait">
-              <motion.div key={index} initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}>
+            <AnimatePresence mode="wait" custom={dir}>
+              <motion.div
+                key={index}
+                custom={dir}
+                drag="x"
+                dragSnapToOrigin
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.18}
+                onDragEnd={(_, info) => {
+                  const swipe = info.offset.x;
+                  const vel = info.velocity.x;
+                  if ((swipe < -60 || vel < -450) && index < total - 1) goNext();
+                  else if ((swipe > 60 || vel > 450) && index > 0) goPrev();
+                }}
+                initial={{ opacity: 0, x: dir >= 0 ? 48 : -48 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: dir >= 0 ? -48 : 48 }}
+                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                style={{ cursor: "grab", touchAction: "pan-y" }}
+              >
                 <FeedbackWord word={current.word} phonetic={current.phonetic ?? ""} visible={true} />
                 {current.allDefinitions && current.allDefinitions.length > 1 ? (
                   <FeedbackMultiDefinitions definitions={current.allDefinitions} />
@@ -202,10 +224,8 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
               </motion.div>
             </AnimatePresence>
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 0 8px" }}>
-              <button onClick={() => setIndex((i) => Math.max(0, i - 1))} disabled={index === 0} style={{ width: 46, height: 46, borderRadius: "50%", border: "0.5px solid rgba(255,255,255,0.16)", background: "none", color: index === 0 ? "rgba(255,255,255,0.2)" : "#C8C8C8", cursor: index === 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", outline: "none" }}><ChevronLeft size={22} /></button>
-              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "#6E6E6E" }}>{index + 1} of {total}</span>
-              <button onClick={() => setIndex((i) => Math.min(total - 1, i + 1))} disabled={index >= total - 1} style={{ width: 46, height: 46, borderRadius: "50%", border: "none", background: index >= total - 1 ? "rgba(245,158,11,0.3)" : "#F59E0B", color: "#1A1206", cursor: index >= total - 1 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", outline: "none" }}><ChevronRight size={22} /></button>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "22px 0 8px", color: "#5A5A5A", fontFamily: "'Inter', sans-serif", fontSize: 11 }}>
+              <ChevronLeft size={13} /> swipe to flip <ChevronRight size={13} />
             </div>
           </>
         )}
