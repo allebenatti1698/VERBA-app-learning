@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useLocation, useSearch } from "wouter";
 import { BookOpen, Library, GraduationCap } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
+import ScreenColumn from "@/components/ScreenColumn";
 import { getDifficultyLabel, getDifficultyDescription } from "@/lib/difficultyLabel";
 
 // ─── Colour tokens per family ─────────────────────────────────────────────────
@@ -184,6 +185,7 @@ export default function DifficultyScreen() {
     }}>
       <AppBackground showWords={false} />
 
+      <ScreenColumn style={{ position: "relative", zIndex: 10 }}>
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
       <div style={{
         position: "relative",
@@ -294,6 +296,7 @@ export default function DifficultyScreen() {
           />
         </div>
       </motion.div>
+      </ScreenColumn>
     </div>
   );
 }

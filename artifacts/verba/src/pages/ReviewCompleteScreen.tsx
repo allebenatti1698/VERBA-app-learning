@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { Star } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
+import { SCREEN_MAX } from "@/components/ScreenColumn";
 
 type MasteredWord = {
   id: string | number;
@@ -61,7 +62,7 @@ export default function ReviewCompleteScreen() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
-        style={{ position: "relative", zIndex: 10, flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", width: "100%", maxWidth: 440, padding: "48px 24px 0", boxSizing: "border-box" }}
+        style={{ position: "relative", zIndex: 10, flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", width: "100%", maxWidth: SCREEN_MAX, padding: "48px 24px 0", boxSizing: "border-box" }}
       >
         {/* Check circle */}
         <div style={{ width: 50, height: 50, borderRadius: "50%", border: "0.5px solid rgba(217,119,6,0.6)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>

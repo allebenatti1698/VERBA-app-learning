@@ -1,0 +1,107 @@
+VERBA — Step 3A: wrapper <ScreenColumn> (cap 640 centrato) applicato a Difficulty, Results, ReviewComplete. ECONOMY MODE. Stima ~$0.70–1.20. DO NOT test live — I test manually.
+
+Un file nuovo + 3 file modificati. NON toccare QuizScreen né FeedbackCard (sono il passo B). Se una riga non corrisponde ESATTAMENTE, FERMATI e segnala.
+
+════════════════════════════════════════
+CREA — src/components/ScreenColumn.tsx
+════════════════════════════════════════
+import React from "react";
+
+export const SCREEN_MAX = 640;
+
+interface ScreenColumnProps {
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+  maxWidth?: number;
+}
+
+export default function ScreenColumn({ children, style, maxWidth = SCREEN_MAX }: ScreenColumnProps) {
+  return (
+    <div style={{ width: "100%", maxWidth, marginLeft: "auto", marginRight: "auto", boxSizing: "border-box", ...style }}>
+      {children}
+    </div>
+  );
+}
+
+════════════════════════════════════════
+FILE — src/pages/DifficultyScreen.tsx
+════════════════════════════════════════
+
+D1) IMPORT — aggiungi in cima con gli altri import:
+   import ScreenColumn from "@/components/ScreenColumn";
+
+D2) APERTURA wrapper — sostituisci:
+      <AppBackground showWords={false} />
+
+      {/* ── Top bar ─────────────────────────────────────────────────────────── */}
+   con:
+      <AppBackground showWords={false} />
+
+      <ScreenColumn style={{ position: "relative", zIndex: 10 }}>
+      {/* ── Top bar ─────────────────────────────────────────────────────────── */}
+
+D3) CHIUSURA wrapper — sostituisci (è la fine del componente DifficultyScreen):
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+   con:
+        </div>
+      </motion.div>
+      </ScreenColumn>
+    </div>
+  );
+}
+
+════════════════════════════════════════
+FILE — src/pages/ResultsScreen.tsx
+════════════════════════════════════════
+
+R1) IMPORT — aggiungi:
+   import ScreenColumn from "@/components/ScreenColumn";
+
+R2) APERTURA — sostituisci:
+      <div style={{ position: "relative", zIndex: 10 }}>
+        <HeroScore correct={result.correct} total={result.total} visible={true} />
+   con:
+      <ScreenColumn style={{ position: "relative", zIndex: 10 }}>
+        <HeroScore correct={result.correct} total={result.total} visible={true} />
+
+R3) CHIUSURA — sostituisci:
+        {/* Bottom spacing */}
+        <div style={{ height: 80 }} />
+      </div>
+    </div>
+  );
+}
+   con:
+        {/* Bottom spacing */}
+        <div style={{ height: 80 }} />
+      </ScreenColumn>
+    </div>
+  );
+}
+
+(Nota: la FeedbackCard overlay vive dentro MissedWordsList e resta com'è — la sistemiamo nel passo B.)
+
+════════════════════════════════════════
+FILE — src/pages/ReviewCompleteScreen.tsx
+════════════════════════════════════════
+
+RC1) IMPORT — aggiungi:
+   import { SCREEN_MAX } from "@/components/ScreenColumn";
+
+RC2) Sostituisci OGNI occorrenza di:
+   maxWidth: 440
+   con:
+   maxWidth: SCREEN_MAX
+   (Se le occorrenze sono più d'una, cambiale tutte. Se non c'è alcun maxWidth: 440, segnalalo senza inventare.)
+
+════════════════════════════════════════
+RIPORTA SOLO:
+- File creati/modificati
+- Typecheck pulito (sì/no + errori)
+- N° di occorrenze maxWidth:440 cambiate in ReviewComplete
+- Eventuali blocchi non trovati
+NON eseguire test live.

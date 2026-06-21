@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { Clock, Flame, BookOpen, Star } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
+import ScreenColumn from "@/components/ScreenColumn";
 import { lowercaseFirst } from "@/lib/formatText";
 import FeedbackCard from "@/components/FeedbackCard";
 
@@ -1191,7 +1192,7 @@ export default function ResultsScreen() {
     }}>
       <AppBackground showWords={false} />
 
-      <div style={{ position: "relative", zIndex: 10 }}>
+      <ScreenColumn style={{ position: "relative", zIndex: 10 }}>
         <HeroScore correct={result.correct} total={result.total} visible={true} />
         <QuickStats elapsedMs={result.elapsedMs} visible={true} />
         <ActionButtons wordCount={result.wordCount} visible={true} />
@@ -1201,7 +1202,7 @@ export default function ResultsScreen() {
 
         {/* Bottom spacing */}
         <div style={{ height: 80 }} />
-      </div>
+      </ScreenColumn>
     </div>
   );
 }
