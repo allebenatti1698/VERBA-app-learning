@@ -11,7 +11,7 @@ const TABS = [
   { path: "/profile", label: "Profile", Icon: User },
 ];
 
-const ACTIVE = "#C7B8E8";
+const ACTIVE = "#F59E0B";
 const INACTIVE = "rgba(255,255,255,0.4)";
 
 export default function BottomNav() {

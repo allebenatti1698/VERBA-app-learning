@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation, useSearch } from "wouter";
 import AppBackground from "@/components/AppBackground";
-import ScreenColumn from "@/components/ScreenColumn";
+import ScreenColumn, { SCREEN_MAX } from "@/components/ScreenColumn";
 
 const cardStyle: React.CSSProperties = {
   background: "rgba(255,255,255,0.03)",
@@ -81,7 +81,7 @@ export default function PreQuizSetup() {
           display: "flex",
           flexDirection: "column",
           gap: 20,
-          width: "min(440px, 90vw)",
+          width: `min(${SCREEN_MAX}px, 90vw)`,
         }}
       >
         {/* Title */}
