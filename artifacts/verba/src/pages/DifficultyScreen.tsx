@@ -203,7 +203,7 @@ export default function DifficultyScreen() {
             cursor: "pointer",
             fontFamily: "'Inter', sans-serif",
             fontSize: 22,
-            color: "rgba(255,255,255,0.55)",
+            color: "rgba(245,158,11,0.8)",
             padding: "2px 6px",
             lineHeight: 1,
             outline: "none",
@@ -223,7 +223,7 @@ export default function DifficultyScreen() {
             fontStyle: "italic",
             fontSize: 12,
             fontWeight: 400,
-            color: "rgba(255,255,255,0.6)",
+            color: "rgba(245,158,11,0.8)",
             letterSpacing: "0.04em",
             outline: "none",
           }}

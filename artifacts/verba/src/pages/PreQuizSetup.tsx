@@ -19,10 +19,14 @@ export default function PreQuizSetup() {
   const deck = params.get("deck") ?? null;
   const difficulty = params.get("difficulty") ?? null;
   const deckBorder =
-    deck === "gre" ? "rgba(199,184,232,0.4)" :
-    deck === "essential" || deck === "advanced" ? "rgba(125,211,252,0.4)" :
-    deck === "myverba" ? "rgba(255,255,255,0.32)" :
-    "rgba(255,255,255,0.25)";
+    deck === "gre" ? "rgba(199,184,232,0.55)" :
+    deck === "essential" || deck === "advanced" ? "rgba(125,211,252,0.5)" :
+    deck === "myverba" ? "rgba(255,255,255,0.4)" :
+    "rgba(255,255,255,0.3)";
+  const deckHalo =
+    deck === "gre" ? "rgba(167,139,250,0.16)" :
+    deck === "essential" || deck === "advanced" ? "rgba(125,211,252,0.14)" :
+    "transparent";
   const [wordCount, setWordCount] = useState(10);
 
   function handleBegin() {
@@ -48,6 +52,8 @@ export default function PreQuizSetup() {
     >
       <AppBackground />
 
+      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 360, height: 260, background: `radial-gradient(ellipse, ${deckHalo}, transparent 70%)`, pointerEvents: "none", zIndex: 1 }} />
+
       {/* Back arrow */}
       <motion.button
         data-testid="button-back"
@@ -62,7 +68,7 @@ export default function PreQuizSetup() {
           background: "none",
           border: "none",
           cursor: "pointer",
-          color: "rgba(255,255,255,0.45)",
+          color: "rgba(245,158,11,0.8)",
           display: "flex",
           alignItems: "center",
           gap: 6,

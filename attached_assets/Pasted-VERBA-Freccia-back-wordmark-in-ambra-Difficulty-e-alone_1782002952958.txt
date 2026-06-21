@@ -1,0 +1,66 @@
+VERBA — Freccia back + wordmark in ambra (Difficulty), e alone viola + bordo più marcato + back ambra (PreQuizSetup). ECONOMY MODE. Stima ~$0.50–0.90. DO NOT test live — I test manually.
+
+Due file. NON toccare altro. Se una riga non corrisponde ESATTAMENTE, FERMATI e segnalalo.
+
+════════════════════════════════════════
+FILE 1 — src/pages/DifficultyScreen.tsx
+════════════════════════════════════════
+
+1A) FRECCIA BACK "‹" → AMBRA. Nel <button> con aria-label="Go back", sostituisci SOLO il color:
+   da:  color: "rgba(255,255,255,0.55)",
+   a:   color: "rgba(245,158,11,0.8)",
+
+1B) WORDMARK "Verba" → AMBRA. Nel <button> che contiene il testo "Verba" (fontStyle italic), sostituisci SOLO il color:
+   da:  color: "rgba(255,255,255,0.6)",
+   a:   color: "rgba(245,158,11,0.8)",
+   (È l'unica occorrenza di rgba(255,255,255,0.6) nel file. Se ce ne fossero più d'una, cambia SOLO quella nel button "Verba".)
+
+════════════════════════════════════════
+FILE 2 — src/pages/PreQuizSetup.tsx
+════════════════════════════════════════
+
+2A) BACK "‹ Back" → AMBRA. Nel <motion.button data-testid="button-back">, sostituisci SOLO il color:
+   da:  color: "rgba(255,255,255,0.45)",
+   a:   color: "rgba(245,158,11,0.8)",
+   (L'SVG usa stroke="currentColor", quindi freccia + testo "Back" diventano ambra insieme.)
+
+2B) BORDO CARD PIÙ MARCATO + ALONE DECK. Sostituisci INTERAMENTE il blocco deckBorder esistente:
+
+   const deckBorder =
+     deck === "gre" ? "rgba(199,184,232,0.4)" :
+     deck === "essential" || deck === "advanced" ? "rgba(125,211,252,0.4)" :
+     deck === "myverba" ? "rgba(255,255,255,0.32)" :
+     "rgba(255,255,255,0.25)";
+
+   con questo (opacity più alte + nuovo deckHalo):
+
+   const deckBorder =
+     deck === "gre" ? "rgba(199,184,232,0.55)" :
+     deck === "essential" || deck === "advanced" ? "rgba(125,211,252,0.5)" :
+     deck === "myverba" ? "rgba(255,255,255,0.4)" :
+     "rgba(255,255,255,0.3)";
+   const deckHalo =
+     deck === "gre" ? "rgba(167,139,250,0.16)" :
+     deck === "essential" || deck === "advanced" ? "rgba(125,211,252,0.14)" :
+     "transparent";
+
+2C) DIV ALONE — sostituisci:
+   <AppBackground />
+
+      {/* Back arrow */}
+
+   con:
+   <AppBackground />
+
+      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 360, height: 260, background: `radial-gradient(ellipse, ${deckHalo}, transparent 70%)`, pointerEvents: "none", zIndex: 1 }} />
+
+      {/* Back arrow */}
+
+(NON toccare numero "10", slider, bottone Begin: restano ambra. Lo spessore del bordo resta 1px: alziamo solo l'opacity tramite deckBorder.)
+
+════════════════════════════════════════
+RIPORTA SOLO:
+- File modificati
+- Typecheck pulito (sì/no + errori)
+- Eventuali blocchi non trovati
+NON eseguire test live.
