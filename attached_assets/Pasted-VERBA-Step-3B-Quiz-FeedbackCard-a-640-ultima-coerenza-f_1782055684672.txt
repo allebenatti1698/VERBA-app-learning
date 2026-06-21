@@ -1,0 +1,50 @@
+VERBA — Step 3B: Quiz + FeedbackCard a 640 (ultima coerenza full-size). ECONOMY MODE. Stima ~$0.50–0.90. DO NOT test live — I test manually.
+
+Due file. Sostituzioni mirate. NON toccare la logica del quiz (scoring, reverse mode, minimize/expand), solo le larghezze. Se un blocco non corrisponde, FERMATI e segnala.
+
+════════════════════════════════════════
+FILE 1 — src/components/FeedbackCard.tsx
+════════════════════════════════════════
+
+F1) IMPORT — aggiungi in cima con gli altri import:
+   import { SCREEN_MAX } from "@/components/ScreenColumn";
+
+F2) CARD A 640 CENTRATA — nel <motion.div key="feedback"> (il bottom-sheet), nel suo style sostituisci:
+              position: "fixed",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              maxHeight: "80vh",
+   con:
+              position: "fixed",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              maxWidth: SCREEN_MAX,
+              marginLeft: "auto",
+              marginRight: "auto",
+              maxHeight: "80vh",
+
+(Così la card sale dal basso ma resta centrata a 640 invece di occupare tutta la larghezza. NON toccare il backdrop, la barra "minimized" — già centrata — né il borderRadius.)
+
+════════════════════════════════════════
+FILE 2 — src/pages/QuizScreen.tsx
+════════════════════════════════════════
+
+Q1) IMPORT — aggiungi:
+   import { SCREEN_MAX } from "@/components/ScreenColumn";
+
+Q2) LARGHEZZE A 640 — sostituisci OGNI occorrenza di:
+   maxWidth: 440
+   con:
+   maxWidth: SCREEN_MAX
+
+   (Dovrebbe essere nel blocco "Prompt" e nel contenitore delle 4 opzioni. Cambiale TUTTE. NON toccare i maxWidth: 200 dei bottoni Next/Check, che restano piccoli. Se il contenitore delle opzioni NON ha alcun maxWidth — cioè le opzioni sono già full-width — aggiungi `maxWidth: SCREEN_MAX` + `width: "100%"` a quel contenitore così è capato a 640. Riporta cosa hai trovato.)
+
+════════════════════════════════════════
+RIPORTA SOLO:
+- File modificati
+- Typecheck pulito (sì/no + errori)
+- N° di occorrenze maxWidth:440 cambiate in QuizScreen + cosa hai trovato per il contenitore delle opzioni
+- Eventuali blocchi non trovati
+NON eseguire test live.

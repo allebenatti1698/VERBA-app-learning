@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronUp } from "lucide-react";
+import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { lowercaseFirst } from "@/lib/formatText";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -563,6 +564,9 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
               bottom: 0,
               left: 0,
               right: 0,
+              maxWidth: SCREEN_MAX,
+              marginLeft: "auto",
+              marginRight: "auto",
               maxHeight: "80vh",
               overflowY: "auto",
               background: "#111111",

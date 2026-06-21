@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import { useLocation, useSearch } from "wouter";
 import { Loader2 } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
+import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { lowercaseFirst } from "@/lib/formatText";
 import { damerauLevenshtein, nearMissThreshold } from "@/lib/typoMatch";
 import FeedbackCard, { type QuizWord as FeedbackQuizWord } from "@/components/FeedbackCard";
@@ -433,7 +434,7 @@ export default function QuizScreen() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: isReverseMode ? 80 : 24, paddingBottom: 8, width: "100%", maxWidth: 440 }}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: isReverseMode ? 80 : 24, paddingBottom: 8, width: "100%", maxWidth: SCREEN_MAX }}
           >
             {isReverseMode ? (
               <>
@@ -505,7 +506,7 @@ export default function QuizScreen() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 440 }}
+            style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: SCREEN_MAX }}
           >
             {isReverseMode ? (
               <motion.div animate={shakeControls} style={{ width: "100%" }}>
