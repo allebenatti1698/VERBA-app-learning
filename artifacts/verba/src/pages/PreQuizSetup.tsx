@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation, useSearch } from "wouter";
 import AppBackground from "@/components/AppBackground";
+import ScreenColumn from "@/components/ScreenColumn";
 
 const cardStyle: React.CSSProperties = {
   background: "rgba(255,255,255,0.03)",
@@ -54,37 +55,24 @@ export default function PreQuizSetup() {
 
       <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 360, height: 260, background: `radial-gradient(ellipse, ${deckHalo}, transparent 70%)`, pointerEvents: "none", zIndex: 1 }} />
 
-      {/* Back arrow */}
-      <motion.button
-        data-testid="button-back"
-        onClick={() => window.history.back()}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-        style={{
-          position: "absolute",
-          top: 28,
-          left: 24,
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          color: "rgba(245,158,11,0.8)",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          fontFamily: "'Inter', sans-serif",
-          fontWeight: 300,
-          fontSize: "0.85rem",
-          letterSpacing: "0.04em",
-          padding: "8px 4px",
-          zIndex: 20,
-        }}
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        Back
-      </motion.button>
+      {/* Header — back + wordmark, dentro la colonna 640 (come Difficulty) */}
+      <ScreenColumn style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 20, padding: "18px 16px 0" }}>
+        <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <button
+            onClick={() => window.history.back()}
+            style={{ position: "absolute", left: 16, background: "none", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 22, color: "rgba(245,158,11,0.8)", padding: "2px 6px", lineHeight: 1, outline: "none" }}
+            aria-label="Go back"
+          >
+            ‹
+          </button>
+          <button
+            onClick={() => setLocation("/")}
+            style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 12, fontWeight: 400, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em", outline: "none" }}
+          >
+            Verba
+          </button>
+        </div>
+      </ScreenColumn>
 
       <div
         style={{

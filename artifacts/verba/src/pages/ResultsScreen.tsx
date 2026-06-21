@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { Clock, Flame, BookOpen, Star } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
-import ScreenColumn from "@/components/ScreenColumn";
+import ScreenColumn, { SCREEN_MAX } from "@/components/ScreenColumn";
 import { lowercaseFirst } from "@/lib/formatText";
 import FeedbackCard from "@/components/FeedbackCard";
 
@@ -286,7 +286,7 @@ function QuickStats({ elapsedMs, visible = true }: QuickStatsProps) {
         display: "flex",
         gap: 10,
         padding: "0 20px",
-        maxWidth: 480,
+        maxWidth: SCREEN_MAX,
         margin: "0 auto",
         width: "100%",
         boxSizing: "border-box",
@@ -355,7 +355,7 @@ function ActionButtons({ wordCount, visible = true }: ActionButtonsProps) {
         display: "flex",
         gap: 12,
         padding: "24px 20px 0",
-        maxWidth: 480,
+        maxWidth: SCREEN_MAX,
         margin: "0 auto",
         width: "100%",
         boxSizing: "border-box",
@@ -463,7 +463,7 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.75, duration: 0.4 }}
-        style={{ padding: "32px 20px 0", maxWidth: 480, margin: "0 auto", width: "100%", boxSizing: "border-box" }}
+        style={{ padding: "32px 20px 0", maxWidth: SCREEN_MAX, margin: "0 auto", width: "100%", boxSizing: "border-box" }}
       >
         {/* Section header */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
@@ -791,7 +791,7 @@ function WeeklyChart({ visible = true }: WeeklyChartProps) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.85, duration: 0.4 }}
-      style={{ padding: "32px 20px 0", maxWidth: 480, margin: "0 auto", width: "100%", boxSizing: "border-box" }}
+      style={{ padding: "32px 20px 0", maxWidth: SCREEN_MAX, margin: "0 auto", width: "100%", boxSizing: "border-box" }}
     >
       <h2 style={{
         fontFamily: "'Space Grotesk', sans-serif",
@@ -988,7 +988,7 @@ function StreakJourney({ visible = true }: StreakJourneyProps) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.95, duration: 0.4 }}
-      style={{ padding: "32px 20px 0", maxWidth: 480, margin: "0 auto", width: "100%", boxSizing: "border-box" }}
+      style={{ padding: "32px 20px 0", maxWidth: SCREEN_MAX, margin: "0 auto", width: "100%", boxSizing: "border-box" }}
     >
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>

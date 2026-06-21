@@ -1,0 +1,56 @@
+VERBA — Step 3B-A: PreQuizSetup header coerente (dentro colonna) + Results larghezza interna a 640. ECONOMY MODE. Stima ~$0.60–1.10. DO NOT test live — I test manually.
+
+Due file. NON toccare QuizScreen né FeedbackCard. Se un blocco non corrisponde, FERMATI e segnala.
+
+════════════════════════════════════════
+FILE 1 — src/pages/PreQuizSetup.tsx
+════════════════════════════════════════
+
+P1) IMPORT — aggiungi con gli altri import in cima:
+   import ScreenColumn from "@/components/ScreenColumn";
+
+P2) HEADER — trova il blocco commentato {/* Back arrow */} seguito dal <motion.button data-testid="button-back"> ... </motion.button> (la freccia "‹ Back" posizionata in absolute top:28 left:24, con dentro l'<svg> e il testo "Back"). Sostituisci QUELL'INTERO blocco (commento + motion.button) con questo header allineato a Difficulty (freccia ‹ a sx + wordmark "Verba" centrato, dentro la colonna 640):
+
+      {/* Header — back + wordmark, dentro la colonna 640 (come Difficulty) */}
+      <ScreenColumn style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 20, padding: "18px 16px 0" }}>
+        <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <button
+            onClick={() => window.history.back()}
+            style={{ position: "absolute", left: 16, background: "none", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 22, color: "rgba(245,158,11,0.8)", padding: "2px 6px", lineHeight: 1, outline: "none" }}
+            aria-label="Go back"
+          >
+            ‹
+          </button>
+          <button
+            onClick={() => setLocation("/")}
+            style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 12, fontWeight: 400, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em", outline: "none" }}
+          >
+            Verba
+          </button>
+        </div>
+      </ScreenColumn>
+
+(Nota: setLocation è già disponibile nel componente. Il contenuto centrato della card NON va toccato: resta com'è, centrato verticalmente.)
+
+════════════════════════════════════════
+FILE 2 — src/pages/ResultsScreen.tsx
+════════════════════════════════════════
+
+R1) IMPORT — modifica l'import esistente di ScreenColumn per includere anche SCREEN_MAX:
+   da:  import ScreenColumn from "@/components/ScreenColumn";
+   a:   import ScreenColumn, { SCREEN_MAX } from "@/components/ScreenColumn";
+
+R2) LARGHEZZA SEZIONI — sostituisci OGNI occorrenza di:
+   maxWidth: 480
+   con:
+   maxWidth: SCREEN_MAX
+
+   (Dovrebbero essere nelle sezioni QuickStats, ActionButtons, MissedWordsList, WeeklyChart, StreakJourney. Cambiale TUTTE. Se trovi nelle sezioni altri maxWidth diversi da 480 — es. 440 o 360 — portali anch'essi a SCREEN_MAX e dimmi quali erano. NON toccare HeroScore, che resta centrato senza maxWidth.)
+
+════════════════════════════════════════
+RIPORTA SOLO:
+- File modificati
+- Typecheck pulito (sì/no + errori)
+- N° di occorrenze maxWidth:480 cambiate (e eventuali altri valori trovati)
+- Eventuali blocchi non trovati
+NON eseguire test live.
