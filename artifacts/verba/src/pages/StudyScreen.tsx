@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Check, Play, Eye, EyeOff, Star } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Check, Play, Eye, EyeOff, Star, GraduationCap, BookOpen, Library } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
 import { lowercaseFirst } from "@/lib/formatText";
 import { getStudySets, type StudySet } from "@/lib/studySets";
@@ -14,6 +14,13 @@ const TIERS = [
   { difficulty: "easy", label: "Common" },
   { difficulty: "medium", label: "Uncommon" },
   { difficulty: "hard", label: "Rare" },
+];
+
+const DECK_OPTIONS = [
+  { id: "gre", name: "GRE Vocabulary", Icon: GraduationCap, color: "#C7B8E8", active: true },
+  { id: "essential", name: "Essential English", Icon: BookOpen, color: "#7DD3FC", active: false },
+  { id: "advanced", name: "Advanced English", Icon: Library, color: "#7DD3FC", active: false },
+  { id: "myverba", name: "My Verba", Icon: Star, color: "#E8E8E8", active: false },
 ];
 
 type SetsByDifficulty = Record<string, StudySet[]>;
@@ -53,6 +60,7 @@ export default function StudyScreen() {
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [browse, setBrowse] = useState<{ difficulty: string; setNumber: number } | null>(null);
+  const [deckMenuOpen, setDeckMenuOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -81,15 +89,41 @@ export default function StudyScreen() {
     <div style={{ minHeight: "100%", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
       <AppBackground showWords={false} />
       <div style={{ position: "absolute", top: -40, left: -30, width: 220, height: 200, background: "radial-gradient(circle, rgba(167,139,250,0.16), transparent 70%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: -70, right: -40, width: 230, height: 210, background: "radial-gradient(circle, rgba(245,158,11,0.10), transparent 70%)", pointerEvents: "none" }} />
       <div style={{ position: "relative", zIndex: 10, padding: "22px 18px 0", maxWidth: 640, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 14 }}>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.6)", letterSpacing: "0.04em" }}>Verba</span>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 12, fontWeight: 400, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em" }}>Verba</span>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 24, color: "#F0EDF7", margin: 0 }}>Study</h1>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontFamily: "'Inter', sans-serif", fontSize: 12, color: "#C8C8C8", border: "0.5px solid rgba(255,255,255,0.16)", borderRadius: 20, padding: "5px 11px" }}>
-            GRE <ChevronDown size={14} color="#8A8A8A" />
-          </span>
+          <div style={{ position: "relative" }}>
+            <button onClick={() => setDeckMenuOpen((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontSize: 12, color: "#C7B8E8", border: "0.5px solid rgba(199,184,232,0.45)", borderRadius: 20, padding: "5px 11px", background: "rgba(167,139,250,0.07)", cursor: "pointer", outline: "none" }}>
+              <GraduationCap size={14} color="#C7B8E8" />
+              GRE
+              <ChevronDown size={14} color="#A78BFA" style={{ transform: deckMenuOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s ease" }} />
+            </button>
+            {deckMenuOpen && (
+              <>
+                <div onClick={() => setDeckMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+                <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 50, width: 210, background: "rgba(20,18,26,0.97)", border: "0.5px solid rgba(199,184,232,0.28)", borderRadius: 14, padding: 6, backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}>
+                  {DECK_OPTIONS.map((d) => (
+                    <button
+                      key={d.id}
+                      disabled={!d.active}
+                      onClick={() => { if (d.active) setDeckMenuOpen(false); }}
+                      style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "9px 10px", borderRadius: 10, border: "none", background: d.active ? "rgba(167,139,250,0.12)" : "transparent", cursor: d.active ? "pointer" : "default", opacity: d.active ? 1 : 0.4, outline: "none", textAlign: "left" }}
+                    >
+                      <d.Icon size={17} color={d.color} strokeWidth={1.6} />
+                      <span style={{ flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 12, color: d.active ? "#F0EDF7" : "#C8C8C8" }}>{d.name}</span>
+                      {d.active
+                        ? <Check size={15} color="#C7B8E8" />
+                        : <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, letterSpacing: "0.06em", color: "#8A8A8A", border: "0.5px solid rgba(255,255,255,0.18)", borderRadius: 6, padding: "1px 6px" }}>SOON</span>}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {loading && (<div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}><Loader2 size={26} color={LAVENDER} className="animate-spin" /></div>)}
@@ -127,7 +161,7 @@ export default function StudyScreen() {
                                   <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: isDone ? "#E8E8E8" : "#C8C8C8" }}>Set {s.setNumber}</span>
                                   <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "#6E6E6E" }}>{s.wordCount} words</span>
                                 </span>
-                                {isDone ? <Check size={16} color={LAVENDER} /> : seen > 0 ? (
+                                {isDone ? <Check size={16} color="#F59E0B" /> : seen > 0 ? (
                                   <span style={{ width: 46, height: 4, background: "rgba(255,255,255,0.10)", borderRadius: 2, display: "inline-block" }}><span style={{ display: "block", width: `${pct}%`, height: "100%", background: "#F59E0B", borderRadius: 2 }} /></span>
                                 ) : <ChevronRight size={15} color="#5A5A5A" />}
                               </button>
@@ -165,7 +199,7 @@ function ContinueCard({ setsByDiff, onOpen }: { setsByDiff: SetsByDifficulty; on
         </div>
         <span style={{ width: 38, height: 38, borderRadius: "50%", background: LAVENDER, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><Play size={16} color="#1A1622" fill="#1A1622" /></span>
       </div>
-      <div style={{ height: 4, background: "rgba(255,255,255,0.10)", borderRadius: 2, marginTop: 12 }}><div style={{ width: `${pct}%`, height: "100%", background: LAVENDER, borderRadius: 2 }} /></div>
+      <div style={{ height: 4, background: "rgba(255,255,255,0.10)", borderRadius: 2, marginTop: 12 }}><div style={{ width: `${pct}%`, height: "100%", background: "#F59E0B", borderRadius: 2 }} /></div>
     </button>
   );
 }

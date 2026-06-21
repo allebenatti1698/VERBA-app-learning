@@ -353,7 +353,7 @@ export default function DeckSelectionScreen() {
               fontStyle: "italic",
               fontSize: 12,
               fontWeight: 400,
-              color: "rgba(255,255,255,0.6)",
+              color: "rgba(245,158,11,0.8)",
               letterSpacing: "0.04em",
               outline: "none",
             }}

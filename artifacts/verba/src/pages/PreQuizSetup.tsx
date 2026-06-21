@@ -18,6 +18,11 @@ export default function PreQuizSetup() {
   const params = new URLSearchParams(search);
   const deck = params.get("deck") ?? null;
   const difficulty = params.get("difficulty") ?? null;
+  const deckBorder =
+    deck === "gre" ? "rgba(199,184,232,0.4)" :
+    deck === "essential" || deck === "advanced" ? "rgba(125,211,252,0.4)" :
+    deck === "myverba" ? "rgba(255,255,255,0.32)" :
+    "rgba(255,255,255,0.25)";
   const [wordCount, setWordCount] = useState(10);
 
   function handleBegin() {
@@ -123,7 +128,7 @@ export default function PreQuizSetup() {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: "easeOut", delay: 0.1 }}
-          style={cardStyle}
+          style={{ ...cardStyle, border: `1px solid ${deckBorder}` }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
             <span
