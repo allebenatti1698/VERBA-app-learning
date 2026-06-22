@@ -1,3 +1,8 @@
+VERBA — Step 4 / Prompt 1b: Continue unico sticky + badge per fascia + selezione cross-difficoltà. ECONOMY MODE. Stima ~$0.80–1.30. DO NOT test live — I test manually.
+
+SOSTITUISCI INTERAMENTE src/pages/DifficultyScreen.tsx con il seguente. NON toccare altri file (il wiring di Setup/Quiz è il Prompt 2 — fino ad allora il quiz non pescherà ancora dai set, ma la UI di selezione è testabile). Riporta solo: file modificato, typecheck (sì/no + errori).
+
+──────────────────────────────────────────
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useLocation, useSearch } from "wouter";
@@ -248,3 +253,6 @@ export default function DifficultyScreen() {
     </div>
   );
 }
+──────────────────────────────────────────
+
+NON eseguire test live.
