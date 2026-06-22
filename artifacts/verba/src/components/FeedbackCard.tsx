@@ -441,7 +441,7 @@ export function FeedbackNextButton({ onClick, isLast, visible = true }: Feedback
       data-testid="button-next"
       onClick={onClick}
       whileTap={{ scale: 0.96 }}
-      style={{ ...primaryButtonStyle, display: "block", width: "auto", margin: "44px auto 0 auto" }}
+      style={{ ...primaryButtonStyle, display: "block", margin: "44px auto 0 auto" }}
     >
       {isLast ? "Finish" : "Next →"}
     </motion.button>

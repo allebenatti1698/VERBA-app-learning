@@ -7,7 +7,7 @@ export const primaryButtonStyle: CSSProperties = {
   borderRadius: 9999,
   border: "none",
   cursor: "pointer",
-  maxWidth: 200,
+  width: 200,
   background: "linear-gradient(to right, #F59E0B, #EA580C)",
   fontFamily: "'Inter', sans-serif",
   fontWeight: 500,

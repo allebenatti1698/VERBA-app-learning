@@ -550,7 +550,7 @@ export default function QuizScreen() {
                     <motion.button
                       whileTap={{ scale: 0.96 }}
                       onClick={() => handleReverseNext(reverseResult === "correct")}
-                      style={{ ...primaryButtonStyle, display: "block", width: "auto", margin: "20px auto 0" }}>
+                      style={{ ...primaryButtonStyle, display: "block", margin: "20px auto 0" }}>
                       {reverseResult === "correct" && reviewQueue.length <= 1 ? "Finish" : "Next →"}
                     </motion.button>
                   </>
@@ -578,7 +578,7 @@ export default function QuizScreen() {
                     <motion.button
                       whileTap={{ scale: 0.96 }}
                       onClick={submitReverseTyping}
-                      style={{ ...primaryButtonStyle, display: "block", width: "auto", margin: "10px auto 0" }}>
+                      style={{ ...primaryButtonStyle, display: "block", margin: "10px auto 0" }}>
                       Check
                     </motion.button>
                   </>
@@ -628,7 +628,7 @@ export default function QuizScreen() {
                 exit={{ opacity: 0, y: 10 }}
                 transition={{ duration: 0.2 }}
                 whileTap={{ scale: 0.96 }}
-                style={{ ...primaryButtonStyle, display: "block", width: "auto", margin: "8px auto 0" }}
+                style={{ ...primaryButtonStyle, display: "block", margin: "8px auto 0" }}
               >
                 {isLastNormal ? "Finish" : "Next →"}
               </motion.button>
