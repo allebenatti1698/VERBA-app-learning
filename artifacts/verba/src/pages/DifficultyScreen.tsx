@@ -113,7 +113,7 @@ export default function DifficultyScreen() {
           map[t.difficulty] = results[i];
           const completed = getCompletedSetNumbers(deck, t.difficulty, results[i]);
           comp[t.difficulty] = completed;
-          sel[t.difficulty] = new Set(completed);
+          sel[t.difficulty] = new Set();
         });
         setSetsByDiff(map);
         setSelected(sel);

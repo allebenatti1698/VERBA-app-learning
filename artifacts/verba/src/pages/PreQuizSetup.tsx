@@ -199,22 +199,21 @@ export default function PreQuizSetup() {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: "easeOut", delay: 0.25 }}
-          style={{ marginTop: 8 }}
+          style={{ marginTop: 8, display: "flex", justifyContent: "center" }}
         >
           <motion.button
             data-testid="button-begin"
             onClick={handleBegin}
             whileTap={{ scale: 0.96 }}
             style={{
-              width: "100%",
-              padding: "18px 0",
+              padding: "13px 36px",
               borderRadius: 9999,
               border: "none",
               cursor: "pointer",
               background: "linear-gradient(90deg, #F59E0B 0%, #EA580C 100%)",
               fontFamily: "'Inter', sans-serif",
               fontWeight: 400,
-              fontSize: "1.05rem",
+              fontSize: "0.95rem",
               letterSpacing: "0.04em",
               color: "#FFFFFF",
               outline: "none",
