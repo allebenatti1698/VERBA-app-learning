@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useLocation, useSearch } from "wouter";
 import AppBackground from "@/components/AppBackground";
 import ScreenColumn, { SCREEN_MAX } from "@/components/ScreenColumn";
+import { parseSetsParam, getWordIdsForSelection } from "@/lib/studySets";
 
 const cardStyle: React.CSSProperties = {
   background: "rgba(255,255,255,0.03)",
@@ -19,6 +20,7 @@ export default function PreQuizSetup() {
   const params = new URLSearchParams(search);
   const deck = params.get("deck") ?? null;
   const difficulty = params.get("difficulty") ?? null;
+  const setsParam = params.get("sets") ?? null;
   const deckBorder =
     deck === "gre" ? "rgba(199,184,232,0.55)" :
     deck === "essential" || deck === "advanced" ? "rgba(125,211,252,0.5)" :
@@ -30,10 +32,25 @@ export default function PreQuizSetup() {
     "transparent";
   const [wordCount, setWordCount] = useState(10);
 
+  const [maxWords, setMaxWords] = useState(50);
+  useEffect(() => {
+    const selection = parseSetsParam(setsParam);
+    if (Object.keys(selection).length === 0) { setMaxWords(50); return; }
+    let active = true;
+    getWordIdsForSelection(deck || "gre", selection)
+      .then((ids) => { if (active) setMaxWords(Math.max(5, ids.length)); })
+      .catch(() => { if (active) setMaxWords(50); });
+    return () => { active = false; };
+  }, [setsParam, deck]);
+  const sliderMax = Math.min(50, maxWords);
+  useEffect(() => { setWordCount((w) => Math.min(w, sliderMax)); }, [sliderMax]);
+
   function handleBegin() {
-    const queryParts = [`words=${wordCount}`];
+    const finalWords = Math.min(wordCount, maxWords);
+    const queryParts = [`words=${finalWords}`];
     if (deck) queryParts.push(`deck=${deck}`);
-    if (difficulty) queryParts.push(`difficulty=${difficulty}`);
+    if (setsParam) queryParts.push(`sets=${setsParam}`);
+    else if (difficulty) queryParts.push(`difficulty=${difficulty}`);
     setLocation(`/quiz?${queryParts.join("&")}`);
   }
 
@@ -155,7 +172,7 @@ export default function PreQuizSetup() {
               data-testid="slider-words"
               type="range"
               min={5}
-              max={50}
+              max={sliderMax}
               step={5}
               value={wordCount}
               onChange={(e) => setWordCount(Number(e.target.value))}
@@ -164,7 +181,7 @@ export default function PreQuizSetup() {
                 height: 4,
                 appearance: "none",
                 WebkitAppearance: "none",
-                background: `linear-gradient(to right, #D97706 0%, #F59E0B ${((wordCount - 5) / 45) * 100}%, rgba(255,255,255,0.1) ${((wordCount - 5) / 45) * 100}%, rgba(255,255,255,0.1) 100%)`,
+                background: `linear-gradient(to right, #D97706 0%, #F59E0B ${((wordCount - 5) / Math.max(1, sliderMax - 5)) * 100}%, rgba(255,255,255,0.1) ${((wordCount - 5) / Math.max(1, sliderMax - 5)) * 100}%, rgba(255,255,255,0.1) 100%)`,
                 borderRadius: 2,
                 outline: "none",
                 cursor: "pointer",
@@ -173,7 +190,7 @@ export default function PreQuizSetup() {
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
             <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: "0.72rem", color: "rgba(255,255,255,0.25)" }}>5</span>
-            <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: "0.72rem", color: "rgba(255,255,255,0.25)" }}>50</span>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: "0.72rem", color: "rgba(255,255,255,0.25)" }}>{sliderMax}</span>
           </div>
         </motion.div>
 

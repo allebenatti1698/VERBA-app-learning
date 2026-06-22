@@ -7,7 +7,8 @@ import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { lowercaseFirst } from "@/lib/formatText";
 import { damerauLevenshtein, nearMissThreshold } from "@/lib/typoMatch";
 import FeedbackCard, { type QuizWord as FeedbackQuizWord } from "@/components/FeedbackCard";
-import { fetchQuizWords, type QuizWord, type QuizWordDefinition } from "@/lib/quizQueries";
+import { fetchQuizWords, fetchWordsByIds, type QuizWord, type QuizWordDefinition } from "@/lib/quizQueries";
+import { parseSetsParam, getWordIdsForSelection } from "@/lib/studySets";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -111,6 +112,7 @@ export default function QuizScreen() {
   const requestedWords = Math.max(Number(params.get("words")) || 10, 1);
   const deckParam = params.get("deck") ?? null;
   const difficultyParam = params.get("difficulty") ?? null;
+  const setsParam = params.get("sets") ?? null;
   const isReverseMode = params.get("mode") === "reverse";
 
   // ── Shared state ────────────────────────────────────────────────────────────
@@ -152,7 +154,14 @@ export default function QuizScreen() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetchQuizWords(deckParam || "gre", difficultyParam, requestedWords)
+    const selection = parseSetsParam(setsParam);
+    const hasSets = Object.keys(selection).length > 0;
+    const loader = hasSets
+      ? getWordIdsForSelection(deckParam || "gre", selection)
+          .then((ids) => fetchWordsByIds(ids))
+          .then((ws) => shuffleArray(ws).slice(0, requestedWords))
+      : fetchQuizWords(deckParam || "gre", difficultyParam, requestedWords);
+    loader
       .then((words) => {
         if (cancelled) return;
         setQuizWords(words);
@@ -172,7 +181,7 @@ export default function QuizScreen() {
         setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [deckParam, difficultyParam, requestedWords, fetchKey, isReverseMode]);
+  }, [deckParam, difficultyParam, setsParam, requestedWords, fetchKey, isReverseMode]);
 
   // ── Reverse mode: init from sessionStorage ───────────────────────────────
   useEffect(() => {

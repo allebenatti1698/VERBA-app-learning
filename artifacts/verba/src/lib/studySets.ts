@@ -77,3 +77,25 @@ export function totalWordsInSets(sets: StudySet[], selectedSetNumbers: number[])
 export function clearStudySetsCache(): void {
   cache.clear();
 }
+
+// Parsa "easy:1,easy:2,medium:3" → { easy: [1,2], medium: [3] }
+export function parseSetsParam(raw: string | null): Record<string, number[]> {
+  const out: Record<string, number[]> = {};
+  if (!raw) return out;
+  for (const tok of raw.split(",")) {
+    const [diff, num] = tok.split(":");
+    const n = Number(num);
+    if (diff && Number.isFinite(n)) (out[diff] ??= []).push(n);
+  }
+  return out;
+}
+
+// Raccoglie i wordIds di una selezione cross-difficoltà.
+export async function getWordIdsForSelection(deckSlug: string, selection: Record<string, number[]>): Promise<string[]> {
+  const all: string[] = [];
+  for (const diff of Object.keys(selection)) {
+    const sets = await getStudySets(deckSlug, diff);
+    all.push(...getWordIdsForSets(sets, selection[diff]));
+  }
+  return all;
+}

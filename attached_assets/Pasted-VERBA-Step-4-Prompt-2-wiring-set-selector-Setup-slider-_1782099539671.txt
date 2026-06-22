@@ -1,0 +1,120 @@
+VERBA — Step 4 / Prompt 2: wiring set-selector → Setup (slider dinamico) + Quiz (pesca dai set scelti, anche misti). ECONOMY MODE. Stima ~$1.0–1.6. DO NOT test live — I test manually.
+
+Tre file. Se un blocco non corrisponde ESATTAMENTE, FERMATI e segnala.
+
+════════════════════════════════════════
+FILE 1 — src/lib/studySets.ts  (AGGIUNGI in fondo al file, non rimuovere nulla)
+════════════════════════════════════════
+
+// Parsa "easy:1,easy:2,medium:3" → { easy: [1,2], medium: [3] }
+export function parseSetsParam(raw: string | null): Record<string, number[]> {
+  const out: Record<string, number[]> = {};
+  if (!raw) return out;
+  for (const tok of raw.split(",")) {
+    const [diff, num] = tok.split(":");
+    const n = Number(num);
+    if (diff && Number.isFinite(n)) (out[diff] ??= []).push(n);
+  }
+  return out;
+}
+
+// Raccoglie i wordIds di una selezione cross-difficoltà.
+export async function getWordIdsForSelection(deckSlug: string, selection: Record<string, number[]>): Promise<string[]> {
+  const all: string[] = [];
+  for (const diff of Object.keys(selection)) {
+    const sets = await getStudySets(deckSlug, diff);
+    all.push(...getWordIdsForSets(sets, selection[diff]));
+  }
+  return all;
+}
+
+════════════════════════════════════════
+FILE 2 — src/pages/PreQuizSetup.tsx
+════════════════════════════════════════
+
+P1) IMPORT — modifica la riga di import di react e aggiungi studySets:
+   da:  import { useState } from "react";
+   a:   import { useState, useEffect } from "react";
+   E aggiungi sotto gli altri import:
+   import { parseSetsParam, getWordIdsForSelection } from "@/lib/studySets";
+
+P2) Dopo la riga:
+   const difficulty = params.get("difficulty") ?? null;
+   aggiungi:
+   const setsParam = params.get("sets") ?? null;
+
+P3) Dopo  const [wordCount, setWordCount] = useState(10);  aggiungi:
+
+   const [maxWords, setMaxWords] = useState(50);
+   useEffect(() => {
+     const selection = parseSetsParam(setsParam);
+     if (Object.keys(selection).length === 0) { setMaxWords(50); return; }
+     let active = true;
+     getWordIdsForSelection(deck || "gre", selection)
+       .then((ids) => { if (active) setMaxWords(Math.max(5, ids.length)); })
+       .catch(() => { if (active) setMaxWords(50); });
+     return () => { active = false; };
+   }, [setsParam, deck]);
+   const sliderMax = Math.min(50, maxWords);
+   useEffect(() => { setWordCount((w) => Math.min(w, sliderMax)); }, [sliderMax]);
+
+P4) Sostituisci INTERAMENTE la funzione handleBegin con:
+
+   function handleBegin() {
+     const finalWords = Math.min(wordCount, maxWords);
+     const queryParts = [`words=${finalWords}`];
+     if (deck) queryParts.push(`deck=${deck}`);
+     if (setsParam) queryParts.push(`sets=${setsParam}`);
+     else if (difficulty) queryParts.push(`difficulty=${difficulty}`);
+     setLocation(`/quiz?${queryParts.join("&")}`);
+   }
+
+P5) SLIDER — nell'<input type="range">:
+   - sostituisci  max={50}  con  max={sliderMax}
+   - sostituisci la stringa background del gradient (quella con "/ 45") con:
+     background: `linear-gradient(to right, #D97706 0%, #F59E0B ${((wordCount - 5) / Math.max(1, sliderMax - 5)) * 100}%, rgba(255,255,255,0.1) ${((wordCount - 5) / Math.max(1, sliderMax - 5)) * 100}%, rgba(255,255,255,0.1) 100%)`,
+
+P6) LABEL — la label fissa "50" sotto lo slider (lo <span> che contiene 50): sostituisci il testo  50  con  {sliderMax}
+
+════════════════════════════════════════
+FILE 3 — src/pages/QuizScreen.tsx
+════════════════════════════════════════
+
+Q1) IMPORT:
+   - alla riga che importa da "@/lib/quizQueries", aggiungi fetchWordsByIds (accanto a fetchQuizWords).
+     Es.: import { fetchQuizWords, fetchWordsByIds, type QuizWord } from "@/lib/quizQueries";
+     (se l'import attuale non è esattamente così, aggiungi solo fetchWordsByIds all'elenco esistente.)
+   - aggiungi: import { parseSetsParam, getWordIdsForSelection } from "@/lib/studySets";
+
+Q2) Dopo  const difficultyParam = params.get("difficulty") ?? null;  aggiungi:
+   const setsParam = params.get("sets") ?? null;
+
+Q3) Nel useEffect del normal-mode fetch, sostituisci:
+       setLoading(true);
+       setError(null);
+       fetchQuizWords(deckParam || "gre", difficultyParam, requestedWords)
+         .then((words) => {
+   con:
+       setLoading(true);
+       setError(null);
+       const selection = parseSetsParam(setsParam);
+       const hasSets = Object.keys(selection).length > 0;
+       const loader = hasSets
+         ? getWordIdsForSelection(deckParam || "gre", selection)
+             .then((ids) => fetchWordsByIds(ids))
+             .then((ws) => shuffleArray(ws).slice(0, requestedWords))
+         : fetchQuizWords(deckParam || "gre", difficultyParam, requestedWords);
+       loader
+         .then((words) => {
+
+Q4) Nella dependency array dello STESSO useEffect, sostituisci:
+       }, [deckParam, difficultyParam, requestedWords, fetchKey, isReverseMode]);
+   con:
+       }, [deckParam, difficultyParam, setsParam, requestedWords, fetchKey, isReverseMode]);
+
+════════════════════════════════════════
+RIPORTA SOLO:
+- File modificati
+- Typecheck pulito (sì/no + errori)
+- Eventuali blocchi non trovati
+NON eseguire test live.
