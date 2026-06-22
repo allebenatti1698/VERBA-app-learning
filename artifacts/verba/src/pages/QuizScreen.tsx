@@ -9,6 +9,7 @@ import { damerauLevenshtein, nearMissThreshold } from "@/lib/typoMatch";
 import FeedbackCard, { type QuizWord as FeedbackQuizWord } from "@/components/FeedbackCard";
 import { fetchQuizWords, fetchWordsByIds, type QuizWord, type QuizWordDefinition } from "@/lib/quizQueries";
 import { parseSetsParam, getWordIdsForSelection } from "@/lib/studySets";
+import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -549,11 +550,7 @@ export default function QuizScreen() {
                     <motion.button
                       whileTap={{ scale: 0.96 }}
                       onClick={() => handleReverseNext(reverseResult === "correct")}
-                      style={{ display: "block", width: "auto", maxWidth: 200, margin: "20px auto 0",
-                        padding: "12px 32px", borderRadius: 9999, border: "none", cursor: "pointer",
-                        background: "linear-gradient(to right, #B45309, #C2410C)", fontFamily: "'Inter', sans-serif",
-                        fontWeight: 500, fontSize: 15, letterSpacing: "0.04em", color: "#FFFFFF", outline: "none",
-                        boxShadow: "0 0 12px rgba(217,119,6,0.25)" }}>
+                      style={{ ...primaryButtonStyle, display: "block", width: "auto", margin: "20px auto 0" }}>
                       {reverseResult === "correct" && reviewQueue.length <= 1 ? "Finish" : "Next →"}
                     </motion.button>
                   </>
@@ -581,11 +578,7 @@ export default function QuizScreen() {
                     <motion.button
                       whileTap={{ scale: 0.96 }}
                       onClick={submitReverseTyping}
-                      style={{ display: "block", width: "auto", maxWidth: 200, margin: "10px auto 0",
-                        padding: "12px 32px", borderRadius: 9999, border: "none", cursor: "pointer",
-                        background: "linear-gradient(to right, #B45309, #C2410C)", fontFamily: "'Inter', sans-serif",
-                        fontWeight: 500, fontSize: 15, letterSpacing: "0.04em", color: "#FFFFFF", outline: "none",
-                        boxShadow: "0 0 12px rgba(217,119,6,0.25)" }}>
+                      style={{ ...primaryButtonStyle, display: "block", width: "auto", margin: "10px auto 0" }}>
                       Check
                     </motion.button>
                   </>
@@ -635,7 +628,7 @@ export default function QuizScreen() {
                 exit={{ opacity: 0, y: 10 }}
                 transition={{ duration: 0.2 }}
                 whileTap={{ scale: 0.96 }}
-                style={{ display: "block", width: "auto", maxWidth: 200, margin: "8px auto 0", padding: "12px 32px", borderRadius: 9999, border: "none", cursor: "pointer", background: "linear-gradient(to right, #B45309, #C2410C)", fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 15, letterSpacing: "0.04em", color: "#FFFFFF", outline: "none", boxShadow: "0 0 12px rgba(217,119,6,0.25)" }}
+                style={{ ...primaryButtonStyle, display: "block", width: "auto", margin: "8px auto 0" }}
               >
                 {isLastNormal ? "Finish" : "Next →"}
               </motion.button>

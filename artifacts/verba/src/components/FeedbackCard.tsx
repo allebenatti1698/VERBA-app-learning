@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronUp } from "lucide-react";
 import { SCREEN_MAX } from "@/components/ScreenColumn";
+import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
 import { lowercaseFirst } from "@/lib/formatText";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -440,24 +441,7 @@ export function FeedbackNextButton({ onClick, isLast, visible = true }: Feedback
       data-testid="button-next"
       onClick={onClick}
       whileTap={{ scale: 0.96 }}
-      style={{
-        display: "block",
-        width: "auto",
-        maxWidth: 200,
-        margin: "44px auto 0 auto",
-        padding: "12px 32px",
-        borderRadius: 9999,
-        border: "none",
-        cursor: "pointer",
-        background: "linear-gradient(to right, #B45309, #C2410C)",
-        fontFamily: "'Inter', sans-serif",
-        fontWeight: 500,
-        fontSize: 15,
-        letterSpacing: "0.04em",
-        color: "#FFFFFF",
-        outline: "none",
-        boxShadow: "0 0 12px rgba(217,119,6,0.25)",
-      }}
+      style={{ ...primaryButtonStyle, display: "block", width: "auto", margin: "44px auto 0 auto" }}
     >
       {isLast ? "Finish" : "Next →"}
     </motion.button>
@@ -726,7 +710,7 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
               onClick={onNext}
               style={{
                 pointerEvents: "auto",
-                background: "linear-gradient(to right, #B45309, #C2410C)",
+                background: "linear-gradient(to right, #F59E0B, #EA580C)",
                 border: "none",
                 borderRadius: 9999,
                 padding: "10px 22px",
@@ -735,7 +719,7 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
                 fontWeight: 500,
                 fontSize: 13,
                 color: "#FFFFFF",
-                boxShadow: "0 0 12px rgba(217,119,6,0.3)",
+                boxShadow: "0 0 12px rgba(245,158,11,0.3)",
                 outline: "none",
                 letterSpacing: "0.02em",
               }}

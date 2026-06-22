@@ -1,0 +1,75 @@
+VERBA — Bottoni primari: stile unico condiviso (grandezza + ambra brillante uguali ovunque). ECONOMY MODE. Stima ~$1.2–1.8. DO NOT test live — I test manually.
+
+Quattro file + 1 nuovo. NON toccare logica (onClick, whileTap, data-testid, testo): solo lo style. Riporta ogni bottone modificato + typecheck.
+
+════════════════════════════════════════
+FILE 1 (NUOVO) — src/lib/primaryButtonStyle.ts
+════════════════════════════════════════
+import type { CSSProperties } from "react";
+
+// Stile UNICO dei bottoni d'azione primari (Begin, Continue, Next, Check).
+// Per un restyling futuro basta modificare QUESTO oggetto.
+export const primaryButtonStyle: CSSProperties = {
+  padding: "12px 32px",
+  borderRadius: 9999,
+  border: "none",
+  cursor: "pointer",
+  maxWidth: 200,
+  background: "linear-gradient(to right, #F59E0B, #EA580C)",
+  fontFamily: "'Inter', sans-serif",
+  fontWeight: 500,
+  fontSize: 15,
+  letterSpacing: "0.04em",
+  color: "#FFFFFF",
+  outline: "none",
+  boxShadow: "0 0 14px rgba(245,158,11,0.3)",
+};
+
+════════════════════════════════════════
+ISTRUZIONI GENERALI per i bottoni qui sotto
+════════════════════════════════════════
+In ogni file aggiungi l'import:
+   import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
+Per ogni bottone elencato, SOSTITUISCI il suo oggetto style inline con:
+   { ...primaryButtonStyle, <SOLO gli override di posizione che aveva> }
+Override di posizione = display / width / margin / pointerEvents (mantienili identici a prima).
+Rimuovi invece dal vecchio style le proprietà di colore/grandezza (padding, background, font*, boxShadow, borderRadius, letterSpacing, color, border, cursor, maxWidth): ora arrivano dalla costante.
+
+════════════════════════════════════════
+FILE 2 — src/pages/PreQuizSetup.tsx
+════════════════════════════════════════
+Bottone data-testid="button-begin": niente override di posizione (è centrato dal container flex).
+   style={{ ...primaryButtonStyle }}
+
+════════════════════════════════════════
+FILE 3 — src/pages/DifficultyScreen.tsx
+════════════════════════════════════════
+Il Continue sticky (button con onClick={handleContinue} dentro il contenitore fixed in basso):
+   style={{ ...primaryButtonStyle, pointerEvents: "auto" }}
+
+════════════════════════════════════════
+FILE 4 — src/pages/QuizScreen.tsx
+════════════════════════════════════════
+Sono TRE bottoni, tutti oggi con gradient "linear-gradient(to right, #B45309, #C2410C)":
+1) data-testid="button-next-floating"  → mantieni display:"block", width:"auto", margin:"8px auto 0"
+2) il bottone reverse-mode con onClick={submitReverseTyping} (testo "Check") → mantieni display:"block", width:"auto", margin:"10px auto 0"
+3) il bottone reverse-mode "Finish/Next" (l'altra motion.button con lo stesso gradient scuro nel ramo reverse) → mantieni il suo display/width/margin esistenti
+Per tutti e tre:
+   style={{ ...primaryButtonStyle, display: "block", width: "auto", margin: <quello che aveva> }}
+
+════════════════════════════════════════
+FILE 5 — src/components/FeedbackCard.tsx
+════════════════════════════════════════
+5A) FeedbackNextButton (data-testid="button-next"):
+   style={{ ...primaryButtonStyle, display: "block", width: "auto", margin: "44px auto 0 auto" }}
+
+5B) "Next pill" minimized (la pill piccola accanto a "Show feedback", padding 10px 22px): NON usare la costante (resta piccola). Cambia SOLO il colore:
+   - background: da "linear-gradient(to right, #B45309, #C2410C)" a "linear-gradient(to right, #F59E0B, #EA580C)"
+   - boxShadow: da "0 0 12px rgba(217,119,6,0.3)" a "0 0 12px rgba(245,158,11,0.3)"
+
+════════════════════════════════════════
+RIPORTA SOLO:
+- File modificati + ogni bottone toccato
+- Typecheck pulito (sì/no + errori)
+- Eventuali bottoni non trovati
+NON eseguire test live.

@@ -4,6 +4,7 @@ import { useLocation, useSearch } from "wouter";
 import AppBackground from "@/components/AppBackground";
 import ScreenColumn, { SCREEN_MAX } from "@/components/ScreenColumn";
 import { parseSetsParam, getWordIdsForSelection } from "@/lib/studySets";
+import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
 
 const cardStyle: React.CSSProperties = {
   background: "rgba(255,255,255,0.03)",
@@ -205,20 +206,7 @@ export default function PreQuizSetup() {
             data-testid="button-begin"
             onClick={handleBegin}
             whileTap={{ scale: 0.96 }}
-            style={{
-              padding: "13px 36px",
-              borderRadius: 9999,
-              border: "none",
-              cursor: "pointer",
-              background: "linear-gradient(90deg, #F59E0B 0%, #EA580C 100%)",
-              fontFamily: "'Inter', sans-serif",
-              fontWeight: 400,
-              fontSize: "0.95rem",
-              letterSpacing: "0.04em",
-              color: "#FFFFFF",
-              outline: "none",
-              boxShadow: "0 0 24px 4px rgba(245,158,11,0.35)",
-            }}
+            style={{ ...primaryButtonStyle }}
           >
             Begin
           </motion.button>

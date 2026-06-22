@@ -5,6 +5,7 @@ import { BookOpen, Library, GraduationCap, Check, ChevronDown } from "lucide-rea
 import AppBackground from "@/components/AppBackground";
 import ScreenColumn from "@/components/ScreenColumn";
 import { getDifficultyLabel, getDifficultyDescription } from "@/lib/difficultyLabel";
+import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
 import { getStudySets, type StudySet } from "@/lib/studySets";
 import { getCompletedSetNumbers } from "@/lib/studyProgress";
 
@@ -239,7 +240,7 @@ export default function DifficultyScreen() {
         <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 50, padding: "20px 16px 18px", display: "flex", justifyContent: "center", background: "linear-gradient(to top, #0A0A0A 60%, transparent)", pointerEvents: "none" }}>
           <button
             onClick={handleContinue}
-            style={{ pointerEvents: "auto", padding: "13px 38px", borderRadius: 9999, border: "none", cursor: "pointer", background: "linear-gradient(to right, #F59E0B, #EA580C)", fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 15, color: "#FFFFFF", letterSpacing: "0.02em", outline: "none", boxShadow: "0 0 16px rgba(245,158,11,0.32)" }}
+            style={{ ...primaryButtonStyle, pointerEvents: "auto" }}
           >
             Continue →
           </button>
