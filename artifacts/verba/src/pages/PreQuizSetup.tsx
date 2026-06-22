@@ -173,7 +173,7 @@ export default function PreQuizSetup() {
               type="range"
               min={5}
               max={sliderMax}
-              step={5}
+              step={1}
               value={wordCount}
               onChange={(e) => setWordCount(Number(e.target.value))}
               style={{
