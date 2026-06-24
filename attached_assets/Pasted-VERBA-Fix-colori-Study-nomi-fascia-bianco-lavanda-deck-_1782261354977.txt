@@ -1,0 +1,42 @@
+VERBA — Fix colori Study: nomi fascia → bianco, lavanda-deck → viola GRE. ECONOMY MODE. Stima ~$0.30–0.60. DO NOT test live — I test manually.
+
+File UNICO: src/pages/StudyScreen.tsx. NON toccare altri file. Se una stringa da sostituire non corrisponde ESATTAMENTE, FERMATI e segnala invece di indovinare. Riporta solo: modifiche applicate + typecheck (sì/no + errori).
+
+──────────────────────────────────────────
+1) NOMI FASCIA (Common/Uncommon/Rare) → BIANCO
+Trova:
+  <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, color: LAVENDER }}>{tier.label}</span>
+Sostituisci con:
+  <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, color: "#FFFFFF" }}>{tier.label}</span>
+
+2) PILL "GRE" → VIOLA GRE
+2a) Trova (intero tag, per evitare ambiguità con DECK_OPTIONS):
+  <button onClick={() => setDeckMenuOpen((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontSize: 12, color: "#C7B8E8", border: "0.5px solid rgba(199,184,232,0.45)", borderRadius: 20, padding: "5px 11px", background: "rgba(167,139,250,0.07)", cursor: "pointer", outline: "none" }}>
+Sostituisci con:
+  <button onClick={() => setDeckMenuOpen((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontSize: 12, color: "#A78BFA", border: "0.5px solid rgba(167,139,250,0.45)", borderRadius: 20, padding: "5px 11px", background: "rgba(167,139,250,0.07)", cursor: "pointer", outline: "none" }}>
+
+2b) Icona del pill — trova:
+  <GraduationCap size={14} color="#C7B8E8" />
+Sostituisci con:
+  <GraduationCap size={14} color="#A78BFA" />
+(Il ChevronDown del pill è già #A78BFA: NON toccarlo.)
+
+2c) Voce gre nel menu DECK_OPTIONS — trova:
+  { id: "gre", name: "GRE Vocabulary", Icon: GraduationCap, color: "#C7B8E8", active: true },
+Sostituisci con:
+  { id: "gre", name: "GRE Vocabulary", Icon: GraduationCap, color: "#A78BFA", active: true },
+
+3) CONTINUE CARD → VIOLA GRE (bordo, sfondo, cerchio Play)
+3a) Trova:
+  border: "0.5px solid rgba(199,184,232,0.35)", background: "linear-gradient(135deg, rgba(199,184,232,0.12), rgba(199,184,232,0.03))"
+Sostituisci con:
+  border: "0.5px solid rgba(167,139,250,0.35)", background: "linear-gradient(135deg, rgba(167,139,250,0.12), rgba(167,139,250,0.03))"
+
+3b) Cerchio Play — trova:
+  borderRadius: "50%", background: LAVENDER
+Sostituisci con:
+  borderRadius: "50%", background: "#A78BFA"
+(L'icona Play interna resta color/fill "#1A1622". NON toccare la barra di progresso #F59E0B.)
+
+──────────────────────────────────────────
+NON toccare: la costante LAVENDER (serve ancora a highlightWord/spinner/BrowseView), highlightWord (#C7B8E8 = la parola), titolo "Study" #F0EDF7, wordmark ambra, e qualsiasi altro file.

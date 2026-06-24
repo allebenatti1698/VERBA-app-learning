@@ -17,7 +17,7 @@ const TIERS = [
 ];
 
 const DECK_OPTIONS = [
-  { id: "gre", name: "GRE Vocabulary", Icon: GraduationCap, color: "#C7B8E8", active: true },
+  { id: "gre", name: "GRE Vocabulary", Icon: GraduationCap, color: "#A78BFA", active: true },
   { id: "essential", name: "Essential English", Icon: BookOpen, color: "#7DD3FC", active: false },
   { id: "advanced", name: "Advanced English", Icon: Library, color: "#7DD3FC", active: false },
   { id: "myverba", name: "My Verba", Icon: Star, color: "#E8E8E8", active: false },
@@ -97,8 +97,8 @@ export default function StudyScreen() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 24, color: "#F0EDF7", margin: 0 }}>Study</h1>
           <div style={{ position: "relative" }}>
-            <button onClick={() => setDeckMenuOpen((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontSize: 12, color: "#C7B8E8", border: "0.5px solid rgba(199,184,232,0.45)", borderRadius: 20, padding: "5px 11px", background: "rgba(167,139,250,0.07)", cursor: "pointer", outline: "none" }}>
-              <GraduationCap size={14} color="#C7B8E8" />
+            <button onClick={() => setDeckMenuOpen((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontSize: 12, color: "#A78BFA", border: "0.5px solid rgba(167,139,250,0.45)", borderRadius: 20, padding: "5px 11px", background: "rgba(167,139,250,0.07)", cursor: "pointer", outline: "none" }}>
+              <GraduationCap size={14} color="#A78BFA" />
               GRE
               <ChevronDown size={14} color="#A78BFA" style={{ transform: deckMenuOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s ease" }} />
             </button>
@@ -141,7 +141,7 @@ export default function StudyScreen() {
               return (
                 <div key={tier.difficulty} style={{ border: "0.5px solid rgba(255,255,255,0.10)", borderRadius: 14, padding: "12px 13px", marginBottom: 9 }}>
                   <button onClick={() => setExpanded(isOpen ? null : tier.difficulty)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", padding: 0, outline: "none" }}>
-                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, color: LAVENDER }}>{tier.label}</span>
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, color: "#FFFFFF" }}>{tier.label}</span>
                     <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "#7E7E7E" }}>{totalWords} · {sets.length} sets</span>
                       {isOpen ? <ChevronUp size={15} color="#9A9A9A" /> : <ChevronDown size={15} color="#9A9A9A" />}
@@ -190,14 +190,14 @@ function ContinueCard({ setsByDiff, onOpen }: { setsByDiff: SetsByDifficulty; on
   const seen = getSeenCount(DECK, last.difficulty, last.setNumber);
   const pct = set.wordCount > 0 ? Math.min(100, Math.round((seen / set.wordCount) * 100)) : 0;
   return (
-    <button onClick={() => onOpen(last.difficulty, last.setNumber)} style={{ width: "100%", textAlign: "left", border: "0.5px solid rgba(199,184,232,0.35)", background: "linear-gradient(135deg, rgba(199,184,232,0.12), rgba(199,184,232,0.03))", borderRadius: 16, padding: 15, marginBottom: 20, cursor: "pointer", outline: "none" }}>
+    <button onClick={() => onOpen(last.difficulty, last.setNumber)} style={{ width: "100%", textAlign: "left", border: "0.5px solid rgba(167,139,250,0.35)", background: "linear-gradient(135deg, rgba(167,139,250,0.12), rgba(167,139,250,0.03))", borderRadius: 16, padding: 15, marginBottom: 20, cursor: "pointer", outline: "none" }}>
       <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "#A99CC4", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Continue</div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, color: "#E8E4F0" }}>{tier.label} · Set {set.setNumber}</div>
           <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "#9A93AC", marginTop: 3 }}>{seen} of {set.wordCount} words</div>
         </div>
-        <span style={{ width: 38, height: 38, borderRadius: "50%", background: LAVENDER, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><Play size={16} color="#1A1622" fill="#1A1622" /></span>
+        <span style={{ width: 38, height: 38, borderRadius: "50%", background: "#A78BFA", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><Play size={16} color="#1A1622" fill="#1A1622" /></span>
       </div>
       <div style={{ height: 4, background: "rgba(255,255,255,0.10)", borderRadius: 2, marginTop: 12 }}><div style={{ width: `${pct}%`, height: "100%", background: "#F59E0B", borderRadius: 2 }} /></div>
     </button>
