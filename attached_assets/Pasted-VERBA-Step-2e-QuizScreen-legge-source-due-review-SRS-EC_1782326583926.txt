@@ -1,0 +1,42 @@
+VERBA — Step 2e: QuizScreen legge source=due (review SRS). ECONOMY MODE. Stima ~$0.40–0.80. DO NOT test live — I test manually.
+
+File UNICO: src/pages/QuizScreen.tsx. NON toccare altri file né i gestori reverse-mode. Se una stringa non corrisponde ESATTAMENTE, FERMATI e segnala. Riporta solo: modifiche applicate + typecheck (sì/no + errori).
+
+──────────────────────────────────────────
+1) PARAM — dopo la riga:
+  const setsParam = params.get("sets") ?? null;
+aggiungi:
+  const sourceParam = params.get("source") ?? null;
+
+2) LOADER — nel useEffect del normal-mode fetch, sostituisci INTERAMENTE il blocco:
+    const selection = parseSetsParam(setsParam);
+    const hasSets = Object.keys(selection).length > 0;
+    const loader = hasSets
+      ? getWordIdsForSelection(deckParam || "gre", selection)
+          .then((ids) => fetchWordsByIds(ids))
+          .then((ws) => shuffleArray(ws).slice(0, requestedWords))
+      : fetchQuizWords(deckParam || "gre", difficultyParam, requestedWords);
+
+con:
+    const selection = parseSetsParam(setsParam);
+    const hasSets = Object.keys(selection).length > 0;
+    let dueIds: string[] = [];
+    if (sourceParam === "due") {
+      try { dueIds = JSON.parse(sessionStorage.getItem("verba_review_due") || "[]") as string[]; }
+      catch { dueIds = []; }
+    }
+    const loader =
+      sourceParam === "due"
+        ? fetchWordsByIds(dueIds).then((ws) => shuffleArray(ws))
+        : hasSets
+          ? getWordIdsForSelection(deckParam || "gre", selection)
+              .then((ids) => fetchWordsByIds(ids))
+              .then((ws) => shuffleArray(ws).slice(0, requestedWords))
+          : fetchQuizWords(deckParam || "gre", difficultyParam, requestedWords);
+
+3) DEPENDENCY ARRAY — nello STESSO useEffect, sostituisci:
+  }, [deckParam, difficultyParam, setsParam, requestedWords, fetchKey, isReverseMode]);
+con:
+  }, [deckParam, difficultyParam, setsParam, sourceParam, requestedWords, fetchKey, isReverseMode]);
+──────────────────────────────────────────
+NON toccare: gli import (fetchWordsByIds/parseSetsParam/getWordIdsForSelection sono già presenti), handleSelectOption, handleNext, i gestori reverse-mode, lo scoring di fine sessione.

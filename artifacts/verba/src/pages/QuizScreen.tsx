@@ -115,6 +115,7 @@ export default function QuizScreen() {
   const deckParam = params.get("deck") ?? null;
   const difficultyParam = params.get("difficulty") ?? null;
   const setsParam = params.get("sets") ?? null;
+  const sourceParam = params.get("source") ?? null;
   const isReverseMode = params.get("mode") === "reverse";
 
   // ── Shared state ────────────────────────────────────────────────────────────
@@ -158,11 +159,19 @@ export default function QuizScreen() {
     setError(null);
     const selection = parseSetsParam(setsParam);
     const hasSets = Object.keys(selection).length > 0;
-    const loader = hasSets
-      ? getWordIdsForSelection(deckParam || "gre", selection)
-          .then((ids) => fetchWordsByIds(ids))
-          .then((ws) => shuffleArray(ws).slice(0, requestedWords))
-      : fetchQuizWords(deckParam || "gre", difficultyParam, requestedWords);
+    let dueIds: string[] = [];
+    if (sourceParam === "due") {
+      try { dueIds = JSON.parse(sessionStorage.getItem("verba_review_due") || "[]") as string[]; }
+      catch { dueIds = []; }
+    }
+    const loader =
+      sourceParam === "due"
+        ? fetchWordsByIds(dueIds).then((ws) => shuffleArray(ws))
+        : hasSets
+          ? getWordIdsForSelection(deckParam || "gre", selection)
+              .then((ids) => fetchWordsByIds(ids))
+              .then((ws) => shuffleArray(ws).slice(0, requestedWords))
+          : fetchQuizWords(deckParam || "gre", difficultyParam, requestedWords);
     loader
       .then((words) => {
         if (cancelled) return;
@@ -183,7 +192,7 @@ export default function QuizScreen() {
         setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [deckParam, difficultyParam, setsParam, requestedWords, fetchKey, isReverseMode]);
+  }, [deckParam, difficultyParam, setsParam, sourceParam, requestedWords, fetchKey, isReverseMode]);
 
   // ── Reverse mode: init from sessionStorage ───────────────────────────────
   useEffect(() => {
