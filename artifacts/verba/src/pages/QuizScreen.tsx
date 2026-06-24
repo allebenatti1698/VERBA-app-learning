@@ -10,6 +10,7 @@ import FeedbackCard, { type QuizWord as FeedbackQuizWord } from "@/components/Fe
 import { fetchQuizWords, fetchWordsByIds, type QuizWord, type QuizWordDefinition } from "@/lib/quizQueries";
 import { parseSetsParam, getWordIdsForSelection } from "@/lib/studySets";
 import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
+import { recordAnswer } from "@/lib/wordStats";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -235,9 +236,14 @@ export default function QuizScreen() {
   // ── Normal mode handlers ─────────────────────────────────────────────────
   function handleSelectOption(option: string) {
     if (isAnswered || !currentWord) return;
+    const correct = option === currentWord.correctDefinition;
     setSelectedOption(option);
     setIsAnswered(true);
-    if (option === currentWord.correctDefinition) {
+    // SRS: registra la PRIMA (e unica) risposta per questa parola in questa sessione.
+    // Il guard isAnswered garantisce una sola chiamata per parola. Vale sia per i quiz
+    // del Practice sia per la futura review: ogni prima-risposta alimenta wordStats.
+    recordAnswer(currentWord.id, correct);
+    if (correct) {
       playCorrectSound();
     } else {
       wrongAnswersRef.current.set(currentIndex, option);
