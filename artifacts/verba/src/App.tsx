@@ -11,6 +11,7 @@ import PreQuizSetup from "@/pages/PreQuizSetup";
 import QuizScreen from "@/pages/QuizScreen";
 import ResultsScreen from "@/pages/ResultsScreen";
 import ReviewCompleteScreen from "@/pages/ReviewCompleteScreen";
+import ReviewSummaryScreen from "@/pages/ReviewSummaryScreen";
 import StudyScreen from "@/pages/StudyScreen";
 import ProgressScreen from "@/pages/ProgressScreen";
 import ProfileScreen from "@/pages/ProfileScreen";
@@ -55,6 +56,7 @@ function Router() {
             <Route path="/quiz" component={QuizScreen} />
             <Route path="/results" component={ResultsScreen} />
             <Route path="/review-complete" component={ReviewCompleteScreen} />
+            <Route path="/review-summary" component={ReviewSummaryScreen} />
             <Route component={NotFound} />
           </Switch>
         </motion.div>
