@@ -1,3 +1,8 @@
+VERBA — Step 2d: schermata Progress (UI reale). ECONOMY MODE. Stima ~$1.0–1.8. DO NOT test live — I test manually.
+
+SOSTITUISCI INTERAMENTE src/pages/ProgressScreen.tsx con il contenuto sotto. NON toccare altri file (routing già corretto). Riporta solo: file sostituito + typecheck (sì/no + errori).
+
+──────────────────────────────────────────
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Loader2, GraduationCap, ChevronDown, ChevronRight, Info } from "lucide-react";
@@ -215,3 +220,4 @@ export default function ProgressScreen() {
     </div>
   );
 }
+──────────────────────────────────────────
