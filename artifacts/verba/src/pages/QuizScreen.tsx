@@ -10,7 +10,7 @@ import FeedbackCard, { type QuizWord as FeedbackQuizWord } from "@/components/Fe
 import { fetchQuizWords, fetchWordsByIds, type QuizWord, type QuizWordDefinition } from "@/lib/quizQueries";
 import { parseSetsParam, getWordIdsForSelection } from "@/lib/studySets";
 import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
-import { recordAnswer } from "@/lib/wordStats";
+import { recordAnswer, getWordStat } from "@/lib/wordStats";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -265,6 +265,20 @@ export default function QuizScreen() {
     setTimeout(() => {
       if (currentIndex + 1 >= quizWords.length) {
         const elapsedMs = Date.now() - startTimeRef.current;
+
+        // Review SRS (source=due): riepilogo dedicato → /review-summary (★ My Verba),
+        // niente verbaSessionResult così non sporca le statistiche di pratica.
+        if (sourceParam === "due") {
+          const summary = quizWords.map((w) => ({
+            id: w.id,
+            word: w.word,
+            status: getWordStat(w.id)?.status ?? "learning",
+          }));
+          sessionStorage.setItem("verba_review_summary", JSON.stringify(summary));
+          setLocation("/review-summary");
+          return;
+        }
+
         const missedWords = Array.from(wrongAnswersRef.current.entries()).map(([idx, selectedAnswer]) => ({
           ...quizWords[idx],
           selectedAnswer,
