@@ -3,8 +3,6 @@
 // in Fase 2 la migrazione cloud diventa una copia 1:1 dei campi.
 
 const WORD_STATS_KEY = "verba_word_stats";
-const MASTERED_LEGACY_KEY = "verba_mastered_words"; // Set serializzata come Array (reverse-review storico)
-const MIGRATION_FLAG = "verba_word_stats_migrated_v1";
 
 export const MASTERY_THRESHOLD = 3; // corrette consecutive su review DOVUTE → mastered
 
@@ -28,8 +26,6 @@ export interface WordStat {
 }
 
 type StatsMap = Record<string, WordStat>;
-
-let migrated = false;
 
 function rawRead(): StatsMap {
   try {
@@ -71,41 +67,7 @@ function emptyStat(): WordStat {
   };
 }
 
-// Migrazione one-shot: assorbe verba_mastered_words senza perdere progresso.
-function ensureMigrated(): void {
-  if (migrated) return;
-  migrated = true;
-  try {
-    if (localStorage.getItem(MIGRATION_FLAG)) return;
-    const rawLegacy = localStorage.getItem(MASTERED_LEGACY_KEY);
-    const ids: string[] = rawLegacy ? (JSON.parse(rawLegacy) as string[]) : [];
-    if (ids.length > 0) {
-      const map = rawRead();
-      const nowISO = new Date().toISOString();
-      const nextISO = isoInDays(intervalDaysFor(MASTERY_THRESHOLD)); // +7g
-      ids.forEach((id) => {
-        if (!map[id]) {
-          map[id] = {
-            consecutiveCorrect: MASTERY_THRESHOLD,
-            totalCorrect: MASTERY_THRESHOLD,
-            totalSeen: MASTERY_THRESHOLD,
-            status: "mastered",
-            lastSeenAt: nowISO,
-            nextReviewAt: nextISO,
-            updatedAt: nowISO,
-          };
-        }
-      });
-      rawWrite(map);
-    }
-    localStorage.setItem(MIGRATION_FLAG, "1");
-  } catch {
-    /* storage non disponibile */
-  }
-}
-
 function read(): StatsMap {
-  ensureMigrated();
   return rawRead();
 }
 
