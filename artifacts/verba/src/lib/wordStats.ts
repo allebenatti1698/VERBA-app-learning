@@ -7,8 +7,8 @@ const WORD_STATS_KEY = "verba_word_stats";
 export const MASTERY_THRESHOLD = 3; // corrette consecutive su review DOVUTE → mastered
 
 // Ladder intervalli (giorni), indicizzato per consecutiveCorrect (1-based):
-// 1ª → +1g, 2ª → +3g, 3ª (mastered) → +7g, poi +16g, +35g (cap).
-const INTERVAL_DAYS = [1, 3, 7, 16, 35];
+// 1ª → +1g, 2ª → +3g, 3ª (mastered) → +7g, poi +10g, +14g (cap, ~2 settimane).
+const INTERVAL_DAYS = [1, 3, 7, 10, 14];
 
 // Dopo una sbagliata la parola rientra "presto" (tunable).
 const LAPSE_MINUTES = 10;
