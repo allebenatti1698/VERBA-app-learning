@@ -416,7 +416,6 @@ interface MissedWordsListProps {
   visible?: boolean;
 }
 function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) {
-  const [, navigate] = useLocation();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reviewIndex, setReviewIndex] = useState<number | null>(null);
 
@@ -444,11 +443,6 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
 
   function goTo(index: number) {
     setCurrentIndex(Math.max(0, Math.min(index, missedWords.length - 1)));
-  }
-
-  function handleQuickReview() {
-    sessionStorage.setItem("verbaReviewQueue", JSON.stringify(missedWords));
-    navigate("/quiz?mode=reverse&source=review");
   }
 
   if (!visible || missedWords.length === 0) return null;
@@ -670,40 +664,6 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
           </motion.button>
         </div>
 
-        {/* Quick review button */}
-        <div style={{ display: "flex", justifyContent: "center", marginTop: 20 }}>
-          <motion.button
-            whileTap={{ scale: 0.96 }}
-            onClick={handleQuickReview}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.opacity = "1";
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.85)";
-              (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,1)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.opacity = "0.7";
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.6)";
-              (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.8)";
-            }}
-            style={{
-              background: "none",
-              border: "1px solid rgba(217,119,6,0.6)",
-              borderRadius: 9999,
-              padding: "8px 20px",
-              cursor: "pointer",
-              fontFamily: "'Inter', sans-serif",
-              fontWeight: 400,
-              fontSize: 13,
-              color: "rgba(217,119,6,0.8)",
-              letterSpacing: "0.02em",
-              opacity: 0.7,
-              outline: "none",
-              transition: "color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease",
-            }}
-          >
-            Review mistakes →
-          </motion.button>
-        </div>
 
         {/* Feedback Card overlay for card click */}
         {reviewWord && (
