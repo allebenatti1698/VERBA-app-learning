@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Loader2, GraduationCap, ChevronDown, ChevronRight, Info } from "lucide-react";
+import { Loader2, GraduationCap, ChevronDown, ChevronRight, Info, Star, Trash2 } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
 import { computeProgress, type ProgressSnapshot } from "@/lib/progressStats";
 import { getDueWordIds } from "@/lib/wordStats";
 import { fetchWordsByIds } from "@/lib/quizQueries";
+import { motion } from "framer-motion";
+import { dismissTrouble } from "@/lib/troubleDismiss";
 
 const DECK = "gre";
 const AMBER = "#F59E0B";
@@ -16,6 +18,40 @@ const RED = "#EF4444";
 const REVIEW_DUE_KEY = "verba_review_due";
 
 type TroubleEntry = { id: string; word: string; wrong: number };
+
+  const MY_WORDS_KEY = "verba_my_words";
+  function loadMyWords(): Set<string> {
+    try { return new Set(JSON.parse(localStorage.getItem(MY_WORDS_KEY) ?? "[]") as string[]); }
+    catch { return new Set(); }
+  }
+  function saveMyWords(set: Set<string>) {
+    try { localStorage.setItem(MY_WORDS_KEY, JSON.stringify([...set])); } catch { /* storage non disponibile */ }
+  }
+
+  function TroubleRow({ entry, last, starred, onToggleStar, onDismiss }: { entry: TroubleEntry; last: boolean; starred: boolean; onToggleStar: (id: string) => void; onDismiss: (id: string) => void }) {
+    return (
+      <div style={{ position: "relative", overflow: "hidden", borderBottom: last ? "none" : "0.5px solid rgba(255,255,255,0.05)" }}>
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 18, background: "rgba(239,68,68,0.14)" }}>
+          <Trash2 size={16} color="rgba(239,68,68,0.85)" />
+        </div>
+        <motion.div
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.5}
+          onDragEnd={(_, info) => { if (info.offset.x < -64) onDismiss(entry.id); }}
+          style={{ position: "relative", background: "#0B0B0D", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", touchAction: "pan-y", cursor: "grab" }}
+        >
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, color: LAVENDER }}>{entry.word}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: RED }}>✗ {entry.wrong} wrong</span>
+            <button onClick={(e) => { e.stopPropagation(); onToggleStar(entry.id); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }} aria-label={starred ? "Remove from My Verba" : "Add to My Verba"}>
+              <Star size={15} fill={starred ? AMBER : "none"} stroke={starred ? AMBER : "rgba(255,255,255,0.26)"} />
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
 function SectionLabel({ children, extra }: { children: string; extra?: string }) {
   return (
@@ -95,6 +131,8 @@ export default function ProgressScreen() {
   const [trouble, setTrouble] = useState<TroubleEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [myWords, setMyWords] = useState<Set<string>>(new Set());
+  const [swipeHintDone, setSwipeHintDone] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -124,10 +162,33 @@ export default function ProgressScreen() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    setMyWords(loadMyWords());
+    try { setSwipeHintDone(localStorage.getItem("verba_hint_trouble_swipe") === "1"); } catch { /* */ }
+  }, []);
+
   function startReview(ids: string[]) {
     if (ids.length === 0) return;
     try { sessionStorage.setItem(REVIEW_DUE_KEY, JSON.stringify(ids)); } catch { /* */ }
     navigate("/quiz?source=due");
+  }
+
+  function toggleStar(id: string) {
+    setMyWords((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      saveMyWords(next);
+      return next;
+    });
+  }
+
+  function dismissOne(id: string) {
+    dismissTrouble(id);
+    setTrouble((prev) => prev.filter((t) => t.id !== id));
+    if (!swipeHintDone) {
+      setSwipeHintDone(true);
+      try { localStorage.setItem("verba_hint_trouble_swipe", "1"); } catch { /* */ }
+    }
   }
 
   return (
@@ -193,18 +254,28 @@ export default function ProgressScreen() {
 
             {trouble.length > 0 && (
               <>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <div style={{ marginBottom: 8 }}>
                   <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Trouble words</span>
-                  <span onClick={() => startReview(trouble.map((t) => t.id))} style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: AMBER, cursor: "pointer" }}>Drill all →</span>
                 </div>
-                <div style={{ background: "rgba(255,255,255,0.02)", border: "0.5px solid rgba(239,68,68,0.22)", borderRadius: 12, overflow: "hidden", marginBottom: 28 }}>
+                <div style={{ border: "0.5px solid rgba(239,68,68,0.22)", borderRadius: 12, overflow: "hidden", marginBottom: 8 }}>
                   {trouble.map((t, i) => (
-                    <div key={t.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 14px", borderBottom: i < trouble.length - 1 ? "0.5px solid rgba(255,255,255,0.05)" : "none" }}>
-                      <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, color: LAVENDER }}>{t.word}</span>
-                      <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: RED }}>✗ {t.wrong} wrong</span>
-                    </div>
+                    <TroubleRow
+                      key={t.id}
+                      entry={t}
+                      last={i === trouble.length - 1}
+                      starred={myWords.has(t.id)}
+                      onToggleStar={toggleStar}
+                      onDismiss={dismissOne}
+                    />
                   ))}
                 </div>
+                {!swipeHintDone ? (
+                  <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(255,255,255,0.35)", margin: "0 0 28px", paddingLeft: 2 }}>
+                    ← swipe a word to dismiss · tap ★ to add to My Verba
+                  </p>
+                ) : (
+                  <div style={{ height: 28 }} />
+                )}
               </>
             )}
 
