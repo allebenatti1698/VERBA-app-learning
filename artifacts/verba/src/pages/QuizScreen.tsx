@@ -11,6 +11,7 @@ import { fetchQuizWords, fetchWordsByIds, type QuizWord, type QuizWordDefinition
 import { parseSetsParam, getWordIdsForSelection } from "@/lib/studySets";
 import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
 import { recordAnswer, getWordStat } from "@/lib/wordStats";
+import { undismissTrouble } from "@/lib/troubleDismiss";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -256,6 +257,7 @@ export default function QuizScreen() {
       playCorrectSound();
     } else {
       wrongAnswersRef.current.set(currentIndex, option);
+      undismissTrouble(currentWord.id); // ri-sbagliata → rientra in trouble (annulla lo scarto)
     }
     setTimeout(() => setShowFeedback(true), 400);
   }

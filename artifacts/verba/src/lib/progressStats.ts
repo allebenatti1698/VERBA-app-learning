@@ -6,6 +6,7 @@ import { getStudySets } from "@/lib/studySets";
 import { getSeenWordIds } from "@/lib/studyProgress";
 import { getAllWordStats, getDueWordIds } from "@/lib/wordStats";
 import { getDifficultyLabel } from "@/lib/difficultyLabel";
+import { isTroubleDismissed } from "@/lib/troubleDismiss";
 
 const TIER_DIFFICULTIES = ["easy", "medium", "hard"] as const;
 
@@ -68,7 +69,7 @@ export async function computeProgress(deckSlug: string, troubleLimit = 5): Promi
     else if (s.status === "reviewing") reviewing += 1;
     else learning += 1;
     const wrong = s.totalSeen - s.totalCorrect;
-    if (wrong > 0 && s.status !== "mastered") trouble.push({ id, wrong, seen: s.totalSeen });
+    if (wrong > 0 && s.status !== "mastered" && !isTroubleDismissed(id)) trouble.push({ id, wrong, seen: s.totalSeen });
   }
   const newCount = Math.max(0, totalDeck - practiced);
 

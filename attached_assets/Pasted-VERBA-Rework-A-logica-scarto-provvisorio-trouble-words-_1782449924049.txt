@@ -1,0 +1,69 @@
+VERBA — Rework-A: logica scarto provvisorio trouble words. ECONOMY MODE. Stima ~$0.60–1.2. DO NOT test live — I test manually.
+
+TRE interventi. NON toccare altro. Se una stringa non corrisponde ESATTAMENTE, FERMATI e segnala. Riporta solo: file creati/modificati + typecheck (sì/no + errori).
+
+════════════════════════════════════════
+1) CREA src/lib/troubleDismiss.ts
+════════════════════════════════════════
+// src/lib/troubleDismiss.ts
+// Scarto PROVVISORIO delle trouble words: l'utente può togliere una parola dalla
+// lista (swipe). Lo scarto viene REVOCATO se la parola viene ri-sbagliata.
+
+const KEY = "verba_trouble_dismissed";
+
+function read(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(KEY) ?? "[]") as string[]); }
+  catch { return new Set(); }
+}
+function write(set: Set<string>): void {
+  try { localStorage.setItem(KEY, JSON.stringify([...set])); } catch { /* storage non disponibile */ }
+}
+
+export function isTroubleDismissed(id: string): boolean {
+  return read().has(id);
+}
+export function dismissTrouble(id: string): void {
+  const s = read();
+  if (!s.has(id)) { s.add(id); write(s); }
+}
+export function undismissTrouble(id: string): void {
+  const s = read();
+  if (s.has(id)) { s.delete(id); write(s); }
+}
+
+════════════════════════════════════════
+2) src/lib/progressStats.ts — escludi le scartate dal calcolo trouble
+════════════════════════════════════════
+2a) IMPORT — dopo la riga:
+  import { getDifficultyLabel } from "@/lib/difficultyLabel";
+aggiungi:
+  import { isTroubleDismissed } from "@/lib/troubleDismiss";
+
+2b) CONDIZIONE — trova:
+    if (wrong > 0 && s.status !== "mastered") trouble.push({ id, wrong, seen: s.totalSeen });
+sostituisci con:
+    if (wrong > 0 && s.status !== "mastered" && !isTroubleDismissed(id)) trouble.push({ id, wrong, seen: s.totalSeen });
+
+════════════════════════════════════════
+3) src/pages/QuizScreen.tsx — su risposta sbagliata, annulla lo scarto
+════════════════════════════════════════
+3a) IMPORT — dopo la riga:
+  import { recordAnswer, getWordStat } from "@/lib/wordStats";
+aggiungi:
+  import { undismissTrouble } from "@/lib/troubleDismiss";
+
+3b) RAMO WRONG — dentro handleSelectOption, trova:
+    if (correct) {
+      playCorrectSound();
+    } else {
+      wrongAnswersRef.current.set(currentIndex, option);
+    }
+sostituisci con:
+    if (correct) {
+      playCorrectSound();
+    } else {
+      wrongAnswersRef.current.set(currentIndex, option);
+      undismissTrouble(currentWord.id); // ri-sbagliata → rientra in trouble (annulla lo scarto)
+    }
+════════════════════════════════════════
+NON toccare: i conteggi mastery/practiced (lo scarto riguarda SOLO la lista trouble), handleNext, i gestori reverse-mode, qualsiasi altro file.
