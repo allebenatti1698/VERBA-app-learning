@@ -133,6 +133,7 @@ export default function ProgressScreen() {
   const [error, setError] = useState<string | null>(null);
   const [myWords, setMyWords] = useState<Set<string>>(new Set());
   const [swipeHintDone, setSwipeHintDone] = useState(true);
+  const [infoOpen, setInfoOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -224,17 +225,37 @@ export default function ProgressScreen() {
 
             <div style={{ marginBottom: 22 }}>
               {snap.dueCount > 0 ? (
+                <>
                 <div onClick={() => startReview(getDueWordIds())} style={{ position: "relative", background: "rgba(245,158,11,0.1)", border: "0.5px solid rgba(245,158,11,0.4)", borderRadius: 16, padding: "15px 48px 15px 16px", cursor: "pointer" }}>
                   <ChevronRight size={22} color={AMBER_SOFT} style={{ position: "absolute", top: "50%", right: 16, transform: "translateY(-50%)" }} />
                   <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                     <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 23, color: AMBER_SOFT }}>{snap.dueCount}</span>
                     <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: AMBER_SOFT }}>words to review</span>
-                    <Info size={14} color="rgba(248,184,78,0.5)" />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setInfoOpen((o) => !o); }}
+                      aria-label="What is this?"
+                      style={{ background: "none", border: "none", padding: 0, display: "inline-flex", alignItems: "center", cursor: "pointer", color: infoOpen ? "rgba(248,184,78,0.95)" : "rgba(248,184,78,0.5)" }}
+                    >
+                      <Info size={14} />
+                    </button>
                   </div>
                   <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(248,184,78,0.7)", lineHeight: 1.5, marginTop: 5 }}>
                     Resurfaced right before you'd forget them — review to make them stick.
                   </div>
                 </div>
+                {infoOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    style={{ marginTop: 8, background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.09)", borderRadius: 12, padding: "13px 15px" }}
+                  >
+                    <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, margin: 0 }}>
+                      Memory fades on a predictable curve. Verba resurfaces each word right as you're about to forget it — a quick review now resets the curve, so it sticks for longer and you avoid relearning it later.
+                    </p>
+                  </motion.div>
+                )}
+                </>
               ) : (
                 <div style={{ background: "rgba(255,255,255,0.02)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: "15px 16px" }}>
                   <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.55)" }}>You're all caught up — no words due right now.</div>
@@ -245,7 +266,7 @@ export default function ProgressScreen() {
             <SectionLabel>Mastery</SectionLabel>
             <MasteryBar mastered={snap.mastered} inProgress={snap.learning + snap.reviewing} newCount={snap.newCount} />
 
-            <SectionLabel extra="· encountered">Coverage by band</SectionLabel>
+            <SectionLabel>Words studied</SectionLabel>
             <div style={{ marginBottom: 22 }}>
               {snap.bands.map((b) => (
                 <CoverageRow key={b.difficulty} label={b.label} seen={b.seen} total={b.total} />
