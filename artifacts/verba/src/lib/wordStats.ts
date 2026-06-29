@@ -2,6 +2,8 @@
 // Motore SRS in localStorage. Stesso data-model di user_word_progress (Supabase):
 // in Fase 2 la migrazione cloud diventa una copia 1:1 dei campi.
 
+import { recordStudyToday } from "@/lib/studyActivity";
+
 const WORD_STATS_KEY = "verba_word_stats";
 
 export const MASTERY_THRESHOLD = 3; // corrette consecutive su review DOVUTE → mastered
@@ -80,6 +82,7 @@ function read(): StatsMap {
  * Sbagliata: azzera lo streak e riprogramma "presto" (decaying).
  */
 export function recordAnswer(wordId: string, correct: boolean): WordStat {
+  recordStudyToday();
   const map = read();
   const prev = map[wordId];
   const now = Date.now();

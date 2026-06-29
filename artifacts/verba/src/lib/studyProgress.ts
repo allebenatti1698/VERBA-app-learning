@@ -1,4 +1,5 @@
 import type { StudySet } from "@/lib/studySets";
+import { recordStudyToday } from "@/lib/studyActivity";
 
 const PROGRESS_KEY = "verba_study_progress";
 const LAST_STUDY_KEY = "verba_last_study";
@@ -30,6 +31,7 @@ export function markWordsSeen(
   wordIds: string[],
 ): void {
   if (wordIds.length === 0) return;
+  recordStudyToday();
   const map = readProgress();
   const deck = (map[deckSlug] ??= {});
   const diff = (deck[difficulty] ??= {});
