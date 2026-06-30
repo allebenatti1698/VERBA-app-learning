@@ -52,7 +52,7 @@ export default function PreQuizSetup() {
       .catch(() => { if (active) setMaxWords(50); });
     return () => { active = false; };
   }, [setsParam, deck, sourceParam]);
-  const sliderMax = maxWords;
+  const sliderMax = Math.min(50, maxWords);
   useEffect(() => { setWordCount((w) => Math.min(w, sliderMax)); }, [sliderMax]);
 
   function handleBegin() {
