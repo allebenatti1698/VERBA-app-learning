@@ -1,3 +1,28 @@
+VERBA — Step: ProfileScreen v1 (lean & reale). SOSTITUISCE il placeholder. ECONOMY MODE. Stima ~$1.4–2.4. DO NOT test live — I test manually.
+
+UN solo file: src/pages/ProfileScreen.tsx. NON toccare altro (App.tsx, BottomNav, studyActivity sono già pronti). BottomNav è globale: NON includerla qui.
+
+SAFEGUARD: il contenuto attuale del file deve essere ESATTAMENTE il placeholder qui sotto. Se non combacia, FERMATI e segnala senza modificare nulla.
+
+--- placeholder atteso (per verifica) ---
+import AppBackground from "@/components/AppBackground";
+import { User } from "lucide-react";
+
+export default function ProfileScreen() {
+  return (
+    <div style={{ minHeight: "100%", width: "100%", background: "#0A0A0A", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+      <AppBackground showWords={false} />
+      <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+        <User size={34} strokeWidth={1.5} color="#C7B8E8" />
+        <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 26, color: "#FFFFFF", margin: 0 }}>Profile</h1>
+      </div>
+    </div>
+  );
+}
+--- fine placeholder ---
+
+SOSTITUISCI L'INTERO CONTENUTO del file con quanto segue:
+
 import React, { useState } from "react";
 import { useLocation } from "wouter";
 import { User, Flame, Star, HelpCircle, ThumbsUp, Mail, RotateCcw, Trash2, Lock, ChevronRight, Check } from "lucide-react";
@@ -217,3 +242,8 @@ export default function ProfileScreen() {
     </div>
   );
 }
+
+════════ NOTE ════════
+- NON registrare nuove rotte: /my-verba e /how-it-works arrivano nei prossimi step (per ora quelle righe porteranno a NotFound, è atteso).
+- NON includere BottomNav (è globale in App.tsx).
+DO NOT test live — I test manually.
