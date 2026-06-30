@@ -2,7 +2,7 @@
 // Motore SRS in localStorage. Stesso data-model di user_word_progress (Supabase):
 // in Fase 2 la migrazione cloud diventa una copia 1:1 dei campi.
 
-import { recordStudyToday } from "@/lib/studyActivity";
+import { recordStudyToday, recordWordsToday } from "@/lib/studyActivity";
 
 const WORD_STATS_KEY = "verba_word_stats";
 
@@ -83,6 +83,7 @@ function read(): StatsMap {
  */
 export function recordAnswer(wordId: string, correct: boolean): WordStat {
   recordStudyToday();
+  recordWordsToday(1);
   const map = read();
   const prev = map[wordId];
   const now = Date.now();

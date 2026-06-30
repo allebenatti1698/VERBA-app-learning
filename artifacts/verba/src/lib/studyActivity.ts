@@ -134,3 +134,76 @@ export function getWeekStrip(): DayCell[] {
   }
   return cells;
 }
+
+// ── conteggio parole per giorno (per il Daily goal) ─────────────────────────
+const STUDY_COUNTS_KEY = "verba_study_counts";
+const DAILY_GOAL_KEY = "verba_daily_goal";
+const DEFAULT_DAILY_GOAL = 10;
+
+function readCounts(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(STUDY_COUNTS_KEY);
+    if (!raw) return {};
+    const obj = JSON.parse(raw);
+    return obj && typeof obj === "object" ? (obj as Record<string, number>) : {};
+  } catch {
+    return {};
+  }
+}
+function writeCounts(counts: Record<string, number>): void {
+  try {
+    localStorage.setItem(STUDY_COUNTS_KEY, JSON.stringify(counts));
+  } catch {
+    /* storage non disponibile */
+  }
+}
+
+/** Aggiunge `count` parole studiate al totale di OGGI. */
+export function recordWordsToday(count: number): void {
+  if (!count || count < 1) return;
+  const counts = readCounts();
+  const today = localYMD(startOfToday());
+  counts[today] = (counts[today] || 0) + count;
+  writeCounts(counts);
+}
+
+/** Parole studiate oggi. */
+export function getWordsToday(): number {
+  return readCounts()[localYMD(startOfToday())] || 0;
+}
+
+/** Parole studiate in una data (YYYY-MM-DD); per heatmap futura. */
+export function getWordsOn(ymd: string): number {
+  return readCounts()[ymd] || 0;
+}
+
+/** Obiettivo giornaliero (parole/giorno). Default 10. */
+export function getDailyGoal(): number {
+  try {
+    const raw = localStorage.getItem(DAILY_GOAL_KEY);
+    const n = raw ? parseInt(raw, 10) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : DEFAULT_DAILY_GOAL;
+  } catch {
+    return DEFAULT_DAILY_GOAL;
+  }
+}
+export function setDailyGoal(n: number): void {
+  try {
+    if (Number.isFinite(n) && n > 0) localStorage.setItem(DAILY_GOAL_KEY, String(n));
+  } catch {
+    /* storage non disponibile */
+  }
+}
+
+export interface GoalProgress {
+  today: number;
+  goal: number;
+  met: boolean;
+}
+
+/** Stato del Daily goal di oggi. */
+export function getGoalProgress(): GoalProgress {
+  const today = getWordsToday();
+  const goal = getDailyGoal();
+  return { today, goal, met: today >= goal };
+}
