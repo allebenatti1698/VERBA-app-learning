@@ -1,0 +1,95 @@
+VERBA — Fix: My Verba allineata (chiave unica + conteggio reale + pratica sulle parole salvate). ECONOMY MODE. Stima ~$0.6–1.1. DO NOT test live — I test manually.
+
+DUE file: src/pages/DeckSelectionScreen.tsx (3 edit) e src/pages/QuizScreen.tsx (1 edit). NON toccare altro. Se UNA stringa di find non combacia ESATTAMENTE, FERMATI e segnala senza modificare nulla. Riporta solo: file modificati + typecheck (sì/no + errori).
+
+════════ A) src/pages/DeckSelectionScreen.tsx ════════
+
+A1) CHIAVE — Trova ESATTAMENTE:
+function loadMyVerba(): string[] {
+  try {
+    const raw = localStorage.getItem("verba_my_verba");
+    if (!raw) {
+      localStorage.setItem("verba_my_verba", JSON.stringify([]));
+      return [];
+    }
+    return JSON.parse(raw) as string[];
+  } catch { return []; }
+}
+
+Sostituisci con:
+function loadMyVerba(): string[] {
+  try {
+    const raw = localStorage.getItem("verba_my_words");
+    if (!raw) return [];
+    return JSON.parse(raw) as string[];
+  } catch { return []; }
+}
+
+A2) CONTEGGIO REALE — Trova ESATTAMENTE:
+          statsPrefix="12 saved"
+
+Sostituisci con:
+          statsPrefix={`${myVerba.length} saved`}
+
+A3) TAP → pratica le parole salvate — Trova ESATTAMENTE:
+  function handleClick() {
+    if (isEmpty && onEmptyClick) { onEmptyClick(); return; }
+    if (deckId !== "myverba") navigate(`/difficulty?deck=${deckId}`);
+    else navigate("/setup");
+  }
+
+Sostituisci con:
+  function handleClick() {
+    if (isEmpty && onEmptyClick) { onEmptyClick(); return; }
+    if (deckId !== "myverba") { navigate(`/difficulty?deck=${deckId}`); return; }
+    try {
+      const ids = JSON.parse(localStorage.getItem("verba_my_words") ?? "[]") as string[];
+      sessionStorage.setItem("verba_myverba_ids", JSON.stringify(ids));
+    } catch { /* */ }
+    navigate("/quiz?source=myverba");
+  }
+
+════════ B) src/pages/QuizScreen.tsx ════════
+Aggiunge un ramo source=myverba che rispecchia quello di source=due (additivo, non tocca gli altri flussi).
+
+Trova ESATTAMENTE:
+    let dueIds: string[] = [];
+    if (sourceParam === "due") {
+      try { dueIds = JSON.parse(sessionStorage.getItem("verba_review_due") || "[]") as string[]; }
+      catch { dueIds = []; }
+    }
+    const loader =
+      sourceParam === "due"
+        ? fetchWordsByIds(dueIds).then((ws) => shuffleArray(ws))
+        : hasSets
+          ? getWordIdsForSelection(deckParam || "gre", selection)
+              .then((ids) => fetchWordsByIds(ids))
+              .then((ws) => shuffleArray(ws).slice(0, requestedWords))
+          : fetchQuizWords(deckParam || "gre", difficultyParam, requestedWords);
+
+Sostituisci con:
+    let dueIds: string[] = [];
+    if (sourceParam === "due") {
+      try { dueIds = JSON.parse(sessionStorage.getItem("verba_review_due") || "[]") as string[]; }
+      catch { dueIds = []; }
+    }
+    let myVerbaIds: string[] = [];
+    if (sourceParam === "myverba") {
+      try { myVerbaIds = JSON.parse(sessionStorage.getItem("verba_myverba_ids") || "[]") as string[]; }
+      catch { myVerbaIds = []; }
+    }
+    const loader =
+      sourceParam === "due"
+        ? fetchWordsByIds(dueIds).then((ws) => shuffleArray(ws))
+        : sourceParam === "myverba"
+          ? fetchWordsByIds(myVerbaIds).then((ws) => shuffleArray(ws))
+          : hasSets
+            ? getWordIdsForSelection(deckParam || "gre", selection)
+                .then((ids) => fetchWordsByIds(ids))
+                .then((ws) => shuffleArray(ws).slice(0, requestedWords))
+            : fetchQuizWords(deckParam || "gre", difficultyParam, requestedWords);
+
+════════ NOTE ════════
+- source=myverba pratica TUTTE le parole salvate (mescolate), senza passare dal selettore di quantità — corretto per una lista personale curata.
+- NON toccare gli import né gli altri rami del loader.
+DO NOT test live — I test manually.

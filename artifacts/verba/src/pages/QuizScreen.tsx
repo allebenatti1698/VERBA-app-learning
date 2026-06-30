@@ -165,14 +165,21 @@ export default function QuizScreen() {
       try { dueIds = JSON.parse(sessionStorage.getItem("verba_review_due") || "[]") as string[]; }
       catch { dueIds = []; }
     }
+    let myVerbaIds: string[] = [];
+    if (sourceParam === "myverba") {
+      try { myVerbaIds = JSON.parse(sessionStorage.getItem("verba_myverba_ids") || "[]") as string[]; }
+      catch { myVerbaIds = []; }
+    }
     const loader =
       sourceParam === "due"
         ? fetchWordsByIds(dueIds).then((ws) => shuffleArray(ws))
-        : hasSets
-          ? getWordIdsForSelection(deckParam || "gre", selection)
-              .then((ids) => fetchWordsByIds(ids))
-              .then((ws) => shuffleArray(ws).slice(0, requestedWords))
-          : fetchQuizWords(deckParam || "gre", difficultyParam, requestedWords);
+        : sourceParam === "myverba"
+          ? fetchWordsByIds(myVerbaIds).then((ws) => shuffleArray(ws))
+          : hasSets
+            ? getWordIdsForSelection(deckParam || "gre", selection)
+                .then((ids) => fetchWordsByIds(ids))
+                .then((ws) => shuffleArray(ws).slice(0, requestedWords))
+            : fetchQuizWords(deckParam || "gre", difficultyParam, requestedWords);
     loader
       .then((words) => {
         if (cancelled) return;

@@ -56,11 +56,8 @@ function loadLastSession(): LastSession | null {
 
 function loadMyVerba(): string[] {
   try {
-    const raw = localStorage.getItem("verba_my_verba");
-    if (!raw) {
-      localStorage.setItem("verba_my_verba", JSON.stringify([]));
-      return [];
-    }
+    const raw = localStorage.getItem("verba_my_words");
+    if (!raw) return [];
     return JSON.parse(raw) as string[];
   } catch { return []; }
 }
@@ -223,8 +220,12 @@ function DeckCard({
 
   function handleClick() {
     if (isEmpty && onEmptyClick) { onEmptyClick(); return; }
-    if (deckId !== "myverba") navigate(`/difficulty?deck=${deckId}`);
-    else navigate("/setup");
+    if (deckId !== "myverba") { navigate(`/difficulty?deck=${deckId}`); return; }
+    try {
+      const ids = JSON.parse(localStorage.getItem("verba_my_words") ?? "[]") as string[];
+      sessionStorage.setItem("verba_myverba_ids", JSON.stringify(ids));
+    } catch { /* */ }
+    navigate("/quiz?source=myverba");
   }
 
   return (
@@ -456,7 +457,7 @@ export default function DeckSelectionScreen() {
               deckId="myverba"
               name="My Verba"
               description="Words you've saved or added"
-              statsPrefix="12 saved"
+              statsPrefix={`${myVerba.length} saved`}
               noMastered
               borderDefault={GREY.border}
               borderHover={GREY.hover}
