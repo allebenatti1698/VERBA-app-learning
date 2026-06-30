@@ -225,7 +225,7 @@ function DeckCard({
       const ids = JSON.parse(localStorage.getItem("verba_my_words") ?? "[]") as string[];
       sessionStorage.setItem("verba_myverba_ids", JSON.stringify(ids));
     } catch { /* */ }
-    navigate("/quiz?source=myverba");
+    navigate("/setup?source=myverba");
   }
 
   return (

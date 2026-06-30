@@ -174,7 +174,7 @@ export default function QuizScreen() {
       sourceParam === "due"
         ? fetchWordsByIds(dueIds).then((ws) => shuffleArray(ws))
         : sourceParam === "myverba"
-          ? fetchWordsByIds(myVerbaIds).then((ws) => shuffleArray(ws))
+          ? fetchWordsByIds(myVerbaIds).then((ws) => shuffleArray(ws).slice(0, requestedWords))
           : hasSets
             ? getWordIdsForSelection(deckParam || "gre", selection)
                 .then((ids) => fetchWordsByIds(ids))

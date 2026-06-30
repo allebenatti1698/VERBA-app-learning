@@ -1,0 +1,120 @@
+VERBA — Setup pool-aware (slider adattivo step 1, My Verba via setup, mode predisposto nascosto). ECONOMY MODE. Stima ~$1.0–1.8. DO NOT test live — I test manually.
+
+TRE file: DeckSelectionScreen.tsx (1 edit), PreQuizSetup.tsx (7 edit), QuizScreen.tsx (1 edit). NON toccare altro. Se UNA stringa di find non combacia ESATTAMENTE, FERMATI e segnala senza modificare nulla. Riporta solo: file modificati + typecheck (sì/no + errori).
+
+════════ A) src/pages/DeckSelectionScreen.tsx ════════
+A1) My Verba ora passa dal setup. Trova ESATTAMENTE:
+    navigate("/quiz?source=myverba");
+Sostituisci con:
+    navigate("/setup?source=myverba");
+
+════════ B) src/pages/PreQuizSetup.tsx ════════
+
+B1) PARAM source — Trova ESATTAMENTE:
+  const setsParam = params.get("sets") ?? null;
+Sostituisci con:
+  const setsParam = params.get("sets") ?? null;
+  const sourceParam = params.get("source") ?? null;
+
+B2) POOL adattivo (gestisce My Verba + min 1 + niente cap a 50) — Trova ESATTAMENTE:
+  const [maxWords, setMaxWords] = useState(50);
+  useEffect(() => {
+    const selection = parseSetsParam(setsParam);
+    if (Object.keys(selection).length === 0) { setMaxWords(50); return; }
+    let active = true;
+    getWordIdsForSelection(deck || "gre", selection)
+      .then((ids) => { if (active) setMaxWords(Math.max(5, ids.length)); })
+      .catch(() => { if (active) setMaxWords(50); });
+    return () => { active = false; };
+  }, [setsParam, deck]);
+  const sliderMax = Math.min(50, maxWords);
+  useEffect(() => { setWordCount((w) => Math.min(w, sliderMax)); }, [sliderMax]);
+
+Sostituisci con:
+  const [maxWords, setMaxWords] = useState(50);
+  useEffect(() => {
+    if (sourceParam === "myverba") {
+      try {
+        const ids = JSON.parse(localStorage.getItem("verba_my_words") ?? "[]") as string[];
+        sessionStorage.setItem("verba_myverba_ids", JSON.stringify(ids));
+        setMaxWords(Math.max(1, ids.length));
+      } catch { setMaxWords(1); }
+      return;
+    }
+    const selection = parseSetsParam(setsParam);
+    if (Object.keys(selection).length === 0) { setMaxWords(50); return; }
+    let active = true;
+    getWordIdsForSelection(deck || "gre", selection)
+      .then((ids) => { if (active) setMaxWords(Math.max(1, ids.length)); })
+      .catch(() => { if (active) setMaxWords(50); });
+    return () => { active = false; };
+  }, [setsParam, deck, sourceParam]);
+  const sliderMax = maxWords;
+  useEffect(() => { setWordCount((w) => Math.min(w, sliderMax)); }, [sliderMax]);
+
+B3) handleBegin (rotta My Verba + mode=mc predisposto) — Trova ESATTAMENTE:
+  function handleBegin() {
+    const finalWords = Math.min(wordCount, maxWords);
+    const queryParts = [`words=${finalWords}`];
+    if (deck) queryParts.push(`deck=${deck}`);
+    if (setsParam) queryParts.push(`sets=${setsParam}`);
+    else if (difficulty) queryParts.push(`difficulty=${difficulty}`);
+    setLocation(`/quiz?${queryParts.join("&")}`);
+  }
+
+Sostituisci con:
+  function handleBegin() {
+    const finalWords = Math.min(wordCount, maxWords);
+    if (sourceParam === "myverba") {
+      setLocation(`/quiz?source=myverba&words=${finalWords}&mode=mc`);
+      return;
+    }
+    const queryParts = [`words=${finalWords}`];
+    if (deck) queryParts.push(`deck=${deck}`);
+    if (setsParam) queryParts.push(`sets=${setsParam}`);
+    else if (difficulty) queryParts.push(`difficulty=${difficulty}`);
+    queryParts.push("mode=mc");
+    setLocation(`/quiz?${queryParts.join("&")}`);
+  }
+
+B4) Sottotitolo personale per My Verba — Trova ESATTAMENTE:
+Choose how many words to practice
+Sostituisci con:
+{sourceParam === "myverba" ? "Drill your saved collection" : "Choose how many words to practice"}
+
+B5) Slider min 5→1 — Trova ESATTAMENTE:
+              type="range"
+              min={5}
+              max={sliderMax}
+Sostituisci con:
+              type="range"
+              min={1}
+              max={sliderMax}
+
+B6) Gradient slider (parte da 1) — Trova ESATTAMENTE:
+                background: `linear-gradient(to right, #D97706 0%, #F59E0B ${((wordCount - 5) / Math.max(1, sliderMax - 5)) * 100}%, rgba(255,255,255,0.1) ${((wordCount - 5) / Math.max(1, sliderMax - 5)) * 100}%, rgba(255,255,255,0.1) 100%)`,
+Sostituisci con:
+                background: `linear-gradient(to right, #D97706 0%, #F59E0B ${((wordCount - 1) / Math.max(1, sliderMax - 1)) * 100}%, rgba(255,255,255,0.1) ${((wordCount - 1) / Math.max(1, sliderMax - 1)) * 100}%, rgba(255,255,255,0.1) 100%)`,
+
+B7) Etichetta sinistra dello slider 5→1 — Trova ESATTAMENTE:
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: "0.72rem", color: "rgba(255,255,255,0.25)" }}>5</span>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: "0.72rem", color: "rgba(255,255,255,0.25)" }}>{sliderMax}</span>
+          </div>
+Sostituisci con:
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: "0.72rem", color: "rgba(255,255,255,0.25)" }}>1</span>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: "0.72rem", color: "rgba(255,255,255,0.25)" }}>{sliderMax}</span>
+          </div>
+
+════════ C) src/pages/QuizScreen.tsx ════════
+C1) My Verba rispetta la quantità scelta — Trova ESATTAMENTE:
+fetchWordsByIds(myVerbaIds).then((ws) => shuffleArray(ws))
+Sostituisci con:
+fetchWordsByIds(myVerbaIds).then((ws) => shuffleArray(ws).slice(0, requestedWords))
+
+════════ NOTE ════════
+- Nessuna UI di "modalità" in questo step: il parametro mode=mc è solo predisposto (QuizScreen lo ignora per ora).
+- My Verba arriva al setup via /setup?source=myverba: bordo neutro, slider 1→(parole salvate), sottotitolo personale.
+- GRE invariato salvo: passo dello slider = 1 e massimo = parole reali dei set scelti (niente più tetto fisso a 50).
+DO NOT test live — I test manually.

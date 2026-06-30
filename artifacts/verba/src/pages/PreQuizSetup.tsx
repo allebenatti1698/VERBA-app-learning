@@ -22,6 +22,7 @@ export default function PreQuizSetup() {
   const deck = params.get("deck") ?? null;
   const difficulty = params.get("difficulty") ?? null;
   const setsParam = params.get("sets") ?? null;
+  const sourceParam = params.get("source") ?? null;
   const deckBorder =
     deck === "gre" ? "rgba(199,184,232,0.55)" :
     deck === "essential" || deck === "advanced" ? "rgba(125,211,252,0.5)" :
@@ -35,23 +36,36 @@ export default function PreQuizSetup() {
 
   const [maxWords, setMaxWords] = useState(50);
   useEffect(() => {
+    if (sourceParam === "myverba") {
+      try {
+        const ids = JSON.parse(localStorage.getItem("verba_my_words") ?? "[]") as string[];
+        sessionStorage.setItem("verba_myverba_ids", JSON.stringify(ids));
+        setMaxWords(Math.max(1, ids.length));
+      } catch { setMaxWords(1); }
+      return;
+    }
     const selection = parseSetsParam(setsParam);
     if (Object.keys(selection).length === 0) { setMaxWords(50); return; }
     let active = true;
     getWordIdsForSelection(deck || "gre", selection)
-      .then((ids) => { if (active) setMaxWords(Math.max(5, ids.length)); })
+      .then((ids) => { if (active) setMaxWords(Math.max(1, ids.length)); })
       .catch(() => { if (active) setMaxWords(50); });
     return () => { active = false; };
-  }, [setsParam, deck]);
-  const sliderMax = Math.min(50, maxWords);
+  }, [setsParam, deck, sourceParam]);
+  const sliderMax = maxWords;
   useEffect(() => { setWordCount((w) => Math.min(w, sliderMax)); }, [sliderMax]);
 
   function handleBegin() {
     const finalWords = Math.min(wordCount, maxWords);
+    if (sourceParam === "myverba") {
+      setLocation(`/quiz?source=myverba&words=${finalWords}&mode=mc`);
+      return;
+    }
     const queryParts = [`words=${finalWords}`];
     if (deck) queryParts.push(`deck=${deck}`);
     if (setsParam) queryParts.push(`sets=${setsParam}`);
     else if (difficulty) queryParts.push(`difficulty=${difficulty}`);
+    queryParts.push("mode=mc");
     setLocation(`/quiz?${queryParts.join("&")}`);
   }
 
@@ -131,7 +145,7 @@ export default function PreQuizSetup() {
               letterSpacing: "0.02em",
             }}
           >
-            Choose how many words to practice
+            {sourceParam === "myverba" ? "Drill your saved collection" : "Choose how many words to practice"}
           </p>
         </motion.div>
 
@@ -172,7 +186,7 @@ export default function PreQuizSetup() {
             <input
               data-testid="slider-words"
               type="range"
-              min={5}
+              min={1}
               max={sliderMax}
               step={1}
               value={wordCount}
@@ -182,7 +196,7 @@ export default function PreQuizSetup() {
                 height: 4,
                 appearance: "none",
                 WebkitAppearance: "none",
-                background: `linear-gradient(to right, #D97706 0%, #F59E0B ${((wordCount - 5) / Math.max(1, sliderMax - 5)) * 100}%, rgba(255,255,255,0.1) ${((wordCount - 5) / Math.max(1, sliderMax - 5)) * 100}%, rgba(255,255,255,0.1) 100%)`,
+                background: `linear-gradient(to right, #D97706 0%, #F59E0B ${((wordCount - 1) / Math.max(1, sliderMax - 1)) * 100}%, rgba(255,255,255,0.1) ${((wordCount - 1) / Math.max(1, sliderMax - 1)) * 100}%, rgba(255,255,255,0.1) 100%)`,
                 borderRadius: 2,
                 outline: "none",
                 cursor: "pointer",
@@ -190,7 +204,7 @@ export default function PreQuizSetup() {
             />
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-            <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: "0.72rem", color: "rgba(255,255,255,0.25)" }}>5</span>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: "0.72rem", color: "rgba(255,255,255,0.25)" }}>1</span>
             <span style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: "0.72rem", color: "rgba(255,255,255,0.25)" }}>{sliderMax}</span>
           </div>
         </motion.div>
