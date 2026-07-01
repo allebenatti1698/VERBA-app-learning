@@ -98,7 +98,7 @@ export default function ProfileScreen() {
       <AppBackground showWords={false} />
       <div style={{ position: "relative", zIndex: 10, maxWidth: SCREEN_MAX, margin: "0 auto", padding: "18px 16px 32px", boxSizing: "border-box" }}>
 
-        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 13, color: "rgba(245,158,11,0.8)" }}>Verba</div>
+        <div style={{ textAlign: "center", fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 13, color: "rgba(245,158,11,0.8)" }}>Verba</div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 18 }}>
           <div style={{ width: 52, height: 52, borderRadius: "50%", border: "2px solid rgba(199,184,232,0.55)", background: "rgba(167,139,250,0.1)", display: "flex", alignItems: "center", justifyContent: "center", color: LAV }}>
