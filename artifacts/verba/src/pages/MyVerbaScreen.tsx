@@ -19,22 +19,29 @@ function saveMyWordIds(ids: string[]): void {
 export default function MyVerbaScreen() {
   const [, navigate] = useLocation();
   const [words, setWords] = useState<QuizWord[]>([]);
+  const [saved, setSaved] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   function load() {
     const ids = loadMyWordIds();
-    if (ids.length === 0) { setWords([]); setError(null); setLoading(false); return; }
+    if (ids.length === 0) { setWords([]); setSaved(new Set()); setError(null); setLoading(false); return; }
     setLoading(true); setError(null);
     fetchWordsByIds(ids)
-      .then((ws) => { setWords(ws); setLoading(false); })
+      .then((ws) => { setWords(ws); setSaved(new Set(ws.map((w) => w.id))); setLoading(false); })
       .catch((e) => { setError(e?.message ?? "Couldn't load your words."); setLoading(false); });
   }
   useEffect(() => { load(); }, []);
 
-  function unstar(id: string) {
-    saveMyWordIds(loadMyWordIds().filter((x) => x !== id));
-    setWords((prev) => prev.filter((w) => w.id !== id));
+  // "Resta finché non esci": toggla la stella (memoria + storage) ma NON rimuove la riga.
+  // La lista si rigenera solo alla prossima apertura della schermata.
+  function toggle(id: string) {
+    setSaved((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      saveMyWordIds(Array.from(next));
+      return next;
+    });
   }
 
   return (
@@ -52,7 +59,7 @@ export default function MyVerbaScreen() {
           <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 24, color: "#fff", margin: 0 }}>My Verba</h1>
         </div>
         <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.45)", margin: "0 0 20px" }}>
-          {words.length > 0 ? `${words.length} ${words.length === 1 ? "word" : "words"} you've saved` : "Your saved words"}
+          {words.length > 0 ? `${saved.size} ${saved.size === 1 ? "word" : "words"} you've saved` : "Your saved words"}
         </p>
 
         {loading ? (
@@ -76,8 +83,9 @@ export default function MyVerbaScreen() {
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {words.map((w) => {
               const pos = w.allDefinitions?.[0]?.part_of_speech ?? "";
+              const on = saved.has(w.id);
               return (
-                <div key={w.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, background: "rgba(255,255,255,0.035)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "13px 14px" }}>
+                <div key={w.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, background: "rgba(255,255,255,0.035)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "13px 14px", opacity: on ? 1 : 0.5, transition: "opacity 0.15s ease" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                       <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 600, color: "#fff" }}>{w.word}</span>
@@ -85,8 +93,8 @@ export default function MyVerbaScreen() {
                     </div>
                     <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, margin: "4px 0 0", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{w.correctDefinition}</p>
                   </div>
-                  <button onClick={() => unstar(w.id)} aria-label="Remove from My Verba" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, outline: "none", flexShrink: 0 }}>
-                    <Star size={18} color={AMBER} fill={AMBER} />
+                  <button onClick={() => toggle(w.id)} aria-label={on ? "Remove from My Verba" : "Add back to My Verba"} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, outline: "none", flexShrink: 0 }}>
+                    <Star size={18} color={on ? AMBER : "rgba(255,255,255,0.35)"} fill={on ? AMBER : "none"} />
                   </button>
                 </div>
               );
