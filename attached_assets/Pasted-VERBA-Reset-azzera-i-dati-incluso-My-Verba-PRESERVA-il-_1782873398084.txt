@@ -1,0 +1,66 @@
+VERBA — Reset: azzera i dati (incluso My Verba), PRESERVA il Momentum. ECONOMY MODE. Stima ~$0.3–0.6. DO NOT test live — I test manually.
+
+File UNICO: src/pages/ProfileScreen.tsx (4 edit). NON toccare altro. Se UNA stringa non combacia ESATTAMENTE, FERMATI e segnala. Riporta solo: file modificato + typecheck (sì/no + errori).
+
+════════ 1) Chiavi del reset ════════
+Trova ESATTAMENTE:
+// Chiavi "progresso" da azzerare (NON tocca my_words, daily_goal, né i flag-hint).
+const PROGRESS_KEYS = [
+  "verba_word_stats",
+  "verba_study_progress",
+  "verba_last_study",
+  "verba_study_days",
+  "verba_study_counts",
+  "verba_review_due",
+  "verba_trouble_dismissed",
+];
+
+Sostituisci con:
+// Chiavi "progresso" da azzerare: ora include my_words (collezione), MA preserva
+// il Momentum (verba_study_days), il daily_goal e i flag-hint.
+const PROGRESS_KEYS = [
+  "verba_word_stats",
+  "verba_study_progress",
+  "verba_last_study",
+  "verba_study_counts",
+  "verba_review_due",
+  "verba_trouble_dismissed",
+  "verba_my_words",
+];
+
+════════ 2) myCount diventa stato (per aggiornarsi dopo il reset) ════════
+Trova ESATTAMENTE:
+  const myCount = loadMyWordsCount();
+
+Sostituisci con:
+  const [myCount, setMyCount] = useState<number>(() => loadMyWordsCount());
+
+════════ 3) refresh() aggiorna anche il contatore ════════
+Trova ESATTAMENTE:
+  function refresh() {
+    setMomentum(getMomentum());
+    setBest(getBestStreak());
+    setWeek(getWeekStrip());
+    setProgress(getGoalProgress());
+  }
+
+Sostituisci con:
+  function refresh() {
+    setMomentum(getMomentum());
+    setBest(getBestStreak());
+    setWeek(getWeekStrip());
+    setProgress(getGoalProgress());
+    setMyCount(loadMyWordsCount());
+  }
+
+════════ 4) Testo di conferma ════════
+Trova ESATTAMENTE:
+This erases your study progress and Momentum. My Verba (starred words) is kept.
+
+Sostituisci con:
+This erases your learning progress and your saved words (My Verba). Your Momentum stays.
+
+════════ NOTE ════════
+- verba_study_days NON è più tra le chiavi cancellate → il Momentum sopravvive al reset.
+- verba_my_words ora è tra le chiavi cancellate → la collezione si azzera.
+DO NOT test live — I test manually.

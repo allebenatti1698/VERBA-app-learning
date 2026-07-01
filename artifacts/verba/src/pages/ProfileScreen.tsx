@@ -22,15 +22,16 @@ function loadMyWordsCount(): number {
   catch { return 0; }
 }
 
-// Chiavi "progresso" da azzerare (NON tocca my_words, daily_goal, né i flag-hint).
+// Chiavi "progresso" da azzerare: ora include my_words (collezione), MA preserva
+// il Momentum (verba_study_days), il daily_goal e i flag-hint.
 const PROGRESS_KEYS = [
   "verba_word_stats",
   "verba_study_progress",
   "verba_last_study",
-  "verba_study_days",
   "verba_study_counts",
   "verba_review_due",
   "verba_trouble_dismissed",
+  "verba_my_words",
 ];
 function resetProgress(): void {
   try { PROGRESS_KEYS.forEach((k) => localStorage.removeItem(k)); } catch { /* */ }
@@ -79,13 +80,14 @@ export default function ProfileScreen() {
   const [goalOpen, setGoalOpen] = useState(false);
   const [confirm, setConfirm] = useState<null | "hints" | "progress">(null);
   const [done, setDone] = useState<null | "hints" | "progress">(null);
-  const myCount = loadMyWordsCount();
+  const [myCount, setMyCount] = useState<number>(() => loadMyWordsCount());
 
   function refresh() {
     setMomentum(getMomentum());
     setBest(getBestStreak());
     setWeek(getWeekStrip());
     setProgress(getGoalProgress());
+    setMyCount(loadMyWordsCount());
   }
   function pickGoal(n: number) { setDailyGoal(n); setProgress(getGoalProgress()); setGoalOpen(false); }
   function flashDone(which: "hints" | "progress") {
@@ -200,7 +202,7 @@ export default function ProfileScreen() {
           <Row icon={<Trash2 size={16} />} label="Reset progress" danger onClick={() => { setDone(null); setConfirm((c) => (c === "progress" ? null : "progress")); }} />
           {confirm === "progress" ? (
             <div style={{ padding: "0 14px 14px", borderTop: "0.5px solid rgba(255,255,255,0.06)" }}>
-              <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.5, margin: "11px 0 12px" }}>This erases your study progress and Momentum. My Verba (starred words) is kept.</p>
+              <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.5, margin: "11px 0 12px" }}>This erases your learning progress and your saved words (My Verba). Your Momentum stays.</p>
               <div style={{ display: "flex", gap: 9 }}>
                 <button onClick={() => setConfirm(null)} style={baseBtn}>Cancel</button>
                 <button onClick={doResetProgress} style={dangerBtn}>Reset progress</button>
