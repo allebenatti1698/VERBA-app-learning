@@ -1,0 +1,81 @@
+VERBA — Step: HowItWorksScreen (guida statica) + rotta /how-it-works. ECONOMY MODE. Stima ~$0.9–1.5. DO NOT test live — I test manually.
+
+DUE interventi: (1) CREA src/pages/HowItWorksScreen.tsx; (2) registra la rotta in src/App.tsx. NON toccare altro. Se una stringa di find in App.tsx non combacia ESATTAMENTE, FERMATI e segnala. Riporta solo: file creati/modificati + typecheck (sì/no + errori).
+
+════════ 1) CREA src/pages/HowItWorksScreen.tsx ════════
+import { useLocation } from "wouter";
+import { BookOpen, Repeat, Target, Flame, CalendarCheck, Star, AlertTriangle, Lock } from "lucide-react";
+import AppBackground from "@/components/AppBackground";
+import { SCREEN_MAX } from "@/components/ScreenColumn";
+
+const LAV = "#C7B8E8";
+const AMBER = "#F59E0B";
+const GREEN = "#34D399";
+const RED = "#EF4444";
+
+interface Sec { icon: JSX.Element; color: string; title: string; body: string; }
+
+const SECTIONS: Sec[] = [
+  { icon: <Repeat size={18} />, color: LAV, title: "Spaced repetition", body: "Verba brings each word back right before you'd forget it. Reviewing at the edge of memory is what makes it stick for good — not cramming." },
+  { icon: <Target size={18} />, color: GREEN, title: "Mastery", body: "Get a word right a few times in a row and it moves from Learning to Reviewing to Mastered. Mastered words return only rarely, just to stay fresh." },
+  { icon: <Flame size={18} />, color: AMBER, title: "Momentum", body: "Study even a little each day to build Momentum. Small daily sessions beat rare long ones — consistency is the whole game." },
+  { icon: <CalendarCheck size={18} />, color: AMBER, title: "Daily goal", body: "Set a small target of words per day. Hitting it keeps your Momentum alive and your memory warm." },
+  { icon: <Star size={18} />, color: AMBER, title: "My Verba", body: "Tap the star on any word to save it to your own collection — your hardest or favorite words, ready to drill anytime." },
+  { icon: <AlertTriangle size={18} />, color: RED, title: "Trouble words", body: "Miss a word and it resurfaces automatically for extra review until it finally sticks." },
+];
+
+export default function HowItWorksScreen() {
+  const [, navigate] = useLocation();
+  return (
+    <div style={{ minHeight: "100%", width: "100%", background: "#0A0A0A", position: "relative" }}>
+      <AppBackground showWords={false} />
+      <div style={{ position: "relative", zIndex: 10, maxWidth: SCREEN_MAX, margin: "0 auto", padding: "18px 16px 36px", boxSizing: "border-box" }}>
+
+        <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 18 }}>
+          <button onClick={() => navigate("/profile")} aria-label="Go back" style={{ position: "absolute", left: 0, background: "none", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 24, color: "rgba(245,158,11,0.8)", padding: "2px 8px", lineHeight: 1, outline: "none" }}>‹</button>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 13, color: "rgba(245,158,11,0.8)" }}>Verba</span>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <BookOpen size={22} color={LAV} />
+          <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 24, color: "#fff", margin: 0 }}>How Verba works</h1>
+        </div>
+        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.45)", margin: "0 0 22px", lineHeight: 1.5 }}>The few ideas that make words actually stick.</p>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {SECTIONS.map((s, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 13, background: "rgba(255,255,255,0.035)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "14px 15px" }}>
+              <span style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: s.color }}>{s.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, fontWeight: 600, color: "#fff" }}>{s.title}</div>
+                <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.55, margin: "4px 0 0" }}>{s.body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 7, justifyContent: "center", margin: "20px 0 0", fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.3)" }}><Lock size={12} /> Your progress stays on this device.</div>
+
+      </div>
+    </div>
+  );
+}
+
+════════ 2) src/App.tsx — registra la rotta ════════
+2a) IMPORT — trova ESATTAMENTE:
+import MyVerbaScreen from "@/pages/MyVerbaScreen";
+
+Sostituisci con:
+import MyVerbaScreen from "@/pages/MyVerbaScreen";
+import HowItWorksScreen from "@/pages/HowItWorksScreen";
+
+2b) ROUTE — trova ESATTAMENTE:
+            <Route path="/my-verba" component={MyVerbaScreen} />
+
+Sostituisci con:
+            <Route path="/my-verba" component={MyVerbaScreen} />
+            <Route path="/how-it-works" component={HowItWorksScreen} />
+
+════════ NOTE ════════
+- /how-it-works NON è una tab → niente BottomNav: si esce con la freccia ‹ verso /profile.
+DO NOT test live — I test manually.

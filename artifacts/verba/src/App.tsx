@@ -16,6 +16,7 @@ import StudyScreen from "@/pages/StudyScreen";
 import ProgressScreen from "@/pages/ProgressScreen";
 import ProfileScreen from "@/pages/ProfileScreen";
 import MyVerbaScreen from "@/pages/MyVerbaScreen";
+import HowItWorksScreen from "@/pages/HowItWorksScreen";
 import BottomNav, { TAB_PATHS } from "@/components/BottomNav";
 
 const queryClient = new QueryClient();
@@ -59,6 +60,7 @@ function Router() {
             <Route path="/review-complete" component={ReviewCompleteScreen} />
             <Route path="/review-summary" component={ReviewSummaryScreen} />
             <Route path="/my-verba" component={MyVerbaScreen} />
+            <Route path="/how-it-works" component={HowItWorksScreen} />
             <Route component={NotFound} />
           </Switch>
         </motion.div>
