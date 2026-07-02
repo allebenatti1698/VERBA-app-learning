@@ -1123,7 +1123,10 @@ export default function ResultsScreen() {
           wordCount: parsed.wordCount,
           completedAt: new Date().toISOString(),
         };
-        localStorage.setItem("verba_last_session", JSON.stringify(session));
+        // Ricorda solo sessioni riprendibili: i flussi source-based non hanno deck → non sovrascrivere
+        if (session.deck) {
+          localStorage.setItem("verba_last_session", JSON.stringify(session));
+        }
         // 1B — persist last difficulty per deck
         if (parsed.deck && parsed.difficulty) {
           localStorage.setItem(`verba_last_difficulty_${parsed.deck}`, parsed.difficulty);

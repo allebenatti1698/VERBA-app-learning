@@ -48,6 +48,8 @@ function loadLastSession(): LastSession | null {
     const raw = localStorage.getItem("verba_last_session");
     if (!raw) return null;
     const s: LastSession = JSON.parse(raw);
+    // Sessioni non riprendibili (flussi source-based senza deck) → trattate come "nessuna sessione"
+    if (!s.deck || s.deck === "null") return null;
     const age = Date.now() - new Date(s.completedAt).getTime();
     if (age > 7 * 24 * 60 * 60 * 1000) return null;
     return s;
