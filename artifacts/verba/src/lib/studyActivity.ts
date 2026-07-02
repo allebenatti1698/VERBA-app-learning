@@ -207,3 +207,23 @@ export function getGoalProgress(): GoalProgress {
   const goal = getDailyGoal();
   return { today, goal, met: today >= goal };
 }
+
+/**
+ * Heatmap "streak journey": array di `totalDays` valori (default 84).
+ * index 0 = (totalDays-1) giorni fa … ultimo index = OGGI.
+ * Valore = parole studiate quel giorno; se il giorno è "studiato" ma senza
+ * conteggio (dato storico), vale 1 (così lo streak resta coerente con Momentum).
+ */
+export function getStreakHeatmap(totalDays = 84): number[] {
+  const counts = readCounts();
+  const days = readDays();
+  const base = startOfToday();
+  const out: number[] = [];
+  for (let index = 0; index < totalDays; index++) {
+    const daysAgo = totalDays - 1 - index;
+    const ymd = localYMD(addDays(base, -daysAgo));
+    const w = counts[ymd] || 0;
+    out.push(w > 0 ? w : (days.has(ymd) ? 1 : 0));
+  }
+  return out;
+}

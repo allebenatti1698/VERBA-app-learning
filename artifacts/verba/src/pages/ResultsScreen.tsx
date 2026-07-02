@@ -5,6 +5,7 @@ import { Clock, Flame, BookOpen, Star } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
 import ScreenColumn, { SCREEN_MAX } from "@/components/ScreenColumn";
 import { lowercaseFirst } from "@/lib/formatText";
+import { getStreakHeatmap, getMomentum } from "@/lib/studyActivity";
 import FeedbackCard from "@/components/FeedbackCard";
 
 // TODO: Replace `visible={true}` with user preferences from settings (Step 8)
@@ -225,7 +226,7 @@ interface QuickStatsProps {
 }
 function QuickStats({ elapsedMs, visible = true }: QuickStatsProps) {
   // TODO: Replace with real streak from database (Step 7)
-  const streak = 7;
+  const streak = getMomentum();
   // TODO: Replace with real count from database (Step 7)
   const mastered = 47;
 
@@ -872,41 +873,14 @@ function WeeklyChart({ visible = true }: WeeklyChartProps) {
 // TODO: Calculate from real session data + streak logic in database (Step 7)
 // Active streak = consecutive days from today backwards with at least 1 session.
 
-const STREAK_DATA: number[] = [
-  // col 0 (83–77 days ago)
-  0, 12, 8, 0, 15, 0, 0,
-  // col 1 (76–70 days ago)
-  20, 0, 14, 18, 0, 10, 6,
-  // col 2 (69–63 days ago)
-  0, 0, 8, 12, 16, 0, 22,
-  // col 3 (62–56 days ago)
-  14, 9, 0, 0, 11, 18, 0,
-  // col 4 (55–49 days ago)
-  0, 13, 19, 8, 0, 0, 14,
-  // col 5 (48–42 days ago)
-  7, 0, 22, 15, 12, 0, 0,
-  // col 6 (41–35 days ago)
-  10, 18, 0, 14, 8, 0, 20,
-  // col 7 (34–28 days ago)
-  0, 0, 15, 11, 0, 18, 14,
-  // col 8 (27–21 days ago)
-  20, 8, 12, 0, 0, 15, 9,
-  // col 9 (20–14 days ago)
-  0, 14, 0, 18, 10, 12, 0,
-  // col 10 (13–7 days ago) — index 76 = 7 days ago, no study → breaks streak
-  8, 0, 22, 15, 0, 14, 0,
-  // col 11 (6–0 days ago) — active 7-day streak
-  15, 12, 18, 22, 16, 20, 19,
-];
 
 function getActiveStreakSet(data: number[]): Set<number> {
   const set = new Set<number>();
-  for (let i = data.length - 1; i >= 0; i--) {
-    if (data[i] > 0) {
-      set.add(i);
-    } else {
-      break;
-    }
+  let i = data.length - 1;        // oggi
+  if (data[i] === 0) i -= 1;      // oggi non ancora studiato → parti da ieri (streak ancora viva)
+  for (; i >= 0; i--) {
+    if (data[i] > 0) set.add(i);
+    else break;
   }
   return set;
 }
@@ -919,6 +893,7 @@ function StreakJourney({ visible = true }: StreakJourneyProps) {
 
   if (!visible) return null;
 
+  const STREAK_DATA = getStreakHeatmap();
   const activeStreakSet = getActiveStreakSet(STREAK_DATA);
   const streakLength = activeStreakSet.size;
   const isLongStreak = streakLength >= 30;

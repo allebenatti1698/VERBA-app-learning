@@ -1,0 +1,96 @@
+VERBA — Punto 2: heatmap "streak journey" (Results) a DATI VERI via studyActivity. + fix coerenza streak + QuickStats streak reale. ECONOMY MODE. Stima ~$0.8–1.5. DO NOT test live — I test manually.
+
+2 file. Se UNA stringa di find non combacia ESATTAMENTE, FERMATI e segnala senza modificare nulla (NON indovinare). Alla fine riporta SOLO: file modificati + typecheck (sì/no + errori) + eventuali blocchi non trovati.
+
+════════════════════════════════════════
+1) src/lib/studyActivity.ts  (append in fondo al file)
+════════════════════════════════════════
+Trova ESATTAMENTE (è l'ultima funzione del file):
+
+/** Stato del Daily goal di oggi. */
+export function getGoalProgress(): GoalProgress {
+  const today = getWordsToday();
+  const goal = getDailyGoal();
+  return { today, goal, met: today >= goal };
+}
+
+Sostituisci con:
+
+/** Stato del Daily goal di oggi. */
+export function getGoalProgress(): GoalProgress {
+  const today = getWordsToday();
+  const goal = getDailyGoal();
+  return { today, goal, met: today >= goal };
+}
+
+/**
+ * Heatmap "streak journey": array di `totalDays` valori (default 84).
+ * index 0 = (totalDays-1) giorni fa … ultimo index = OGGI.
+ * Valore = parole studiate quel giorno; se il giorno è "studiato" ma senza
+ * conteggio (dato storico), vale 1 (così lo streak resta coerente con Momentum).
+ */
+export function getStreakHeatmap(totalDays = 84): number[] {
+  const counts = readCounts();
+  const days = readDays();
+  const base = startOfToday();
+  const out: number[] = [];
+  for (let index = 0; index < totalDays; index++) {
+    const daysAgo = totalDays - 1 - index;
+    const ymd = localYMD(addDays(base, -daysAgo));
+    const w = counts[ymd] || 0;
+    out.push(w > 0 ? w : (days.has(ymd) ? 1 : 0));
+  }
+  return out;
+}
+
+════════════════════════════════════════
+2) src/pages/ResultsScreen.tsx
+════════════════════════════════════════
+2a) IMPORT — trova:
+import { lowercaseFirst } from "@/lib/formatText";
+Sostituisci con:
+import { lowercaseFirst } from "@/lib/formatText";
+import { getStreakHeatmap, getMomentum } from "@/lib/studyActivity";
+
+2b) ELIMINA l'array hardcoded. Trova ed elimina COMPLETAMENTE l'intera costante `const STREAK_DATA: number[] = [ … ];` — il grande array con i commenti "// col 0 (83–77 days ago)" … "// col 11 (6–0 days ago) — active 7-day streak", dalla riga che inizia con `const STREAK_DATA: number[] = [` fino alla riga `];` che la chiude (inclusi tutti i commenti interni). È l'UNICA occorrenza di STREAK_DATA a livello di modulo (le altre sono dentro il componente StreakJourney). NON toccare la funzione getActiveStreakSet subito sotto. Se non trovi la costante, FERMATI e segnala.
+
+2c) FIX coerenza streak — trova:
+function getActiveStreakSet(data: number[]): Set<number> {
+  const set = new Set<number>();
+  for (let i = data.length - 1; i >= 0; i--) {
+    if (data[i] > 0) {
+      set.add(i);
+    } else {
+      break;
+    }
+  }
+  return set;
+}
+Sostituisci con:
+function getActiveStreakSet(data: number[]): Set<number> {
+  const set = new Set<number>();
+  let i = data.length - 1;        // oggi
+  if (data[i] === 0) i -= 1;      // oggi non ancora studiato → parti da ieri (streak ancora viva)
+  for (; i >= 0; i--) {
+    if (data[i] > 0) set.add(i);
+    else break;
+  }
+  return set;
+}
+
+2d) DATI VERI nel componente — trova:
+  const activeStreakSet = getActiveStreakSet(STREAK_DATA);
+Sostituisci con:
+  const STREAK_DATA = getStreakHeatmap();
+  const activeStreakSet = getActiveStreakSet(STREAK_DATA);
+
+2e) QuickStats streak reale — trova:
+  const streak = 7;
+Sostituisci con:
+  const streak = getMomentum();
+
+════════════════════════════════════════
+NOTE
+- NON toccare: mastered (resta 47 per ora), WeeklyChart, il resto della StreakJourney (render grid, tooltip, chip), le altre sezioni.
+- getStreakHeatmap usa readCounts/readDays/startOfToday/addDays/localYMD già presenti nel modulo: non aggiungere altri import in studyActivity.
+DO NOT test live — I test manually.
