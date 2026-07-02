@@ -1,0 +1,124 @@
+VERBA — Item 1: coerenza wordmark (fontSize 13 + spaziatura) su Study/Progress/Deck/PreQuiz + Momentum chip nell'header di Study e Progress. ECONOMY MODE. Stima ~$1.2–2.0. DO NOT test live — I test manually.
+
+1 file nuovo + 4 file modificati. Se UNA stringa di find non corrisponde ESATTAMENTE, FERMATI e segnala senza modificare nulla (NON indovinare). Alla fine riporta SOLO: file creati/modificati + typecheck (sì/no + errori) + eventuali blocchi non trovati.
+
+════════════════════════════════════════
+1) CREA — src/components/StreakChip.tsx
+════════════════════════════════════════
+Se il file esiste già, FERMATI e segnala. Altrimenti crealo con ESATTAMENTE questo contenuto:
+
+// src/components/StreakChip.tsx
+// Momentum streak chip per l'header di Study/Progress.
+// Legge lo streak reale (giorni consecutivi) via getMomentum().
+// Zero-state (streak 0): flame spento + "Start", così l'header non resta mai asimmetrico.
+import { Flame } from "lucide-react";
+import { getMomentum } from "@/lib/studyActivity";
+
+export default function StreakChip() {
+  const streak = getMomentum();
+  const active = streak >= 1;
+  const color = active ? "#F59E0B" : "rgba(245,158,11,0.5)";
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        fontFamily: "'Inter', sans-serif",
+        fontSize: 12,
+        fontWeight: 500,
+        color,
+      }}
+    >
+      <Flame size={14} color={color} strokeWidth={1.8} />
+      {active ? `${streak} ${streak === 1 ? "day" : "days"}` : "Start"}
+    </span>
+  );
+}
+
+════════════════════════════════════════
+2) src/pages/StudyScreen.tsx
+════════════════════════════════════════
+2a) IMPORT — trova:
+import AppBackground from "@/components/AppBackground";
+Sostituisci con:
+import AppBackground from "@/components/AppBackground";
+import StreakChip from "@/components/StreakChip";
+
+2b) HEADER (wordmark → 13, padding-top 22→18, gap 14→18) — trova:
+      <div style={{ position: "relative", zIndex: 10, padding: "22px 18px 0", maxWidth: 640, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 14 }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 12, fontWeight: 400, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em" }}>Verba</span>
+        </div>
+Sostituisci con:
+      <div style={{ position: "relative", zIndex: 10, padding: "18px 18px 0", maxWidth: 640, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 18 }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 13, fontWeight: 400, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em" }}>Verba</span>
+        </div>
+
+2c) CHIP nello slot sinistro — trova:
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div />
+Sostituisci con:
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <StreakChip />
+
+════════════════════════════════════════
+3) src/pages/ProgressScreen.tsx
+════════════════════════════════════════
+3a) IMPORT — trova:
+import AppBackground from "@/components/AppBackground";
+Sostituisci con:
+import AppBackground from "@/components/AppBackground";
+import StreakChip from "@/components/StreakChip";
+
+3b) HEADER (identico a Study) — trova:
+      <div style={{ position: "relative", zIndex: 10, padding: "22px 18px 0", maxWidth: 640, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 14 }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 12, fontWeight: 400, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em" }}>Verba</span>
+        </div>
+Sostituisci con:
+      <div style={{ position: "relative", zIndex: 10, padding: "18px 18px 0", maxWidth: 640, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 18 }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 13, fontWeight: 400, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em" }}>Verba</span>
+        </div>
+
+3c) CHIP nello slot sinistro — trova:
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div />
+Sostituisci con:
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <StreakChip />
+
+   SAFEGUARD: se in quella riga trovi <h1 ...>Progress</h1> INVECE di <div />, FERMATI e segnala (NON toccare l'h1).
+
+════════════════════════════════════════
+4) src/pages/DeckSelectionScreen.tsx
+════════════════════════════════════════
+4a) WORDMARK → 13 — trova (blocco a 3 righe dentro lo style del button "Verba"):
+              fontStyle: "italic",
+              fontSize: 12,
+              fontWeight: 400,
+Sostituisci con:
+              fontStyle: "italic",
+              fontSize: 13,
+              fontWeight: 400,
+
+4b) GAP SOTTO (page-title 20→18) — trova:
+        <div style={{ position: "relative", zIndex: 10, padding: "20px 16px 0", maxWidth: 640, margin: "0 auto" }}>
+Sostituisci con:
+        <div style={{ position: "relative", zIndex: 10, padding: "18px 16px 0", maxWidth: 640, margin: "0 auto" }}>
+
+════════════════════════════════════════
+5) src/pages/PreQuizSetup.tsx
+════════════════════════════════════════
+5a) WORDMARK → 13 — trova (style su riga singola del button "Verba"):
+            style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 12, fontWeight: 400, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em", outline: "none" }}
+Sostituisci con:
+            style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 13, fontWeight: 400, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em", outline: "none" }}
+
+════════════════════════════════════════
+NOTE
+- NON toccare altro (pill GRE, halo, contenuti, QuizScreen, FeedbackCard).
+- getMomentum/Flame NON vanno importati in Study/Progress: li usa StreakChip internamente.
+DO NOT test live — I test manually.

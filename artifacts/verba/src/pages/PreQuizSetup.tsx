@@ -99,7 +99,7 @@ export default function PreQuizSetup() {
           </button>
           <button
             onClick={() => setLocation("/")}
-            style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 12, fontWeight: 400, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em", outline: "none" }}
+            style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 13, fontWeight: 400, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em", outline: "none" }}
           >
             Verba
           </button>

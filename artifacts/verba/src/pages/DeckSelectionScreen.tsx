@@ -352,7 +352,7 @@ export default function DeckSelectionScreen() {
               cursor: "pointer",
               fontFamily: "'Space Grotesk', sans-serif",
               fontStyle: "italic",
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 400,
               color: "rgba(245,158,11,0.8)",
               letterSpacing: "0.04em",
@@ -364,7 +364,7 @@ export default function DeckSelectionScreen() {
         </div>
 
         {/* ── Page title ───────────────────────────────────────────────────────── */}
-        <div style={{ position: "relative", zIndex: 10, padding: "20px 16px 0", maxWidth: 640, margin: "0 auto" }}>
+        <div style={{ position: "relative", zIndex: 10, padding: "18px 16px 0", maxWidth: 640, margin: "0 auto" }}>
           <h1 style={{
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 500,
