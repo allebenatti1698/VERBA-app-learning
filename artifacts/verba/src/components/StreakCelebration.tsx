@@ -4,6 +4,7 @@
 // Fiamma viva (morphing SMIL, layered) + glow/raggi tenui + scintille dosate + week strip reale.
 // NB: la fiamma definitiva potrà diventare Lottie/Rive; qui è SVG morphing (nessuna dipendenza extra).
 import { useMemo, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { getMomentum, getWeekStrip } from "@/lib/studyActivity";
 
 interface Props {
@@ -62,7 +63,7 @@ export default function StreakCelebration({ onDismiss }: Props) {
     });
   }, []);
 
-  return (
+  return createPortal(
     <div className="vsc-overlay" role="dialog" aria-label={`Streak: ${streak} giorni`}>
       <style>{CSS}</style>
       <div className="vsc-glow" />
@@ -133,5 +134,5 @@ export default function StreakCelebration({ onDismiss }: Props) {
         <button className="vsc-continue" onClick={onDismiss}>Continue</button>
       </div>
     </div>
-  );
+    , document.body);
 }
