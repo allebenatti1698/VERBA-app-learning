@@ -1,3 +1,7 @@
+VERBA — Celebrazione streak v2: reveal più lungo (~3s) + badge "+1" (mostra l'aumento) + numero totale. ECONOMY MODE. Stima ~$0.4–0.8. DO NOT test live — I test manually.
+
+1 file. Sostituisci INTERAMENTE il contenuto di src/components/StreakCelebration.tsx con ESATTAMENTE questo (nient'altro nel file). Alla fine riporta SOLO: file modificato + typecheck (sì/no + errori).
+
 // src/components/StreakCelebration.tsx
 // Celebrazione "streak esteso": overlay full-screen sulla Results (via portal su document.body).
 // Scatta solo alla PRIMA Results del giorno (trigger nel ResultsScreen).
@@ -143,3 +147,5 @@ export default function StreakCelebration({ onDismiss }: Props) {
     document.body
   );
 }
+
+DO NOT test live — I test manually.
