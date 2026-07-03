@@ -450,7 +450,7 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
   if (!visible || missedWords.length === 0) return null;
 
   const mw = missedWords[currentIndex];
-  const isStarred = myWords.has(mw.word);
+  const isStarred = myWords.has(String(mw.id));
   const reviewWord = reviewIndex !== null ? missedWords[reviewIndex] : null;
 
   return (
@@ -535,7 +535,7 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
             {/* Star — top right, does NOT propagate to card click */}
             <motion.button
               whileTap={{ scale: 0.85 }}
-              onClick={(e) => { e.stopPropagation(); toggleMyWord(mw.word); }}
+              onClick={(e) => { e.stopPropagation(); toggleMyWord(String(mw.id)); }}
               style={{
                 position: "absolute",
                 top: 10,

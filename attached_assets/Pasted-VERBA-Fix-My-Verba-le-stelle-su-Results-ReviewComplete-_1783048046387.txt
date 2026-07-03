@@ -1,0 +1,43 @@
+VERBA — Fix My Verba: le stelle su Results/ReviewComplete salvavano la parola invece dell'uuid → crash "invalid uuid". Salva l'id + My Verba resiliente. ECONOMY MODE. Stima ~$0.6–1.0. DO NOT test live — I test manually.
+
+3 file. Le find sono sottostringhe uniche. Se UNA non combacia ESATTAMENTE, FERMATI e segnala (NON indovinare). Alla fine riporta SOLO: file modificati + typecheck (sì/no + errori) + eventuali blocchi non trovati.
+
+════════════════════════════════════════
+1) src/pages/ResultsScreen.tsx  (dentro MissedWordsList)
+════════════════════════════════════════
+1a) Trova:  myWords.has(mw.word)
+    Sostituisci con:  myWords.has(String(mw.id))
+
+1b) Trova:  toggleMyWord(mw.word)
+    Sostituisci con:  toggleMyWord(String(mw.id))
+
+════════════════════════════════════════
+2) src/pages/ReviewCompleteScreen.tsx
+════════════════════════════════════════
+2a) Trova:  myWords.has(item.word)
+    Sostituisci con:  myWords.has(String(item.id))
+
+2b) Trova:  toggleStar(item.word, e)
+    Sostituisci con:  toggleStar(String(item.id), e)
+
+   SAFEGUARD: se `toggleStar` non prende la chiave come primo argomento (ma usa item.word internamente), FERMATI e segnala invece di modificare.
+
+════════════════════════════════════════
+3) src/pages/MyVerbaScreen.tsx  (dentro load())
+════════════════════════════════════════
+Trova:
+    const ids = loadMyWordIds();
+    if (ids.length === 0) { setWords([]); setSaved(new Set()); setError(null); setLoading(false); return; }
+Sostituisci con:
+    // Difesa: alcune stelle storiche salvavano la PAROLA invece dell'uuid → tieni solo uuid validi (e ripulisci lo storage).
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const rawIds = loadMyWordIds();
+    const ids = rawIds.filter((x) => UUID_RE.test(x));
+    if (ids.length !== rawIds.length) saveMyWordIds(ids);
+    if (ids.length === 0) { setWords([]); setSaved(new Set()); setError(null); setLoading(false); return; }
+
+════════════════════════════════════════
+NOTE
+- Non toccare altro. `toggleMyWord`/`toggleStar` restano invariate (accettano una stringa-chiave: ora passiamo l'uuid).
+- `saveMyWordIds` esiste già in MyVerbaScreen.
+DO NOT test live — I test manually.

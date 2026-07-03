@@ -82,7 +82,7 @@ export default function ReviewCompleteScreen() {
         {/* Word list */}
         <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 12, padding: "0 6px", boxSizing: "border-box" }}>
           {words.map((item, idx) => {
-            const starred = myWords.has(item.word);
+            const starred = myWords.has(String(item.id));
             return (
               <motion.div
                 key={String(item.id)}
@@ -103,7 +103,7 @@ export default function ReviewCompleteScreen() {
 
                 {/* Star */}
                 <button
-                  onClick={(e) => toggleStar(item.word, e)}
+                  onClick={(e) => toggleStar(String(item.id), e)}
                   style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center", color: starred ? "#D97706" : "rgba(255,255,255,0.3)", transition: "color 0.15s ease", outline: "none", flexShrink: 0 }}
                   aria-label={starred ? "Remove from My Words" : "Add to My Words"}
                 >

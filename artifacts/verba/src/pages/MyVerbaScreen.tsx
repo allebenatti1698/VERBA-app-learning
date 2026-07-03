@@ -24,7 +24,11 @@ export default function MyVerbaScreen() {
   const [error, setError] = useState<string | null>(null);
 
   function load() {
-    const ids = loadMyWordIds();
+    // Difesa: alcune stelle storiche salvavano la PAROLA invece dell'uuid → tieni solo uuid validi (e ripulisci lo storage).
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const rawIds = loadMyWordIds();
+    const ids = rawIds.filter((x) => UUID_RE.test(x));
+    if (ids.length !== rawIds.length) saveMyWordIds(ids);
     if (ids.length === 0) { setWords([]); setSaved(new Set()); setError(null); setLoading(false); return; }
     setLoading(true); setError(null);
     fetchWordsByIds(ids)
