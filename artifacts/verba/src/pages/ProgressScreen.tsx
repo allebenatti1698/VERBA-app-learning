@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Loader2, GraduationCap, ChevronDown, ChevronRight, Info, Star, Trash2 } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
-import StreakChip from "@/components/StreakChip";
 import { computeProgress, type ProgressSnapshot } from "@/lib/progressStats";
 import { getDueWordIds } from "@/lib/wordStats";
 import { fetchWordsByIds } from "@/lib/quizQueries";
@@ -212,8 +211,7 @@ export default function ProgressScreen() {
         <div style={{ textAlign: "center", marginBottom: 18 }}>
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 13, fontWeight: 400, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em" }}>Verba</span>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <StreakChip />
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 20 }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontSize: 12, color: VIOLET, border: "0.5px solid rgba(167,139,250,0.45)", borderRadius: 20, padding: "5px 11px", background: "rgba(167,139,250,0.07)" }}>
             <GraduationCap size={14} color={VIOLET} /> GRE <ChevronDown size={14} color={VIOLET} />
           </span>

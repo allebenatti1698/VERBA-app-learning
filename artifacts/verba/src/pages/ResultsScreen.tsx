@@ -6,6 +6,7 @@ import AppBackground from "@/components/AppBackground";
 import ScreenColumn, { SCREEN_MAX } from "@/components/ScreenColumn";
 import { lowercaseFirst } from "@/lib/formatText";
 import { getStreakHeatmap, getMomentum } from "@/lib/studyActivity";
+import StreakCelebration from "@/components/StreakCelebration";
 import FeedbackCard from "@/components/FeedbackCard";
 
 // TODO: Replace `visible={true}` with user preferences from settings (Step 8)
@@ -1080,6 +1081,7 @@ function StreakJourney({ visible = true }: StreakJourneyProps) {
 export default function ResultsScreen() {
   const [, navigate] = useLocation();
   const [result, setResult] = useState<SessionResult | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("verbaSessionResult");
@@ -1090,6 +1092,15 @@ export default function ResultsScreen() {
     try {
       const parsed: SessionResult = JSON.parse(raw);
       setResult(parsed);
+      // Streak celebration: solo alla PRIMA Results del giorno (= streak esteso/avviato oggi)
+      try {
+        const now = new Date();
+        const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+        if (localStorage.getItem("verba_streak_celebrated") !== todayYMD && getMomentum() >= 1) {
+          localStorage.setItem("verba_streak_celebrated", todayYMD);
+          setShowCelebration(true);
+        }
+      } catch { /* storage non disponibile */ }
       // 1A — persist last session
       try {
         const session = {
@@ -1128,6 +1139,7 @@ export default function ResultsScreen() {
       position: "relative",
       overflowX: "hidden",
     }}>
+      {showCelebration && <StreakCelebration onDismiss={() => setShowCelebration(false)} />}
       <AppBackground showWords={false} />
 
       <ScreenColumn style={{ position: "relative", zIndex: 10 }}>
