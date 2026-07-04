@@ -1092,12 +1092,13 @@ export default function ResultsScreen() {
     try {
       const parsed: SessionResult = JSON.parse(raw);
       setResult(parsed);
-      // Streak celebration: solo alla PRIMA Results del giorno (= streak esteso/avviato oggi)
+      // Streak celebration: solo alla PRIMA Results del giorno. Il flag si scrive al DISMISS (non qui),
+      // così un eventuale re-mount della schermata non "consuma" la celebrazione a metà.
       try {
         const now = new Date();
         const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
         if (localStorage.getItem("verba_streak_celebrated") !== todayYMD && getMomentum() >= 1) {
-          localStorage.setItem("verba_streak_celebrated", todayYMD);
+          console.log("[VSC] show @", Math.round(performance.now()), "streak", getMomentum());
           setShowCelebration(true);
         }
       } catch { /* storage non disponibile */ }
@@ -1139,7 +1140,19 @@ export default function ResultsScreen() {
       position: "relative",
       overflowX: "hidden",
     }}>
-      {showCelebration && <StreakCelebration onDismiss={() => setShowCelebration(false)} />}
+      {showCelebration && (
+        <StreakCelebration
+          onDismiss={() => {
+            console.log("[VSC] dismiss @", Math.round(performance.now()));
+            try {
+              const now = new Date();
+              const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+              localStorage.setItem("verba_streak_celebrated", todayYMD);
+            } catch { /* storage */ }
+            setShowCelebration(false);
+          }}
+        />
+      )}
       <AppBackground showWords={false} />
 
       <ScreenColumn style={{ position: "relative", zIndex: 10 }}>

@@ -1,0 +1,70 @@
+VERBA — Fix celebrazione che sparisce a ~0,5s: flag scritto al DISMISS (robusto ai re-mount) + log diagnostici. ECONOMY MODE. Stima ~$0.4–0.8. DO NOT test live — I test manually.
+
+2 file. Se una find non combacia ESATTAMENTE, FERMATI e segnala. Riporta SOLO: file modificati + typecheck.
+
+════════════════════════════════════════
+1) src/pages/ResultsScreen.tsx
+════════════════════════════════════════
+1a) TRIGGER — trova:
+      // Streak celebration: solo alla PRIMA Results del giorno (= streak esteso/avviato oggi)
+      try {
+        const now = new Date();
+        const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+        if (localStorage.getItem("verba_streak_celebrated") !== todayYMD && getMomentum() >= 1) {
+          localStorage.setItem("verba_streak_celebrated", todayYMD);
+          setShowCelebration(true);
+        }
+      } catch { /* storage non disponibile */ }
+Sostituisci con:
+      // Streak celebration: solo alla PRIMA Results del giorno. Il flag si scrive al DISMISS (non qui),
+      // così un eventuale re-mount della schermata non "consuma" la celebrazione a metà.
+      try {
+        const now = new Date();
+        const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+        if (localStorage.getItem("verba_streak_celebrated") !== todayYMD && getMomentum() >= 1) {
+          console.log("[VSC] show @", Math.round(performance.now()), "streak", getMomentum());
+          setShowCelebration(true);
+        }
+      } catch { /* storage non disponibile */ }
+
+1b) RENDER / DISMISS — trova:
+      {showCelebration && <StreakCelebration onDismiss={() => setShowCelebration(false)} />}
+Sostituisci con:
+      {showCelebration && (
+        <StreakCelebration
+          onDismiss={() => {
+            console.log("[VSC] dismiss @", Math.round(performance.now()));
+            try {
+              const now = new Date();
+              const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+              localStorage.setItem("verba_streak_celebrated", todayYMD);
+            } catch { /* storage */ }
+            setShowCelebration(false);
+          }}
+        />
+      )}
+
+════════════════════════════════════════
+2) src/components/StreakCelebration.tsx
+════════════════════════════════════════
+2a) IMPORT — trova:
+import { useMemo, type CSSProperties } from "react";
+Sostituisci con:
+import { useMemo, useEffect, type CSSProperties } from "react";
+
+2b) LOG mount/unmount — trova:
+  return createPortal(
+    <div className="vsc-overlay" role="dialog" aria-label={`Streak: ${streak} giorni`}>
+Sostituisci con:
+  useEffect(() => {
+    console.log("[VSC] mounted @", Math.round(performance.now()));
+    return () => console.log("[VSC] UNMOUNTED @", Math.round(performance.now()));
+  }, []);
+
+  return createPortal(
+    <div className="vsc-overlay" role="dialog" aria-label={`Streak: ${streak} giorni`}>
+
+════════════════════════════════════════
+NOTE
+- Non toccare altro. I console.log sono temporanei, li rimuoviamo dopo la diagnosi.
+DO NOT test live — I test manually.

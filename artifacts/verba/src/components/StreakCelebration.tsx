@@ -3,7 +3,7 @@
 // Scatta solo alla PRIMA Results del giorno (trigger nel ResultsScreen).
 // Reveal coreografato ~3s: fiamma viva (morphing SMIL) → numero TOTALE del Momentum → badge "+1"
 // → label → week strip reale che si riempie. Resta finché l'utente preme Continue.
-import { useMemo, type CSSProperties } from "react";
+import { useMemo, useEffect, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { getMomentum, getWeekStrip } from "@/lib/studyActivity";
 
@@ -64,6 +64,11 @@ export default function StreakCelebration({ onDismiss }: Props) {
         delay: `${0.75 + Math.random() * 0.08}s`,
       };
     });
+  }, []);
+
+  useEffect(() => {
+    console.log("[VSC] mounted @", Math.round(performance.now()));
+    return () => console.log("[VSC] UNMOUNTED @", Math.round(performance.now()));
   }, []);
 
   return createPortal(
