@@ -1,0 +1,124 @@
+VERBA — My Verba nello Study (opzione A) — RE-RUN CORRETTO. ECONOMY MODE. Stima ~$1.5–3. DO NOT test live — I test manually.
+
+1 file: src/pages/StudyScreen.tsx. Applica OGNI edit in modo INDIPENDENTE: se una find non combacia esattamente, SALTA quella e segnalala, MA applica comunque le altre. Alla fine riporta: quali edit applicati, quali saltati, + typecheck (sì/no + errori).
+
+① Dopo MY_WORDS_KEY — trova:
+const MY_WORDS_KEY = "verba_my_words";
+Sostituisci con:
+const MY_WORDS_KEY = "verba_my_words";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+② DECK_OPTIONS — trova:
+const DECK_OPTIONS = [
+  { id: "gre", name: "GRE Vocabulary", Icon: GraduationCap, color: "#A78BFA", active: true },
+  { id: "essential", name: "Essential English", Icon: BookOpen, color: "#7DD3FC", active: false },
+  { id: "advanced", name: "Advanced English", Icon: Library, color: "#7DD3FC", active: false },
+  { id: "myverba", name: "My Verba", Icon: Star, color: "#E8E8E8", active: false },
+];
+Sostituisci con:
+const DECK_OPTIONS = [
+  { id: "gre", name: "GRE Vocabulary", short: "GRE", Icon: GraduationCap, color: "#A78BFA", active: true },
+  { id: "essential", name: "Essential English", short: "Essential", Icon: BookOpen, color: "#7DD3FC", active: false },
+  { id: "advanced", name: "Advanced English", short: "Advanced", Icon: Library, color: "#7DD3FC", active: false },
+  { id: "myverba", name: "My Verba", short: "My Verba", Icon: Star, color: "#E8E8E8", active: true },
+];
+
+③ STATO — trova:
+  const [deckMenuOpen, setDeckMenuOpen] = useState(false);
+Sostituisci con:
+  const [deckMenuOpen, setDeckMenuOpen] = useState(false);
+  const [selectedDeck, setSelectedDeck] = useState("gre");
+
+④ BLOCCO browse + costanti — trova:
+  if (browse) {
+    const sets = setsByDiff[browse.difficulty] ?? [];
+    const set = sets.find((s) => s.setNumber === browse.setNumber);
+    const label = TIERS.find((t) => t.difficulty === browse.difficulty)?.label ?? "";
+    return <BrowseView difficulty={browse.difficulty} label={label} set={set} onBack={() => setBrowse(null)} />;
+  }
+Sostituisci con:
+  if (browse) {
+    if (browse.difficulty === "myverba") {
+      const ids = [...loadMyWords()].filter((x) => UUID_RE.test(x));
+      const mvSet = { setNumber: 0, wordIds: ids, wordCount: ids.length } as unknown as StudySet;
+      return <BrowseView difficulty="myverba" label="My Verba" set={mvSet} onBack={() => setBrowse(null)} />;
+    }
+    const sets = setsByDiff[browse.difficulty] ?? [];
+    const set = sets.find((s) => s.setNumber === browse.setNumber);
+    const label = TIERS.find((t) => t.difficulty === browse.difficulty)?.label ?? "";
+    return <BrowseView difficulty={browse.difficulty} label={label} set={set} onBack={() => setBrowse(null)} />;
+  }
+
+  const myWordIds = selectedDeck === "myverba" ? [...loadMyWords()].filter((x) => UUID_RE.test(x)) : [];
+  const selDeck = DECK_OPTIONS.find((d) => d.id === selectedDeck) ?? DECK_OPTIONS[0];
+
+⑤ PILL dinamica — trova:
+            <button onClick={() => setDeckMenuOpen((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontSize: 12, color: "#A78BFA", border: "0.5px solid rgba(167,139,250,0.45)", borderRadius: 20, padding: "5px 11px", background: "rgba(167,139,250,0.07)", cursor: "pointer", outline: "none" }}>
+              <GraduationCap size={14} color="#A78BFA" />
+              GRE
+              <ChevronDown size={14} color="#A78BFA" style={{ transform: deckMenuOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s ease" }} />
+            </button>
+Sostituisci con:
+            <button onClick={() => setDeckMenuOpen((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontSize: 12, color: selDeck.color, border: `0.5px solid ${selDeck.id === "gre" ? "rgba(167,139,250,0.45)" : "rgba(232,232,232,0.30)"}`, borderRadius: 20, padding: "5px 11px", background: selDeck.id === "gre" ? "rgba(167,139,250,0.07)" : "rgba(255,255,255,0.05)", cursor: "pointer", outline: "none" }}>
+              <selDeck.Icon size={14} color={selDeck.color} />
+              {selDeck.short}
+              <ChevronDown size={14} color={selDeck.color} style={{ transform: deckMenuOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s ease" }} />
+            </button>
+   (Se non combacia per l'indentazione: è l'UNICO <button onClick={() => setDeckMenuOpen((v) => !v)}> del file — sostituiscilo comunque con la versione qui sopra.)
+
+⑥ VOCE dropdown — trova:
+                    <button
+                      key={d.id}
+                      disabled={!d.active}
+                      onClick={() => { if (d.active) setDeckMenuOpen(false); }}
+                      style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "9px 10px", borderRadius: 10, border: "none", background: d.active ? "rgba(167,139,250,0.12)" : "transparent", cursor: d.active ? "pointer" : "default", opacity: d.active ? 1 : 0.4, outline: "none", textAlign: "left" }}
+                    >
+                      <d.Icon size={17} color={d.color} strokeWidth={1.6} />
+                      <span style={{ flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 12, color: d.active ? "#F0EDF7" : "#C8C8C8" }}>{d.name}</span>
+                      {d.active
+                        ? <Check size={15} color="#C7B8E8" />
+                        : <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, letterSpacing: "0.06em", color: "#8A8A8A", border: "0.5px solid rgba(255,255,255,0.18)", borderRadius: 6, padding: "1px 6px" }}>SOON</span>}
+                    </button>
+Sostituisci con:
+                    <button
+                      key={d.id}
+                      disabled={!d.active}
+                      onClick={() => { if (d.active) { setSelectedDeck(d.id); setDeckMenuOpen(false); } }}
+                      style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "9px 10px", borderRadius: 10, border: "none", background: d.id === selectedDeck ? "rgba(167,139,250,0.12)" : "transparent", cursor: d.active ? "pointer" : "default", opacity: d.active ? 1 : 0.4, outline: "none", textAlign: "left" }}
+                    >
+                      <d.Icon size={17} color={d.color} strokeWidth={1.6} />
+                      <span style={{ flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 12, color: d.active ? "#F0EDF7" : "#C8C8C8" }}>{d.name}</span>
+                      {d.active
+                        ? (d.id === selectedDeck ? <Check size={15} color="#C7B8E8" /> : null)
+                        : <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, letterSpacing: "0.06em", color: "#8A8A8A", border: "0.5px solid rgba(255,255,255,0.18)", borderRadius: 6, padding: "1px 6px" }}>SOON</span>}
+                    </button>
+
+⑦ CONTINUECARD + card My Verba — trova:
+            <ContinueCard setsByDiff={setsByDiff} onOpen={(d, n) => setBrowse({ difficulty: d, setNumber: n })} />
+Sostituisci con:
+            {selectedDeck === "gre" && <ContinueCard setsByDiff={setsByDiff} onOpen={(d, n) => setBrowse({ difficulty: d, setNumber: n })} />}
+            {selectedDeck === "myverba" && (myWordIds.length === 0 ? (
+              <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.5)", textAlign: "center", padding: "48px 20px", lineHeight: 1.5 }}>Star words while studying to add them here.</p>
+            ) : (
+              <>
+                <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "#7E7E7E", letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 10px" }}>Saved</p>
+                <button onClick={() => setBrowse({ difficulty: "myverba", setNumber: 0 })} style={{ width: "100%", textAlign: "left", border: "0.5px solid rgba(232,232,232,0.16)", background: "rgba(255,255,255,0.02)", borderRadius: 14, padding: "16px 15px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", outline: "none" }}>
+                  <span style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><Star size={18} color="#F59E0B" fill="#F59E0B" /></span>
+                  <span><span style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, color: "#fff" }}>My Verba</span><span style={{ display: "block", fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{myWordIds.length} words</span></span>
+                  <ChevronRight size={18} color="rgba(255,255,255,0.4)" style={{ marginLeft: "auto" }} />
+                </button>
+              </>
+            ))}
+
+⑧ "By difficulty" solo GRE — trova:
+            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "#7E7E7E", letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 10px" }}>By difficulty</p>
+Sostituisci con:
+            {selectedDeck === "gre" && <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "#7E7E7E", letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 10px" }}>By difficulty</p>}
+
+⑨ Accordion solo GRE — trova:
+            {TIERS.map((tier) => {
+Sostituisci con:
+            {selectedDeck === "gre" && TIERS.map((tier) => {
+
+NOTE: Non toccare BrowseView né altri file. Se lo sfoglio My Verba mostra "Set 0", segnalamelo.
+DO NOT test live — I test manually.

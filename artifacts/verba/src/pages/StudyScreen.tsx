@@ -18,10 +18,10 @@ const TIERS = [
 ];
 
 const DECK_OPTIONS = [
-  { id: "gre", name: "GRE Vocabulary", Icon: GraduationCap, color: "#A78BFA", active: true },
-  { id: "essential", name: "Essential English", Icon: BookOpen, color: "#7DD3FC", active: false },
-  { id: "advanced", name: "Advanced English", Icon: Library, color: "#7DD3FC", active: false },
-  { id: "myverba", name: "My Verba", Icon: Star, color: "#E8E8E8", active: false },
+  { id: "gre", name: "GRE Vocabulary", short: "GRE", Icon: GraduationCap, color: "#A78BFA", active: true },
+  { id: "essential", name: "Essential English", short: "Essential", Icon: BookOpen, color: "#7DD3FC", active: false },
+  { id: "advanced", name: "Advanced English", short: "Advanced", Icon: Library, color: "#7DD3FC", active: false },
+  { id: "myverba", name: "My Verba", short: "My Verba", Icon: Star, color: "#E8E8E8", active: true },
 ];
 
 type SetsByDifficulty = Record<string, StudySet[]>;
@@ -39,6 +39,7 @@ function highlightWord(text: string, word: string) {
   );
 }
 const MY_WORDS_KEY = "verba_my_words";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function loadMyWords(): Set<string> {
   try { return new Set(JSON.parse(localStorage.getItem(MY_WORDS_KEY) ?? "[]") as string[]); }
   catch { return new Set(); }
@@ -62,6 +63,7 @@ export default function StudyScreen() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [browse, setBrowse] = useState<{ difficulty: string; setNumber: number } | null>(null);
   const [deckMenuOpen, setDeckMenuOpen] = useState(false);
+  const [selectedDeck, setSelectedDeck] = useState("gre");
 
   useEffect(() => {
     let active = true;
@@ -80,11 +82,19 @@ export default function StudyScreen() {
   }, []);
 
   if (browse) {
+    if (browse.difficulty === "myverba") {
+      const ids = [...loadMyWords()].filter((x) => UUID_RE.test(x));
+      const mvSet = { setNumber: 0, wordIds: ids, wordCount: ids.length } as unknown as StudySet;
+      return <BrowseView difficulty="myverba" label="My Verba" set={mvSet} onBack={() => setBrowse(null)} />;
+    }
     const sets = setsByDiff[browse.difficulty] ?? [];
     const set = sets.find((s) => s.setNumber === browse.setNumber);
     const label = TIERS.find((t) => t.difficulty === browse.difficulty)?.label ?? "";
     return <BrowseView difficulty={browse.difficulty} label={label} set={set} onBack={() => setBrowse(null)} />;
   }
+
+  const myWordIds = selectedDeck === "myverba" ? [...loadMyWords()].filter((x) => UUID_RE.test(x)) : [];
+  const selDeck = DECK_OPTIONS.find((d) => d.id === selectedDeck) ?? DECK_OPTIONS[0];
 
   return (
     <div style={{ minHeight: "100%", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
@@ -98,10 +108,10 @@ export default function StudyScreen() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <StreakChip />
           <div style={{ position: "relative" }}>
-            <button onClick={() => setDeckMenuOpen((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontSize: 12, color: "#A78BFA", border: "0.5px solid rgba(167,139,250,0.45)", borderRadius: 20, padding: "5px 11px", background: "rgba(167,139,250,0.07)", cursor: "pointer", outline: "none" }}>
-              <GraduationCap size={14} color="#A78BFA" />
-              GRE
-              <ChevronDown size={14} color="#A78BFA" style={{ transform: deckMenuOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s ease" }} />
+            <button onClick={() => setDeckMenuOpen((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontSize: 12, color: selDeck.color, border: `0.5px solid ${selDeck.id === "gre" ? "rgba(167,139,250,0.45)" : "rgba(232,232,232,0.30)"}`, borderRadius: 20, padding: "5px 11px", background: selDeck.id === "gre" ? "rgba(167,139,250,0.07)" : "rgba(255,255,255,0.05)", cursor: "pointer", outline: "none" }}>
+              <selDeck.Icon size={14} color={selDeck.color} />
+              {selDeck.short}
+              <ChevronDown size={14} color={selDeck.color} style={{ transform: deckMenuOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s ease" }} />
             </button>
             {deckMenuOpen && (
               <>
@@ -111,13 +121,13 @@ export default function StudyScreen() {
                     <button
                       key={d.id}
                       disabled={!d.active}
-                      onClick={() => { if (d.active) setDeckMenuOpen(false); }}
-                      style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "9px 10px", borderRadius: 10, border: "none", background: d.active ? "rgba(167,139,250,0.12)" : "transparent", cursor: d.active ? "pointer" : "default", opacity: d.active ? 1 : 0.4, outline: "none", textAlign: "left" }}
+                      onClick={() => { if (d.active) { setSelectedDeck(d.id); setDeckMenuOpen(false); } }}
+                      style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "9px 10px", borderRadius: 10, border: "none", background: d.id === selectedDeck ? "rgba(167,139,250,0.12)" : "transparent", cursor: d.active ? "pointer" : "default", opacity: d.active ? 1 : 0.4, outline: "none", textAlign: "left" }}
                     >
                       <d.Icon size={17} color={d.color} strokeWidth={1.6} />
                       <span style={{ flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 12, color: d.active ? "#F0EDF7" : "#C8C8C8" }}>{d.name}</span>
                       {d.active
-                        ? <Check size={15} color="#C7B8E8" />
+                        ? (d.id === selectedDeck ? <Check size={15} color="#C7B8E8" /> : null)
                         : <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, letterSpacing: "0.06em", color: "#8A8A8A", border: "0.5px solid rgba(255,255,255,0.18)", borderRadius: 6, padding: "1px 6px" }}>SOON</span>}
                     </button>
                   ))}
@@ -132,9 +142,21 @@ export default function StudyScreen() {
 
         {!loading && !error && (
           <>
-            <ContinueCard setsByDiff={setsByDiff} onOpen={(d, n) => setBrowse({ difficulty: d, setNumber: n })} />
-            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "#7E7E7E", letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 10px" }}>By difficulty</p>
-            {TIERS.map((tier) => {
+            {selectedDeck === "gre" && <ContinueCard setsByDiff={setsByDiff} onOpen={(d, n) => setBrowse({ difficulty: d, setNumber: n })} />}
+            {selectedDeck === "myverba" && (myWordIds.length === 0 ? (
+              <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.5)", textAlign: "center", padding: "48px 20px", lineHeight: 1.5 }}>Star words while studying to add them here.</p>
+            ) : (
+              <>
+                <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "#7E7E7E", letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 10px" }}>Saved</p>
+                <button onClick={() => setBrowse({ difficulty: "myverba", setNumber: 0 })} style={{ width: "100%", textAlign: "left", border: "0.5px solid rgba(232,232,232,0.16)", background: "rgba(255,255,255,0.02)", borderRadius: 14, padding: "16px 15px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", outline: "none" }}>
+                  <span style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><Star size={18} color="#F59E0B" fill="#F59E0B" /></span>
+                  <span><span style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, color: "#fff" }}>My Verba</span><span style={{ display: "block", fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{myWordIds.length} words</span></span>
+                  <ChevronRight size={18} color="rgba(255,255,255,0.4)" style={{ marginLeft: "auto" }} />
+                </button>
+              </>
+            ))}
+            {selectedDeck === "gre" && <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "#7E7E7E", letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 10px" }}>By difficulty</p>}
+            {selectedDeck === "gre" && TIERS.map((tier) => {
               const sets = setsByDiff[tier.difficulty] ?? [];
               const completed = getCompletedSetNumbers(DECK, tier.difficulty, sets);
               const totalWords = sets.reduce((acc, s) => acc + s.wordCount, 0);
