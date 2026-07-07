@@ -1098,7 +1098,6 @@ export default function ResultsScreen() {
         const now = new Date();
         const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
         if (localStorage.getItem("verba_streak_celebrated") !== todayYMD && getMomentum() >= 1) {
-          console.log("[VSC] show @", Math.round(performance.now()), "streak", getMomentum());
           setShowCelebration(true);
         }
       } catch { /* storage non disponibile */ }
@@ -1143,7 +1142,6 @@ export default function ResultsScreen() {
       {showCelebration && (
         <StreakCelebration
           onDismiss={() => {
-            console.log("[VSC] dismiss @", Math.round(performance.now()));
             try {
               const now = new Date();
               const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
