@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Check, Play, Eye, EyeOff, Star, GraduationCap, BookOpen, Library } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Check, Play, Eye, EyeOff, Star, GraduationCap, BookOpen, Library, Search } from "lucide-react";
+import { getWordStat } from "@/lib/wordStats";
 import AppBackground from "@/components/AppBackground";
 import StreakChip from "@/components/StreakChip";
 import { lowercaseFirst } from "@/lib/formatText";
@@ -236,6 +237,9 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
   const [selfTest, setSelfTest] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [mode, setMode] = useState<"stack" | "list">("stack");
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "learn" | "mast" | "new">("all");
 
   useEffect(() => {
     if (!set) { setError("Set non trovato"); setLoading(false); return; }
@@ -264,12 +268,13 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (mode !== "stack") return;
       if (e.key === "ArrowRight") goNext();
       else if (e.key === "ArrowLeft") goPrev();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [index, total]);
+  }, [index, total, mode]);
 
   function toggleStar() { if (!current) return; setSaved(toggleMyWord(current.id)); }
 
@@ -279,6 +284,14 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
     else { setSelfTest(true); setRevealed(false); }
   }
 
+  function wordMastery(id: string): "learn" | "mast" | "new" {
+    const st = getWordStat(id);
+    if (!st) return "new";
+    return st.status === "mastered" ? "mast" : "learn";
+  }
+  const dotColor = { learn: "#F59E0B", mast: "#34D399", new: "rgba(255,255,255,0.28)" };
+  const FILTERS: Array<["all" | "learn" | "mast" | "new", string]> = [["all", "All"], ["learn", "Learning"], ["mast", "Mastered"], ["new", "New"]];
+
   return (
     <div style={{ minHeight: "100%", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
       <AppBackground showWords={false} />
@@ -287,21 +300,33 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
           <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, color: "rgba(255,255,255,0.55)", fontFamily: "'Inter', sans-serif", fontSize: 12, padding: 0, outline: "none" }}>
             <ChevronLeft size={18} /> {label}
           </button>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            {total > 0 && (<span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: LAVENDER }}>{index + 1} / {total}</span>)}
-            <button onClick={toggleEye} aria-label="Self-test" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", outline: "none" }}>
-              {blurDef ? <EyeOff size={18} color={LAVENDER} /> : <Eye size={18} color="rgba(255,255,255,0.45)" />}
-            </button>
-            <button onClick={toggleStar} aria-label="Save to My Verba" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", outline: "none" }}>
-              <Star size={19} color={saved ? "#F59E0B" : "rgba(255,255,255,0.45)"} fill={saved ? "#F59E0B" : "none"} />
-            </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {mode === "stack" && total > 0 && (<span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: LAVENDER }}>{index + 1} / {total}</span>)}
+            <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.06)", borderRadius: 9999, padding: 3, gap: 2 }}>
+              <button onClick={() => setMode("stack")} aria-label="Stacked" style={{ border: "none", background: mode === "stack" ? "rgba(199,184,232,0.16)" : "none", cursor: "pointer", padding: "5px 8px", borderRadius: 9999, display: "flex", outline: "none" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={mode === "stack" ? LAVENDER : "rgba(255,255,255,0.4)"} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="12" rx="2" /><path d="M6.5 19h11M8 21.5h8" /></svg>
+              </button>
+              <button onClick={() => setMode("list")} aria-label="List" style={{ border: "none", background: mode === "list" ? "rgba(199,184,232,0.16)" : "none", cursor: "pointer", padding: "5px 8px", borderRadius: 9999, display: "flex", outline: "none" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={mode === "list" ? LAVENDER : "rgba(255,255,255,0.4)"} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><rect x="3.5" y="4" width="17" height="5" rx="1.5" /><rect x="3.5" y="14" width="17" height="5" rx="1.5" /></svg>
+              </button>
+            </div>
+            {mode === "stack" && (
+              <>
+                <button onClick={toggleEye} aria-label="Self-test" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", outline: "none" }}>
+                  {blurDef ? <EyeOff size={18} color={LAVENDER} /> : <Eye size={18} color="rgba(255,255,255,0.45)" />}
+                </button>
+                <button onClick={toggleStar} aria-label="Save to My Verba" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", outline: "none" }}>
+                  <Star size={19} color={saved ? "#F59E0B" : "rgba(255,255,255,0.45)"} fill={saved ? "#F59E0B" : "none"} />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
         {loading && (<div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}><Loader2 size={26} color={LAVENDER} className="animate-spin" /></div>)}
         {error && (<p style={{ fontFamily: "'Inter', sans-serif", color: "rgba(255,255,255,0.6)", fontSize: 13, textAlign: "center", padding: "40px 0" }}>{error}</p>)}
 
-        {!loading && !error && current && (
+        {mode === "stack" && !loading && !error && current && (
           <>
             <AnimatePresence mode="wait" custom={dir}>
               <motion.div
@@ -361,6 +386,47 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
               <ChevronLeft size={13} /> swipe to flip <ChevronRight size={13} />
             </div>
           </>
+        )}
+
+        {mode === "list" && !loading && !error && (
+          <div style={{ paddingBottom: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "9px 12px", marginBottom: 10 }}>
+              <Search size={15} color="rgba(255,255,255,0.4)" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your words…" style={{ flex: 1, background: "none", border: "none", outline: "none", color: "#fff", fontFamily: "'Inter', sans-serif", fontSize: 13 }} />
+            </div>
+            <div style={{ display: "flex", gap: 7, marginBottom: 10, flexWrap: "wrap" }}>
+              {FILTERS.map(([f, lbl]) => (
+                <button key={f} onClick={() => setFilter(f)} style={{ fontFamily: "'Inter', sans-serif", fontSize: 10.5, padding: "4px 10px", borderRadius: 9999, cursor: "pointer", outline: "none", border: filter === f ? "0.5px solid rgba(199,184,232,0.5)" : "0.5px solid rgba(255,255,255,0.14)", color: filter === f ? LAVENDER : "rgba(255,255,255,0.55)", background: filter === f ? "rgba(199,184,232,0.08)" : "none", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  {f !== "all" && <span style={{ width: 7, height: 7, borderRadius: "50%", background: dotColor[f] }} />}
+                  {lbl}
+                </button>
+              ))}
+            </div>
+            <div>
+              {words
+                .filter((w) => {
+                  const m = wordMastery(w.id);
+                  if (filter !== "all" && m !== filter) return false;
+                  const q = query.trim().toLowerCase();
+                  if (q && w.word.toLowerCase().indexOf(q) === -1 && (w.correctDefinition ?? "").toLowerCase().indexOf(q) === -1) return false;
+                  return true;
+                })
+                .map((w) => {
+                  const m = wordMastery(w.id);
+                  const realIdx = words.indexOf(w);
+                  return (
+                    <button key={w.id} onClick={() => { setDir(1); setIndex(realIdx); setMode("stack"); }} style={{ width: "100%", textAlign: "left", background: "none", border: "none", borderBottom: "0.5px solid rgba(255,255,255,0.05)", cursor: "pointer", outline: "none", display: "flex", alignItems: "center", gap: 11, padding: "13px 4px" }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: dotColor[m], flex: "none" }} />
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, color: LAVENDER }}>{w.word}</span>
+                        <span style={{ display: "block", fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lowercaseFirst(w.correctDefinition)}</span>
+                      </span>
+                      <ChevronRight size={16} color="rgba(255,255,255,0.3)" style={{ flex: "none" }} />
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
         )}
       </div>
     </div>
