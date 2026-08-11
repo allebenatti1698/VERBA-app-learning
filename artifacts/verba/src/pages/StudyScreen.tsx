@@ -330,9 +330,9 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
   const FILTERS: Array<["all" | "learn" | "mast" | "new", string]> = [["all", "All"], ["learn", "Learning"], ["mast", "Mastered"], ["new", "New"]];
 
   return (
-    <div style={{ minHeight: "100%", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
+    <div style={{ minHeight: "100%", height: "100%", display: "flex", flexDirection: "column", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
       <AppBackground showWords={false} />
-      <div style={{ position: "relative", zIndex: 10, padding: "18px 18px 0", maxWidth: 640, margin: "0 auto" }}>
+      <div style={{ position: "relative", zIndex: 10, padding: "18px 18px 0", maxWidth: 640, margin: "0 auto", flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, color: "rgba(255,255,255,0.55)", fontFamily: "'Inter', sans-serif", fontSize: 12, padding: 0, outline: "none" }}>
             <ChevronLeft size={18} /> {label}
@@ -370,7 +370,7 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
         {error && (<p style={{ fontFamily: "'Inter', sans-serif", color: "rgba(255,255,255,0.6)", fontSize: 13, textAlign: "center", padding: "40px 0" }}>{error}</p>)}
 
         {mode === "stack" && !loading && !error && current && (
-          <div style={{ display: "flex", flexDirection: "column", minHeight: "calc(100dvh - 96px)" }}>
+          <div style={{ display: "flex", flexDirection: "column", flex: "1 1 auto", minHeight: 0 }}>
             <div style={{ flex: "1 1 auto", minHeight: 0 }}>
               <ParallaxPager
                 index={index}

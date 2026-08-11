@@ -1,0 +1,71 @@
+VERBA — Piede: rimuovere la costante magica e ancorarlo con flex. Economy Mode.
+Stima ~$0.5–0.8. Un solo file: src/pages/StudyScreen.tsx.
+DO NOT test live — I test manually.
+
+PROBLEMA: la riga "contatore + barra di progresso" è finita sotto la BottomNav,
+perché minHeight: "calc(100dvh - 96px)" rende la colonna più alta dello spazio
+realmente disponibile. Va sostituita l'altezza calcolata con un'ereditarietà
+flex, così il piede si ancora da solo senza costanti.
+
+Applica gli edit in ORDINE. Se un find string non combacia ESATTAMENTE, SALTA
+quell'edit e SEGNALALO, ma esegui comunque gli altri.
+
+────────────────────────────────────────
+EDIT 1 — il root di BrowseView diventa una colonna flex a piena altezza
+
+Nel componente BrowseView, il div ROOT (il primo del return, quello che contiene
+<AppBackground /> ) ha oggi uno style che include `minHeight: "100%"`.
+Aggiungi a QUELLO stesso style, senza rimuovere le proprietà esistenti:
+
+  height: "100%",
+  display: "flex",
+  flexDirection: "column",
+
+Se il div root non contiene `minHeight: "100%"`, FERMATI su questo edit e
+riporta il suo style esatto.
+
+────────────────────────────────────────
+EDIT 2 — il contenitore della colonna eredita l'altezza
+
+Subito dentro il root c'è il contenitore del contenuto (quello con
+`position: "relative"`, `zIndex: 10` e il padding "18px 18px 0", oppure un
+<ScreenColumn>). Aggiungi al suo style, senza rimuovere nulla:
+
+  flex: "1 1 auto",
+  minHeight: 0,
+  display: "flex",
+  flexDirection: "column",
+
+Se trovi <ScreenColumn> invece di un div, passa le stesse proprietà tramite la
+sua prop `style` (ScreenColumn accetta style come override).
+
+────────────────────────────────────────
+EDIT 3 — via la costante magica
+
+Cerca questa stringa ESATTA:
+
+minHeight: "calc(100dvh - 96px)"
+
+Sostituiscila con:
+
+flex: "1 1 auto", minHeight: 0
+
+(Il div che la contiene ha già display flex e flexDirection column: NON toccare
+quelle proprietà, né il wrapper interno con flex "1 1 auto" attorno a
+<ParallaxPager />, né il blocco piede.)
+
+Se la stringa non c'è ma trovi `calc(100dvh - ` con un altro numero,
+sostituisci comunque l'intera dichiarazione minHeight con `flex: "1 1 auto", minHeight: 0`
+e segnala il valore che hai trovato.
+
+────────────────────────────────────────
+VERIFICA — solo da RIPORTARE, non modificare
+
+Riporta se nella topbar di BrowseView i bottoni occhio e stella sono avvolti in
+un div con `visibility: mode === "stack" ? "visible" : "hidden"`, oppure se
+sono ancora dentro un condizionale `{mode === "stack" && (`. Non cambiare nulla:
+serve solo sapere se quell'edit era stato applicato.
+
+────────────────────────────────────────
+Riporta: file modificato, edit applicati/saltati con motivo, esito della
+verifica, typecheck pulito. Non toccare altro. Non eseguire test live.
