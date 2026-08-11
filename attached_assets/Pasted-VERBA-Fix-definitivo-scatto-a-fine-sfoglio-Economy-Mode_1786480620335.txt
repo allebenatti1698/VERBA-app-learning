@@ -1,3 +1,45 @@
+VERBA — Fix definitivo scatto a fine sfoglio. Economy Mode.
+Stima ~$0.5–0.9. Due file. DO NOT test live — I test manually.
+
+Applica ENTRAMBI gli interventi. Sono INDIPENDENTI: se uno non combacia, saltalo
+e segnalalo, ma esegui comunque l'altro. NOTA: servono entrambi per risolvere —
+l'INTERVENTO 2 senza l'1 non ha effetto.
+
+────────────────────────────────────────
+INTERVENTO 1 — src/pages/StudyScreen.tsx: rendi stabile renderBands
+
+Dentro BrowseView c'è la const `renderBands` (l'ho introdotta in un prompt
+precedente), definita così:
+
+  const renderBands = (i: number) => {
+
+Trasformala in una funzione memoizzata con useCallback. Cioè:
+- cambia l'apertura in:
+
+  const renderBands = useCallback((i: number) => {
+
+- e cambia la CHIUSURA corrispondente da:
+
+  };
+
+  a:
+
+  }, [words, blurDef]);
+
+ATTENZIONE: la chiusura da modificare è quella che chiude la funzione
+renderBands, cioè la riga `};` che segue l'ultima parentesi quadra `];`
+del suo return. NON toccare altre chiusure nel file.
+
+Poi assicurati che `useCallback` sia importato da "react" nell'import esistente
+in cima al file (aggiungilo alla lista se manca).
+
+Se dentro renderBands vengono usate variabili di stato DIVERSE da `words` e
+`blurDef` (escluse le funzioni setter come setRevealed, che sono stabili),
+FERMATI e segnala quali sono, invece di indovinare le dipendenze.
+
+────────────────────────────────────────
+INTERVENTO 2 — SOSTITUISCI INTERAMENTE src/components/ParallaxPager.tsx
+
 import { useRef, useState, useLayoutEffect, memo, type ReactNode } from "react";
 import { motion, useMotionValue, useTransform, animate, type MotionValue } from "framer-motion";
 
@@ -152,3 +194,7 @@ export default function ParallaxPager({ index, total, onIndexChange, renderBands
     </div>
   );
 }
+
+────────────────────────────────────────
+Riporta: file modificati, quali interventi applicati/saltati con motivo,
+typecheck pulito, eventuali warning. Non toccare altro. Non eseguire test live.

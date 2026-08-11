@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Check, Play, Eye, EyeOff, Star, GraduationCap, BookOpen, Library, Search } from "lucide-react";
 import { getWordStat } from "@/lib/wordStats";
@@ -285,7 +285,7 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
     else { setSelfTest(true); setRevealed(false); }
   }
 
-  const renderBands = (i: number) => {
+  const renderBands = useCallback((i: number) => {
     const w = words[i];
     if (!w) return [];
     return [
@@ -319,7 +319,7 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
       <FeedbackTranslation italianTranslation={w.italianTranslation} italianDefinition={w.italianDefinition ?? ""} visible={true} />,
       <FeedbackEtymology etymology={w.etymology ?? ""} visible={true} />,
     ];
-  };
+  }, [words, blurDef]);
 
   function wordMastery(id: string): "learn" | "mast" | "new" {
     const st = getWordStat(id);
