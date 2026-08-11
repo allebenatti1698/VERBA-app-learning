@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Check, Play, Eye, EyeOff, Star, GraduationCap, BookOpen, Library, Search } from "lucide-react";
 import { getWordStat } from "@/lib/wordStats";
+import ParallaxPager from "@/components/ParallaxPager";
 import AppBackground from "@/components/AppBackground";
 import StreakChip from "@/components/StreakChip";
 import { lowercaseFirst } from "@/lib/formatText";
@@ -284,6 +285,42 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
     else { setSelfTest(true); setRevealed(false); }
   }
 
+  const renderBands = (i: number) => {
+    const w = words[i];
+    if (!w) return [];
+    return [
+      <FeedbackWord word={w.word} phonetic={w.phonetic ?? ""} visible={true} />,
+      <div onClick={() => { if (blurDef) setRevealed(true); }} style={{ position: "relative", marginTop: 16, cursor: blurDef ? "pointer" : "default" }}>
+        <div style={{ filter: blurDef ? "blur(7px)" : "none", transition: "filter 0.3s ease", userSelect: blurDef ? "none" : "auto", pointerEvents: blurDef ? "none" : "auto" }}>
+          {w.allDefinitions && w.allDefinitions.length > 1 ? (
+            <FeedbackMultiDefinitions definitions={w.allDefinitions} />
+          ) : (
+            <>
+              {w.allDefinitions?.[0]?.part_of_speech && (
+                <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 11, letterSpacing: "0.12em", textTransform: "lowercase", color: "rgba(199,184,232,0.5)", fontStyle: "italic", margin: "0 0 6px" }}>{w.allDefinitions[0].part_of_speech}</p>
+              )}
+              <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 20, color: "#FFFFFF", margin: 0, lineHeight: 1.4 }}>{lowercaseFirst(w.correctDefinition)}</p>
+              {w.exampleSentence && (<p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: 16, fontStyle: "italic", color: "rgba(255,255,255,0.7)", margin: "12px 0 0", lineHeight: 1.5 }}>"{highlightWord(w.exampleSentence, w.word)}"</p>)}
+            </>
+          )}
+        </div>
+        {blurDef && (
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.75)", background: "rgba(10,10,10,0.55)", padding: "5px 13px", borderRadius: 9999, display: "flex", alignItems: "center", gap: 6 }}>
+              <Eye size={13} /> tap to reveal
+            </span>
+          </div>
+        )}
+      </div>,
+      <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+        <FeedbackSynonyms synonyms={w.synonyms} visible={true} />
+        <FeedbackAntonyms antonyms={w.antonyms} visible={true} />
+      </div>,
+      <FeedbackTranslation italianTranslation={w.italianTranslation} italianDefinition={w.italianDefinition ?? ""} visible={true} />,
+      <FeedbackEtymology etymology={w.etymology ?? ""} visible={true} />,
+    ];
+  };
+
   function wordMastery(id: string): "learn" | "mast" | "new" {
     const st = getWordStat(id);
     if (!st) return "new";
@@ -328,59 +365,12 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
 
         {mode === "stack" && !loading && !error && current && (
           <>
-            <AnimatePresence mode="wait" custom={dir}>
-              <motion.div
-                key={index}
-                custom={dir}
-                drag="x"
-                dragSnapToOrigin
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.18}
-                onDragEnd={(_, info) => {
-                  const swipe = info.offset.x;
-                  const vel = info.velocity.x;
-                  if ((swipe < -60 || vel < -450) && index < total - 1) goNext();
-                  else if ((swipe > 60 || vel > 450) && index > 0) goPrev();
-                }}
-                initial={{ opacity: 0, x: dir >= 0 ? 48 : -48 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: dir >= 0 ? -48 : 48 }}
-                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                style={{ cursor: "grab", touchAction: "pan-y" }}
-              >
-                <FeedbackWord word={current.word} phonetic={current.phonetic ?? ""} visible={true} />
-
-                <div onClick={() => { if (blurDef) setRevealed(true); }} style={{ position: "relative", marginTop: 16, cursor: blurDef ? "pointer" : "default" }}>
-                  <div style={{ filter: blurDef ? "blur(7px)" : "none", transition: "filter 0.3s ease", userSelect: blurDef ? "none" : "auto", pointerEvents: blurDef ? "none" : "auto" }}>
-                    {current.allDefinitions && current.allDefinitions.length > 1 ? (
-                      <FeedbackMultiDefinitions definitions={current.allDefinitions} />
-                    ) : (
-                      <>
-                        {current.allDefinitions?.[0]?.part_of_speech && (
-                          <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 11, letterSpacing: "0.12em", textTransform: "lowercase", color: "rgba(199,184,232,0.5)", fontStyle: "italic", margin: "0 0 6px" }}>{current.allDefinitions[0].part_of_speech}</p>
-                        )}
-                        <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 20, color: "#FFFFFF", margin: 0, lineHeight: 1.4 }}>{lowercaseFirst(current.correctDefinition)}</p>
-                        {current.exampleSentence && (<p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: 16, fontStyle: "italic", color: "rgba(255,255,255,0.7)", margin: "12px 0 0", lineHeight: 1.5 }}>"{highlightWord(current.exampleSentence, current.word)}"</p>)}
-                      </>
-                    )}
-                  </div>
-                  {blurDef && (
-                    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-                      <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.75)", background: "rgba(10,10,10,0.55)", padding: "5px 13px", borderRadius: 9999, display: "flex", alignItems: "center", gap: 6 }}>
-                        <Eye size={13} /> tap to reveal
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 6 }}>
-                  <FeedbackSynonyms synonyms={current.synonyms} visible={true} />
-                  <FeedbackAntonyms antonyms={current.antonyms} visible={true} />
-                </div>
-                <FeedbackTranslation italianTranslation={current.italianTranslation} italianDefinition={current.italianDefinition ?? ""} visible={true} />
-                <FeedbackEtymology etymology={current.etymology ?? ""} visible={true} />
-              </motion.div>
-            </AnimatePresence>
+            <ParallaxPager
+              index={index}
+              total={total}
+              onIndexChange={(i) => { if (i > index) goNext(); else if (i < index) goPrev(); }}
+              renderBands={renderBands}
+            />
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "26px 0 10px", color: "#5A5A5A", fontFamily: "'Inter', sans-serif", fontSize: 11 }}>
               <ChevronLeft size={13} /> swipe to flip <ChevronRight size={13} />
