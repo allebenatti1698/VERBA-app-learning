@@ -1,0 +1,68 @@
+VERBA — Testata stabile + piede più in basso. Economy Mode.
+Stima ~$0.3–0.5. Un solo file: src/pages/StudyScreen.tsx.
+DO NOT test live — I test manually.
+
+Applica OGNI edit in modo INDIPENDENTE: se un find string non combacia
+ESATTAMENTE, SALTA quell'edit e SEGNALALO, ma esegui comunque l'altro.
+
+────────────────────────────────────────
+EDIT 1 — occhio e stella mantengono il loro spazio in modalità lista
+
+Nella topbar di BrowseView c'è oggi un blocco condizionale che rende occhio e
+stella SOLO in modalità stack. Cerca questa struttura:
+
+            {mode === "stack" && (
+              <>
+                <button onClick={toggleEye} aria-label="Self-test" ...>
+                  ...
+                </button>
+                <button onClick={toggleStar} aria-label="Save to My Verba" ...>
+                  ...
+                </button>
+              </>
+            )}
+
+Sostituisci il condizionale con un wrapper SEMPRE presente, che nasconde i due
+bottoni senza rimuoverli dal flusso. Cioè:
+
+- ELIMINA il `{mode === "stack" && (` e il corrispondente `)}` di chiusura,
+  insieme al fragment `<>` `</>`.
+- AVVOLGI i due <button> (occhio e stella) in questo div, lasciando il loro
+  contenuto e i loro onClick ESATTAMENTE come sono ora:
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                visibility: mode === "stack" ? "visible" : "hidden",
+                pointerEvents: mode === "stack" ? "auto" : "none",
+              }}
+              aria-hidden={mode !== "stack"}
+            >
+              ...i due button invariati...
+            </div>
+
+IMPORTANTE: usa `visibility: "hidden"`, NON `display: "none"` — è proprio il
+punto dell'edit: i bottoni devono continuare a occupare spazio così il toggle
+impilate/lista non si sposta quando si cambia modalità.
+
+Se il gap tra le icone nella topbar non è 12, usa il valore già presente nel
+container padre invece di 12, e segnalalo.
+
+────────────────────────────────────────
+EDIT 2 — il piede scende più in basso
+
+Cerca questa stringa ESATTA (l'ho introdotta nel prompt precedente):
+
+minHeight: "calc(100dvh - 210px)"
+
+Sostituiscila con:
+
+minHeight: "calc(100dvh - 96px)"
+
+Non cambiare nient'altro di quella riga.
+
+────────────────────────────────────────
+Riporta: file modificato, quali edit applicati e quali saltati (con motivo),
+typecheck pulito, eventuali warning. Non toccare altro. Non eseguire test live.

@@ -346,16 +346,23 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={mode === "list" ? LAVENDER : "rgba(255,255,255,0.4)"} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><rect x="3.5" y="4" width="17" height="5" rx="1.5" /><rect x="3.5" y="14" width="17" height="5" rx="1.5" /></svg>
               </button>
             </div>
-            {mode === "stack" && (
-              <>
-                <button onClick={toggleEye} aria-label="Self-test" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", outline: "none" }}>
-                  {blurDef ? <EyeOff size={18} color={LAVENDER} /> : <Eye size={18} color="rgba(255,255,255,0.45)" />}
-                </button>
-                <button onClick={toggleStar} aria-label="Save to My Verba" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", outline: "none" }}>
-                  <Star size={19} color={saved ? "#F59E0B" : "rgba(255,255,255,0.45)"} fill={saved ? "#F59E0B" : "none"} />
-                </button>
-              </>
-            )}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                visibility: mode === "stack" ? "visible" : "hidden",
+                pointerEvents: mode === "stack" ? "auto" : "none",
+              }}
+              aria-hidden={mode !== "stack"}
+            >
+              <button onClick={toggleEye} aria-label="Self-test" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", outline: "none" }}>
+                {blurDef ? <EyeOff size={18} color={LAVENDER} /> : <Eye size={18} color="rgba(255,255,255,0.45)" />}
+              </button>
+              <button onClick={toggleStar} aria-label="Save to My Verba" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", outline: "none" }}>
+                <Star size={19} color={saved ? "#F59E0B" : "rgba(255,255,255,0.45)"} fill={saved ? "#F59E0B" : "none"} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -363,7 +370,7 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
         {error && (<p style={{ fontFamily: "'Inter', sans-serif", color: "rgba(255,255,255,0.6)", fontSize: 13, textAlign: "center", padding: "40px 0" }}>{error}</p>)}
 
         {mode === "stack" && !loading && !error && current && (
-          <div style={{ display: "flex", flexDirection: "column", minHeight: "calc(100dvh - 210px)" }}>
+          <div style={{ display: "flex", flexDirection: "column", minHeight: "calc(100dvh - 96px)" }}>
             <div style={{ flex: "1 1 auto", minHeight: 0 }}>
               <ParallaxPager
                 index={index}
