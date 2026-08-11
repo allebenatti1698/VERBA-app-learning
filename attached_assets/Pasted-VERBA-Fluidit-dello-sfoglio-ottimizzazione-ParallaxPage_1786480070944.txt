@@ -1,3 +1,10 @@
+VERBA — Fluidità dello sfoglio: ottimizzazione ParallaxPager. Economy Mode.
+Stima ~$0.3–0.5. Un solo file. DO NOT test live — I test manually.
+
+SOSTITUISCI INTERAMENTE il contenuto di src/components/ParallaxPager.tsx con
+questo. Non toccare nessun altro file: le props del componente sono invariate,
+quindi StudyScreen.tsx non va modificato.
+
 import { useRef, useState, useMemo, useLayoutEffect, type ReactNode } from "react";
 import { motion, useMotionValue, useTransform, animate, type MotionValue } from "framer-motion";
 
@@ -29,7 +36,7 @@ function Slide({
   x: MotionValue<number>;
   offset: -1 | 0 | 1;
   bands: ReactNode[];
-  measureRef?: React.RefObject<HTMLDivElement | null>;
+  measureRef?: React.RefObject<HTMLDivElement>;
 }) {
   const isCurrent = offset === 0;
   return (
@@ -138,3 +145,10 @@ export default function ParallaxPager({ index, total, onIndexChange, renderBands
     </div>
   );
 }
+
+────────────────────────────────────────
+NOTA: se la versione di framer-motion nel progetto non espone `x.jump`,
+sostituisci `x.jump(0)` con `x.set(0)` e segnalalo. Non cambiare altro.
+
+Riporta: file modificato, typecheck pulito, eventuali warning.
+Non toccare altro. Non eseguire test live.
