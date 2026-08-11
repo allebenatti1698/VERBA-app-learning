@@ -338,7 +338,6 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
             <ChevronLeft size={18} /> {label}
           </button>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {mode === "stack" && total > 0 && (<span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: LAVENDER }}>{index + 1} / {total}</span>)}
             <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.06)", borderRadius: 9999, padding: 3, gap: 2 }}>
               <button onClick={() => setMode("stack")} aria-label="Stacked" style={{ border: "none", background: mode === "stack" ? "rgba(199,184,232,0.16)" : "none", cursor: "pointer", padding: "5px 8px", borderRadius: 9999, display: "flex", outline: "none" }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={mode === "stack" ? LAVENDER : "rgba(255,255,255,0.4)"} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="12" rx="2" /><path d="M6.5 19h11M8 21.5h8" /></svg>
@@ -364,18 +363,35 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
         {error && (<p style={{ fontFamily: "'Inter', sans-serif", color: "rgba(255,255,255,0.6)", fontSize: 13, textAlign: "center", padding: "40px 0" }}>{error}</p>)}
 
         {mode === "stack" && !loading && !error && current && (
-          <>
-            <ParallaxPager
-              index={index}
-              total={total}
-              onIndexChange={(i) => { if (i > index) goNext(); else if (i < index) goPrev(); }}
-              renderBands={renderBands}
-            />
-
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "26px 0 10px", color: "#5A5A5A", fontFamily: "'Inter', sans-serif", fontSize: 11 }}>
-              <ChevronLeft size={13} /> swipe to flip <ChevronRight size={13} />
+          <div style={{ display: "flex", flexDirection: "column", minHeight: "calc(100dvh - 210px)" }}>
+            <div style={{ flex: "1 1 auto", minHeight: 0 }}>
+              <ParallaxPager
+                index={index}
+                total={total}
+                onIndexChange={(i) => { if (i > index) goNext(); else if (i < index) goPrev(); }}
+                renderBands={renderBands}
+              />
             </div>
-          </>
+
+            <div style={{ flex: "0 0 auto", paddingBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "26px 0 16px", color: "#5A5A5A", fontFamily: "'Inter', sans-serif", fontSize: 11 }}>
+                <ChevronLeft size={13} /> swipe to flip <ChevronRight size={13} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: LAVENDER, letterSpacing: "0.04em", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
+                  {index + 1} / {total}
+                </span>
+                <div style={{ flex: "1 1 auto", height: 1.5, background: "rgba(255,255,255,0.08)", borderRadius: 2, position: "relative", overflow: "hidden" }}>
+                  <motion.div
+                    initial={false}
+                    animate={{ width: `${total > 0 ? ((index + 1) / total) * 100 : 0}%` }}
+                    transition={{ type: "spring", stiffness: 210, damping: 27 }}
+                    style={{ position: "absolute", left: 0, top: 0, height: "100%", background: "#F59E0B", opacity: 0.8, borderRadius: 2 }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {mode === "list" && !loading && !error && (

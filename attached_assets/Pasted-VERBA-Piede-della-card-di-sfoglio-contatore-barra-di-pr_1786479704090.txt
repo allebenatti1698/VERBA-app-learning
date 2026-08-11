@@ -1,0 +1,82 @@
+VERBA — Piede della card di sfoglio: contatore + barra di progresso (F2). Economy Mode.
+Stima ~$0.5–0.9. Un solo file: src/pages/StudyScreen.tsx. DO NOT test live — I test manually.
+
+Applica OGNI edit in modo INDIPENDENTE. Se un find string non combacia ESATTAMENTE,
+SALTA quell'edit e SEGNALALO, ma esegui comunque gli altri. NON bloccare tutto per
+un mismatch. NON toccare il ramo `mode === "list"`.
+
+────────────────────────────────────────
+EDIT 1 — rimuovi il contatore dall'header
+
+Dentro BrowseView, nella topbar, individua lo <span> che rende il contatore
+"{index + 1} / {total}" con color LAVENDER e fontSize 11. Rimuovi SOLO quello
+span (e il suo eventuale wrapper condizionale `{total > 0 && (...)}`).
+Lascia intatti: il back button `‹ {label}`, il toggle impilate/lista, l'occhio
+e la stella.
+
+Se non trovi uno span con esattamente `{index + 1} / {total}` dentro la topbar,
+FERMATI su questo edit e segnala cosa hai trovato invece.
+
+────────────────────────────────────────
+EDIT 2 — nuovo piede al posto dell'hint
+
+Individua questo blocco ESATTO (è l'hint "swipe to flip" nel ramo stack):
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "26px 0 10px", color: "#5A5A5A", fontFamily: "'Inter', sans-serif", fontSize: 11 }}>
+              <ChevronLeft size={13} /> swipe to flip <ChevronRight size={13} />
+            </div>
+
+Sostituiscilo INTERAMENTE con:
+
+            <div style={{ flex: "0 0 auto", paddingBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "26px 0 16px", color: "#5A5A5A", fontFamily: "'Inter', sans-serif", fontSize: 11 }}>
+                <ChevronLeft size={13} /> swipe to flip <ChevronRight size={13} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: LAVENDER, letterSpacing: "0.04em", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
+                  {index + 1} / {total}
+                </span>
+                <div style={{ flex: "1 1 auto", height: 1.5, background: "rgba(255,255,255,0.08)", borderRadius: 2, position: "relative", overflow: "hidden" }}>
+                  <motion.div
+                    initial={false}
+                    animate={{ width: `${total > 0 ? ((index + 1) / total) * 100 : 0}%` }}
+                    transition={{ type: "spring", stiffness: 210, damping: 27 }}
+                    style={{ position: "absolute", left: 0, top: 0, height: "100%", background: "#F59E0B", opacity: 0.8, borderRadius: 2 }}
+                  />
+                </div>
+              </div>
+            </div>
+
+────────────────────────────────────────
+EDIT 3 — il piede si ancora in basso, l'area swipe si estende
+
+Nel ramo `{mode === "stack" && !loading && !error && current && (`, il contenuto
+è oggi un fragment `<>` che contiene il <ParallaxPager ... /> seguito dal piede
+appena creato all'EDIT 2.
+
+Avvolgi quei due elementi in un contenitore flex-column, così:
+- il <ParallaxPager ... /> va dentro un wrapper con flex "1 1 auto"
+- il piede resta subito dopo, fuori da quel wrapper
+
+Risultato atteso (struttura, adatta l'indentazione al file):
+
+          <div style={{ display: "flex", flexDirection: "column", minHeight: "calc(100dvh - 210px)" }}>
+            <div style={{ flex: "1 1 auto", minHeight: 0 }}>
+              <ParallaxPager ...props invariate... />
+            </div>
+            ...il blocco piede dell'EDIT 2...
+          </div>
+
+NON cambiare le props del ParallaxPager. Se il fragment `<>` contiene altri
+elementi oltre a ParallaxPager e al piede, FERMATI e segnala cosa c'è.
+
+────────────────────────────────────────
+VERIFICA FINALE
+- `motion` deve essere già importato da "framer-motion" in questo file: se non lo è,
+  aggiungilo all'import esistente.
+- LAVENDER deve essere già definito nel file: se non lo è, FERMATI e segnala.
+- Se dopo gli edit `ChevronRight` o altri import risultano inutilizzati, segnala
+  quali senza rimuoverli d'ufficio.
+
+Riporta: file modificato, quali edit applicati e quali saltati (con motivo),
+typecheck pulito, eventuali warning. Non toccare altro. Non eseguire test live.
