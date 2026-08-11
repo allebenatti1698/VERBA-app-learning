@@ -332,12 +332,12 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
   return (
     <div style={{ minHeight: "100%", height: "100%", display: "flex", flexDirection: "column", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
       <AppBackground showWords={false} />
-      <div style={{ position: "relative", zIndex: 10, padding: "18px 18px 0", maxWidth: 640, margin: "0 auto", flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <div style={{ position: "relative", zIndex: 10, padding: "18px 18px 0", maxWidth: 640, margin: "0 auto", width: "100%", flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", overflowY: "auto", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, color: "rgba(255,255,255,0.55)", fontFamily: "'Inter', sans-serif", fontSize: 12, padding: 0, outline: "none" }}>
             <ChevronLeft size={18} /> {label}
           </button>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, minWidth: 132 }}>
             <div style={{ display: "inline-flex", background: "rgba(255,255,255,0.06)", borderRadius: 9999, padding: 3, gap: 2 }}>
               <button onClick={() => setMode("stack")} aria-label="Stacked" style={{ border: "none", background: mode === "stack" ? "rgba(199,184,232,0.16)" : "none", cursor: "pointer", padding: "5px 8px", borderRadius: 9999, display: "flex", outline: "none" }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={mode === "stack" ? LAVENDER : "rgba(255,255,255,0.4)"} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="12" rx="2" /><path d="M6.5 19h11M8 21.5h8" /></svg>

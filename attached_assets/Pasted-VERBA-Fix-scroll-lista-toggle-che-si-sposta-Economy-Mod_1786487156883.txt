@@ -1,0 +1,61 @@
+VERBA — Fix scroll lista + toggle che si sposta. Economy Mode.
+Stima ~$0.4–0.7. Un solo file: src/pages/StudyScreen.tsx.
+DO NOT test live — I test manually.
+
+Applica OGNI edit in modo INDIPENDENTE: se un find string non combacia
+ESATTAMENTE, SALTA quell'edit e SEGNALALO, ma esegui comunque l'altro.
+
+────────────────────────────────────────
+EDIT 1 — ripristina lo scroll (REGRESSIONE da sistemare)
+
+Causa: il root di BrowseView ora ha height:"100%" + overflow:"hidden", quindi la
+lista non ha più un contenitore che scrolli.
+
+Nel componente BrowseView, trova il div contenitore della colonna, che ha oggi
+questo style ESATTO:
+
+style={{ position: "relative", zIndex: 10, padding: "18px 18px 0", maxWidth: 640, margin: "0 auto", flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column" }}
+
+Sostituiscilo con (aggiunge overflowY, width e overscroll):
+
+style={{ position: "relative", zIndex: 10, padding: "18px 18px 0", maxWidth: 640, margin: "0 auto", width: "100%", flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", overflowY: "auto", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}
+
+Se lo style non combacia carattere per carattere, NON indovinare: riportalo
+esattamente com'è e salta questo edit.
+
+────────────────────────────────────────
+EDIT 2 — il toggle ▤/▦ non si sposta più (soluzione a prova di bomba)
+
+Nella topbar di BrowseView, il gruppo di destra (quello che contiene il toggle
+impilate/lista e poi occhio+stella) ha oggi questo style:
+
+<div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+
+ATTENZIONE: questa stringa può comparire PIÙ VOLTE nel file. Modifica SOLO
+l'occorrenza che si trova nella topbar, cioè quella che contiene al suo interno
+i due <button> con aria-label="Stacked" e aria-label="List".
+
+Sostituiscila con:
+
+<div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, minWidth: 132 }}>
+
+Questo riserva la larghezza del gruppo indipendentemente da cosa contiene, così
+il toggle resta agganciato alla stessa posizione passando da IMPILATE a LISTA.
+
+────────────────────────────────────────
+DIAGNOSI — solo da RIPORTARE, non modificare nulla
+
+Incolla nella risposta il blocco JSX COMPLETO della topbar di BrowseView, dal
+<div> del gruppo di destra fino al suo </div> di chiusura, così com'è nel file
+DOPO gli edit. Serve a capire perché il wrapper con
+`visibility: mode === "stack" ? "visible" : "hidden"` non sta avendo effetto a
+runtime: voglio vedere se è avvolto in un condizionale, duplicato, o altro.
+
+Indica anche il PERCORSO COMPLETO del file che hai modificato (es.
+src/pages/StudyScreen.tsx oppure client/src/pages/StudyScreen.tsx) e se
+nel progetto esiste PIÙ DI UN file con nome StudyScreen.tsx.
+
+────────────────────────────────────────
+Riporta: file modificato (con percorso), edit applicati/saltati con motivo,
+il blocco JSX richiesto, typecheck pulito. Non toccare altro.
+Non eseguire test live.
