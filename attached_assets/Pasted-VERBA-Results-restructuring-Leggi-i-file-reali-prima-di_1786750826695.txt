@@ -1,0 +1,232 @@
+VERBA — Results restructuring. Leggi i file reali prima di editare:
+src/pages/ResultsScreen.tsx, src/pages/QuizScreen.tsx, src/pages/HowItWorksScreen.tsx
+DO NOT test live — I test manually.
+
+REGOLA GENERALE: applica OGNI edit in modo indipendente. Se un blocco non
+combacia ESATTAMENTE, salta quell'edit, continua con gli altri, e segnala
+alla fine quali sono stati saltati. NON bloccare gli altri edit.
+
+════════════════════════════════════════════════════════════
+1) src/pages/QuizScreen.tsx — aggiungi bestRun al risultato
+════════════════════════════════════════════════════════════
+1a) Trova il punto in cui viene scritto il risultato di sessione, cioè la
+    chiamata contenente:  sessionStorage.setItem("verbaSessionResult"
+    Subito PRIMA di quella chiamata, inserisci il calcolo della serie più
+    lunga di risposte corrette consecutive, usando la mappa degli errori già
+    esistente (wrongAnswersRef, indicizzata sulla posizione della domanda) e
+    il numero totale di domande della sessione:
+
+    // Serie più lunga di risposte corrette consecutive
+    let bestRun = 0;
+    {
+      let run = 0;
+      for (let i = 0; i < totalQuestions; i++) {
+        if (wrongAnswersRef.current.has(i)) { run = 0; }
+        else { run += 1; if (run > bestRun) bestRun = run; }
+      }
+    }
+
+    IMPORTANTE: `totalQuestions` è un segnaposto. Usa la variabile che in
+    quel punto rappresenta il numero totale di domande della sessione (la
+    stessa che finisce nel campo `total` del risultato). Se wrongAnswersRef
+    NON è una Map/Set indicizzata per posizione, FERMATI e segnala com'è
+    fatta invece di adattare a caso.
+
+1b) Nell'oggetto passato a JSON.stringify per "verbaSessionResult", aggiungi
+    il campo:   bestRun,
+    accanto agli altri campi esistenti. Non toccare gli altri campi.
+
+════════════════════════════════════════════════════════════
+2) src/pages/ResultsScreen.tsx
+════════════════════════════════════════════════════════════
+2a) INTERFACE — nell'interface SessionResult aggiungi, dopo gli altri campi
+    opzionali:
+      bestRun?: number;
+
+2b) HERO — elimina il vuoto verticale. Trova ESATTAMENTE:
+        minHeight: "60vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "60px 24px 40px",
+    Sostituisci con:
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "56px 20px 34px",
+
+2c) QUICKSTATS — sostituzione integrale. Elimina TUTTO il blocco che va
+    dalla riga `interface QuickStatsProps {` fino alla riga immediatamente
+    PRECEDENTE a `interface ActionButtonsProps {`, e mettici al suo posto:
+
+interface QuickStatsProps {
+  elapsedMs: number;
+  total: number;
+  bestRun?: number;
+  deck?: string | null;
+  visible?: boolean;
+}
+
+// Identità cromatica del deck. Oggi solo GRE è attivo; gli altri sono pronti.
+function deckLight(deck?: string | null): string {
+  if (!deck) return "167,139,250";
+  const d = deck.toLowerCase();
+  if (d.includes("essential") || d.includes("advanced")) return "125,211,252";
+  if (d.includes("verba") || d.includes("my")) return "232,232,232";
+  return "167,139,250";
+}
+
+function QuickStats({ elapsedMs, total, bestRun, deck, visible = true }: QuickStatsProps) {
+  if (!visible) return null;
+
+  const rgb = deckLight(deck);
+  const paceSec = total > 0 ? Math.round(elapsedMs / total / 1000) : 0;
+
+  const cards = [
+    { label: "TIME",     value: formatTime(elapsedMs), sub: "total",    soft: false, strong: false },
+    { label: "PACE",     value: `${paceSec}s`,         sub: "per word", soft: true,  strong: false },
+    { label: "BEST RUN", value: bestRun && bestRun > 0 ? `×${bestRun}` : "—",
+                                                       sub: "in a row", soft: false, strong: true  },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.5, duration: 0.4 }}
+      style={{
+        display: "flex",
+        gap: 9,
+        padding: "0 20px",
+        maxWidth: SCREEN_MAX,
+        margin: "0 auto",
+        width: "100%",
+        boxSizing: "border-box",
+      }}
+    >
+      {cards.map((card) => (
+        <div
+          key={card.label}
+          style={{
+            flex: 1,
+            position: "relative",
+            overflow: "hidden",
+            padding: "12px 8px 13px",
+            borderRadius: 13,
+            textAlign: "center",
+            background: "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.018))",
+            border: "1px solid rgba(255,255,255,0.055)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.09), 0 10px 22px rgba(0,0,0,0.45)",
+          }}
+        >
+          {/* alone del deck, più intenso sulla card della serie */}
+          <div style={{
+            position: "absolute", top: -48, left: -24, width: 130, height: 104,
+            pointerEvents: "none",
+            background: `radial-gradient(ellipse at center, rgba(${rgb},${card.strong ? 0.26 : 0.13}), transparent 68%)`,
+          }} />
+          <div style={{
+            position: "absolute", top: 0, left: 0, right: 0, height: 1, pointerEvents: "none",
+            background: `linear-gradient(90deg, rgba(${rgb},${card.strong ? 0.8 : 0.42}), transparent 62%)`,
+          }} />
+
+          <p style={{
+            position: "relative",
+            fontFamily: "'Inter', sans-serif",
+            fontWeight: 400,
+            fontSize: 9,
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.38)",
+            margin: "0 0 7px",
+          }}>
+            {card.label}
+          </p>
+          <p style={{
+            position: "relative",
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontWeight: 700,
+            fontSize: "clamp(16px, 4.6vw, 19px)",
+            letterSpacing: "-0.3px",
+            color: card.soft ? "rgba(255,255,255,0.72)" : "#FFFFFF",
+            margin: 0,
+            lineHeight: 1.15,
+            whiteSpace: "nowrap",
+          }}>
+            {card.value}
+          </p>
+          <p style={{
+            position: "relative",
+            fontFamily: "'Inter', sans-serif",
+            fontSize: 9.5,
+            color: "rgba(255,255,255,0.32)",
+            margin: "4px 0 0",
+          }}>
+            {card.sub}
+          </p>
+        </div>
+      ))}
+    </motion.div>
+  );
+}
+
+2d) RINOMINA sezione errori — trova ESATTAMENTE:
+            Words to review
+    Sostituisci con:
+            Missed this session
+
+2e) ELIMINA il grafico settimanale — cancella TUTTO il blocco che va dalla
+    riga di commento `// ─── Weekly chart ──` (inclusa) fino alla riga
+    immediatamente PRECEDENTE al commento `// ─── Streak journey ──`.
+    Questo rimuove: const weeklyData, function scoreColor,
+    interface WeeklyChartProps, function WeeklyChart.
+
+2f) ELIMINA la heatmap — cancella TUTTO il blocco che va dalla riga di
+    commento `// ─── Streak journey ──` (inclusa) fino alla riga
+    immediatamente PRECEDENTE al commento `// ─── Main ResultsScreen ──`.
+    Questo rimuove: getActiveStreakSet, interface StreakJourneyProps,
+    function StreakJourney.
+
+2g) RENDER — trova ESATTAMENTE:
+        <HeroScore correct={result.correct} total={result.total} visible={true} />
+        <QuickStats elapsedMs={result.elapsedMs} visible={true} />
+        <ActionButtons wordCount={result.wordCount} visible={true} />
+        <MissedWordsList missedWords={result.missedWords} visible={true} />
+        <WeeklyChart visible={true} />
+        <StreakJourney visible={true} />
+    Sostituisci con:
+        <HeroScore correct={result.correct} total={result.total} visible={true} />
+        <QuickStats
+          elapsedMs={result.elapsedMs}
+          total={result.total}
+          bestRun={result.bestRun}
+          deck={result.deck}
+          visible={true}
+        />
+        <ActionButtons wordCount={result.wordCount} visible={true} />
+        <MissedWordsList missedWords={result.missedWords} visible={true} />
+
+2h) IMPORT — rimuovi dagli import di questo file SOLO i simboli rimasti
+    inutilizzati dopo gli edit sopra (probabilmente Clock, Flame, BookOpen da
+    lucide-react e getStreakHeatmap da studyActivity). NON rimuovere
+    getMomentum, che serve ancora per la celebrazione streak. Verifica con
+    una ricerca nel file prima di togliere ogni simbolo, e segnala quali hai
+    rimosso.
+
+════════════════════════════════════════════════════════════
+3) src/pages/HowItWorksScreen.tsx — rimuovi il Daily goal
+════════════════════════════════════════════════════════════
+Nell'array SECTIONS, elimina l'intero oggetto:
+  { icon: <CalendarCheck size={18} />, color: AMBER, title: "Daily goal", body: "Set a small target of words per day. Hitting it keeps your Momentum alive and your memory warm." },
+Rimuovi poi CalendarCheck dall'import di lucide-react se non è più usato
+altrove nel file.
+
+════════════════════════════════════════════════════════════
+RIPORTA SOLO
+- File modificati
+- Typecheck pulito (sì/no + eventuali errori)
+- Import rimossi
+- Quale variabile hai usato al posto di totalQuestions in QuizScreen
+- Eventuali blocchi saltati per mismatch

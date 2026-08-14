@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
-import { Clock, Flame, BookOpen, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
 import ScreenColumn, { SCREEN_MAX } from "@/components/ScreenColumn";
 import { lowercaseFirst } from "@/lib/formatText";
-import { getStreakHeatmap, getMomentum } from "@/lib/studyActivity";
+import { getMomentum } from "@/lib/studyActivity";
 import StreakCelebration from "@/components/StreakCelebration";
 import FeedbackCard from "@/components/FeedbackCard";
 
@@ -42,6 +42,7 @@ export interface SessionResult {
   wordCount: number;
   deck?: string | null;
   difficulty?: string | null;
+  bestRun?: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -136,12 +137,11 @@ function HeroScore({ correct, total, visible = true }: HeroScoreProps) {
       animate={{ opacity: visible ? 1 : 0, y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
       style={{
-        minHeight: "60vh",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        padding: "60px 24px 40px",
+        padding: "56px 20px 34px",
         position: "relative",
         textAlign: "center",
       }}
@@ -223,60 +223,32 @@ function HeroScore({ correct, total, visible = true }: HeroScoreProps) {
 
 interface QuickStatsProps {
   elapsedMs: number;
+  total: number;
+  bestRun?: number;
+  deck?: string | null;
   visible?: boolean;
 }
-function QuickStats({ elapsedMs, visible = true }: QuickStatsProps) {
-  // TODO: Replace with real streak from database (Step 7)
-  const streak = getMomentum();
-  // TODO: Replace with real count from database (Step 7)
-  const mastered = 47;
 
-  const streakIconColor =
-    streak >= 365 ? "url(#streakGrad)"
-    : streak >= 90 ? "#EA580C"
-    : streak >= 30 ? "#F59E0B"
-    : streak >= 7  ? "#FBBF24"
-    : "#FFFFFF";
+// Identità cromatica del deck. Oggi solo GRE è attivo; gli altri sono pronti.
+function deckLight(deck?: string | null): string {
+  if (!deck) return "167,139,250";
+  const d = deck.toLowerCase();
+  if (d.includes("essential") || d.includes("advanced")) return "125,211,252";
+  if (d.includes("verba") || d.includes("my")) return "232,232,232";
+  return "167,139,250";
+}
 
+function QuickStats({ elapsedMs, total, bestRun, deck, visible = true }: QuickStatsProps) {
   if (!visible) return null;
 
+  const rgb = deckLight(deck);
+  const paceSec = total > 0 ? Math.round(elapsedMs / total / 1000) : 0;
+
   const cards = [
-    {
-      icon: <Clock size={18} color="#3B82F6" />,
-      label: "TIME",
-      labelColor: "rgba(59,130,246,0.7)",
-      border: "1px solid rgba(59,130,246,0.2)",
-      glow: "rgba(59,130,246,0.08)",
-      value: formatTime(elapsedMs),
-    },
-    {
-      icon: (
-        <>
-          <svg width="0" height="0">
-            <defs>
-              <linearGradient id="streakGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#C084FC" />
-                <stop offset="100%" stopColor="#EF4444" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <Flame size={18} color={streakIconColor} />
-        </>
-      ),
-      label: "STREAK",
-      labelColor: "rgba(217,119,6,0.7)",
-      border: "1px solid rgba(217,119,6,0.2)",
-      glow: "rgba(217,119,6,0.08)",
-      value: `${streak} days`,
-    },
-    {
-      icon: <BookOpen size={18} color="#10B981" />,
-      label: "MASTERED",
-      labelColor: "rgba(16,185,129,0.7)",
-      border: "1px solid rgba(16,185,129,0.2)",
-      glow: "rgba(16,185,129,0.08)",
-      value: `${mastered} words`,
-    },
+    { label: "TIME",     value: formatTime(elapsedMs), sub: "total",    soft: false, strong: false },
+    { label: "PACE",     value: `${paceSec}s`,         sub: "per word", soft: true,  strong: false },
+    { label: "BEST RUN", value: bestRun && bestRun > 0 ? `×${bestRun}` : "—",
+                                                       sub: "in a row", soft: false, strong: true  },
   ];
 
   return (
@@ -286,7 +258,7 @@ function QuickStats({ elapsedMs, visible = true }: QuickStatsProps) {
       transition={{ delay: 0.5, duration: 0.4 }}
       style={{
         display: "flex",
-        gap: 10,
+        gap: 9,
         padding: "0 20px",
         maxWidth: SCREEN_MAX,
         margin: "0 auto",
@@ -299,41 +271,60 @@ function QuickStats({ elapsedMs, visible = true }: QuickStatsProps) {
           key={card.label}
           style={{
             flex: 1,
-            padding: "clamp(10px, 3.2vw, 16px)",
-            borderRadius: 12,
-            border: card.border,
-            background: `rgba(0,0,0,0.4)`,
-            boxShadow: `inset 0 0 24px ${card.glow}`,
-            backdropFilter: "blur(8px)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 6,
+            position: "relative",
+            overflow: "hidden",
+            padding: "12px 8px 13px",
+            borderRadius: 13,
+            textAlign: "center",
+            background: "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.018))",
+            border: "1px solid rgba(255,255,255,0.055)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.09), 0 10px 22px rgba(0,0,0,0.45)",
           }}
         >
-          {card.icon}
+          {/* alone del deck, più intenso sulla card della serie */}
+          <div style={{
+            position: "absolute", top: -48, left: -24, width: 130, height: 104,
+            pointerEvents: "none",
+            background: `radial-gradient(ellipse at center, rgba(${rgb},${card.strong ? 0.26 : 0.13}), transparent 68%)`,
+          }} />
+          <div style={{
+            position: "absolute", top: 0, left: 0, right: 0, height: 1, pointerEvents: "none",
+            background: `linear-gradient(90deg, rgba(${rgb},${card.strong ? 0.8 : 0.42}), transparent 62%)`,
+          }} />
+
           <p style={{
+            position: "relative",
             fontFamily: "'Inter', sans-serif",
             fontWeight: 400,
-            fontSize: 11,
-            letterSpacing: "0.1em",
+            fontSize: 9,
+            letterSpacing: "0.16em",
             textTransform: "uppercase",
-            color: card.labelColor,
-            margin: 0,
+            color: "rgba(255,255,255,0.38)",
+            margin: "0 0 7px",
           }}>
             {card.label}
           </p>
           <p style={{
+            position: "relative",
             fontFamily: "'Space Grotesk', sans-serif",
             fontWeight: 700,
-            fontSize: "clamp(15px, 4.2vw, 20px)",
-            color: "#FFFFFF",
+            fontSize: "clamp(16px, 4.6vw, 19px)",
+            letterSpacing: "-0.3px",
+            color: card.soft ? "rgba(255,255,255,0.72)" : "#FFFFFF",
             margin: 0,
-            textAlign: "center",
-            lineHeight: 1.2,
+            lineHeight: 1.15,
             whiteSpace: "nowrap",
           }}>
             {card.value}
+          </p>
+          <p style={{
+            position: "relative",
+            fontFamily: "'Inter', sans-serif",
+            fontSize: 9.5,
+            color: "rgba(255,255,255,0.32)",
+            margin: "4px 0 0",
+          }}>
+            {card.sub}
           </p>
         </div>
       ))}
@@ -470,7 +461,7 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
             color: "#FFFFFF",
             margin: 0,
           }}>
-            Words to review
+            Missed this session
           </h2>
           <span style={{
             fontFamily: "'Inter', sans-serif",
@@ -690,391 +681,6 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
   );
 }
 
-// ─── Weekly chart ─────────────────────────────────────────────────────────────
-
-const weeklyData = [
-  { day: "Mon", score: 70 },
-  { day: "Tue", score: 80 },
-  { day: "Wed", score: 60 },
-  { day: "Thu", score: 85 },
-  { day: "Fri", score: 75 },
-  { day: "Sat", score: 90 },
-  { day: "Sun", score: 80 },
-];
-// TODO: Replace with real data from database (Step 7)
-
-function scoreColor(score: number): string {
-  if (score >= 80) return "#10B981";
-  if (score >= 50) return "#FBBF24";
-  return "#EF4444";
-}
-
-interface WeeklyChartProps {
-  visible?: boolean;
-}
-function WeeklyChart({ visible = true }: WeeklyChartProps) {
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-
-  if (!visible) return null;
-
-  const n = weeklyData.length;
-  const VW = 400;
-  const VH = 160;
-  const PAD_X = 24;
-  const PAD_TOP = 12;
-  const PAD_BOTTOM = 32; // space for x-axis labels
-  const chartH = VH - PAD_TOP - PAD_BOTTOM;
-
-  const xs = weeklyData.map((_, i) => PAD_X + (i / (n - 1)) * (VW - PAD_X * 2));
-  const ys = weeklyData.map((d) => PAD_TOP + chartH - (d.score / 100) * chartH);
-
-  // Bezier control points (smooth curve)
-  const cpX = (i: number, next: number) => xs[i] + (xs[next] - xs[i]) * 0.45;
-
-  // Area fill path (amber gradient, closed shape)
-  const baselineY = PAD_TOP + chartH;
-  let areaPath = `M ${xs[0]} ${ys[0]}`;
-  for (let i = 0; i < n - 1; i++) {
-    areaPath += ` C ${cpX(i, i + 1)} ${ys[i]} ${cpX(i + 1, i)} ${ys[i + 1]} ${xs[i + 1]} ${ys[i + 1]}`;
-  }
-  areaPath += ` L ${xs[n - 1]} ${baselineY} L ${xs[0]} ${baselineY} Z`;
-
-  // Individual line segments (each colored by avg score of its endpoints)
-  const segments = weeklyData.slice(0, n - 1).map((d, i) => {
-    const avgScore = (d.score + weeklyData[i + 1].score) / 2;
-    const path = `M ${xs[i]} ${ys[i]} C ${cpX(i, i + 1)} ${ys[i]} ${cpX(i + 1, i)} ${ys[i + 1]} ${xs[i + 1]} ${ys[i + 1]}`;
-    return { path, color: scoreColor(avgScore) };
-  });
-
-  const hovered = hoveredIdx !== null ? weeklyData[hoveredIdx] : null;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.85, duration: 0.4 }}
-      style={{ padding: "32px 20px 0", maxWidth: SCREEN_MAX, margin: "0 auto", width: "100%", boxSizing: "border-box" }}
-    >
-      <h2 style={{
-        fontFamily: "'Space Grotesk', sans-serif",
-        fontWeight: 700,
-        fontSize: 24,
-        color: "#FFFFFF",
-        margin: "0 0 20px",
-      }}>
-        This week
-      </h2>
-
-      <div style={{
-        background: "rgba(0,0,0,0.3)",
-        border: "1px solid rgba(217,119,6,0.12)",
-        borderRadius: 16,
-        padding: "16px 8px 8px",
-        position: "relative",
-      }}>
-        <svg
-          viewBox={`0 0 ${VW} ${VH}`}
-          width="100%"
-          height={VH}
-          style={{ display: "block", overflow: "visible" }}
-        >
-          <defs>
-            <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#D97706" stopOpacity={0.18} />
-              <stop offset="100%" stopColor="#D97706" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-
-          {/* Amber area fill */}
-          <path d={areaPath} fill="url(#areaFill)" />
-
-          {/* Colored line segments */}
-          {segments.map((seg, i) => (
-            <path
-              key={i}
-              d={seg.path}
-              stroke={seg.color}
-              strokeWidth={2}
-              fill="none"
-              strokeLinecap="round"
-            />
-          ))}
-
-          {/* Data point dots */}
-          {weeklyData.map((d, i) => (
-            <circle
-              key={i}
-              cx={xs[i]}
-              cy={ys[i]}
-              r={hoveredIdx === i ? 5 : 3.5}
-              fill={scoreColor(d.score)}
-              style={{ cursor: "pointer", transition: "r 0.15s ease" }}
-              onMouseEnter={() => setHoveredIdx(i)}
-              onMouseLeave={() => setHoveredIdx(null)}
-            />
-          ))}
-
-          {/* X-axis labels */}
-          {weeklyData.map((d, i) => (
-            <text
-              key={i}
-              x={xs[i]}
-              y={VH - 6}
-              textAnchor="middle"
-              style={{
-                fontFamily: "'Inter', sans-serif",
-                fontSize: 11,
-                fill: "rgba(255,255,255,0.4)",
-              }}
-            >
-              {d.day}
-            </text>
-          ))}
-
-          {/* Tooltip vertical line */}
-          {hoveredIdx !== null && (
-            <line
-              x1={xs[hoveredIdx]}
-              y1={PAD_TOP}
-              x2={xs[hoveredIdx]}
-              y2={PAD_TOP + chartH}
-              stroke="rgba(255,255,255,0.08)"
-              strokeWidth={1}
-              strokeDasharray="3 3"
-            />
-          )}
-        </svg>
-
-        {/* Floating tooltip */}
-        {hovered && hoveredIdx !== null && (
-          <div style={{
-            position: "absolute",
-            top: 8,
-            left: `clamp(8px, calc(${(xs[hoveredIdx] / VW) * 100}% - 48px), calc(100% - 96px))`,
-            background: "#1A1A1A",
-            border: `1px solid ${scoreColor(hovered.score)}40`,
-            borderRadius: 8,
-            padding: "5px 10px",
-            fontFamily: "'Inter', sans-serif",
-            fontSize: 12,
-            pointerEvents: "none",
-            whiteSpace: "nowrap",
-          }}>
-            <span style={{ color: "rgba(255,255,255,0.6)" }}>{hovered.day} — </span>
-            <span style={{ color: scoreColor(hovered.score), fontWeight: 600 }}>{hovered.score}%</span>
-          </div>
-        )}
-      </div>
-    </motion.div>
-  );
-}
-
-// ─── Streak journey ────────────────────────────────────────────────────────────
-
-// TODO: Calculate from real session data + streak logic in database (Step 7)
-// Active streak = consecutive days from today backwards with at least 1 session.
-
-
-function getActiveStreakSet(data: number[]): Set<number> {
-  const set = new Set<number>();
-  let i = data.length - 1;        // oggi
-  if (data[i] === 0) i -= 1;      // oggi non ancora studiato → parti da ieri (streak ancora viva)
-  for (; i >= 0; i--) {
-    if (data[i] > 0) set.add(i);
-    else break;
-  }
-  return set;
-}
-
-interface StreakJourneyProps {
-  visible?: boolean;
-}
-function StreakJourney({ visible = true }: StreakJourneyProps) {
-  const [tooltip, setTooltip] = useState<{ index: number; x: number; y: number } | null>(null);
-
-  if (!visible) return null;
-
-  const STREAK_DATA = getStreakHeatmap();
-  const activeStreakSet = getActiveStreakSet(STREAK_DATA);
-  const streakLength = activeStreakSet.size;
-  const isLongStreak = streakLength >= 30;
-  const streakStart = activeStreakSet.size > 0 ? Math.min(...activeStreakSet) : 84;
-
-  const today = new Date();
-  function getDateLabel(daysAgo: number): string {
-    const d = new Date(today);
-    d.setDate(d.getDate() - daysAgo);
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  }
-
-  function getTooltipText(index: number): string {
-    const daysAgo = 83 - index;
-    const dateLabel = getDateLabel(daysAgo);
-    const words = STREAK_DATA[index];
-    if (words === 0) return `${dateLabel} — No study`;
-    if (activeStreakSet.has(index)) {
-      const streakDay = index - streakStart + 1;
-      return `${dateLabel} — Streak day ${streakDay} · ${words} words`;
-    }
-    return `${dateLabel} — Studied · ${words} words`;
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.95, duration: 0.4 }}
-      style={{ padding: "32px 20px 0", maxWidth: SCREEN_MAX, margin: "0 auto", width: "100%", boxSizing: "border-box" }}
-    >
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-        <h2 style={{
-          fontFamily: "'Space Grotesk', sans-serif",
-          fontWeight: 700,
-          fontSize: 24,
-          color: "#FFFFFF",
-          margin: 0,
-        }}>
-          Your streak journey
-        </h2>
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 5,
-          background: "rgba(0,0,0,0.45)",
-          border: "1px solid rgba(217,119,6,0.35)",
-          borderRadius: 9999,
-          padding: "3px 10px",
-          backdropFilter: "blur(6px)",
-          flexShrink: 0,
-        }}>
-          <Flame size={13} color="#D97706" />
-          <span style={{
-            fontFamily: "'Inter', sans-serif",
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#D97706",
-          }}>
-            {streakLength} days
-          </span>
-        </div>
-      </div>
-
-      <div style={{
-        background: "rgba(0,0,0,0.3)",
-        border: "1px solid rgba(217,119,6,0.12)",
-        borderRadius: 16,
-        padding: "20px 16px",
-        position: "relative",
-        overflow: "hidden",
-      }}>
-        {/* 7 × 12 grid */}
-        <div style={{ display: "flex", gap: 2 }}>
-          {Array.from({ length: 12 }, (_, col) => (
-            <div key={col} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {Array.from({ length: 7 }, (_, row) => {
-                const index = col * 7 + row;
-                const words = STREAK_DATA[index];
-                const isStreak = activeStreakSet.has(index);
-                const staggerDelay = index * 0.010;
-
-                const baseBg = words === 0
-                  ? "rgba(255,255,255,0.05)"
-                  : isStreak
-                    ? "rgba(16,185,129,0.9)"
-                    : "rgba(217,119,6,0.5)";
-
-                const baseBoxShadow = isStreak ? "0 0 6px rgba(16,185,129,0.5)" : "none";
-
-                return (
-                  <motion.div
-                    key={row}
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={isStreak && isLongStreak
-                      ? {
-                          opacity: [0.82, 1, 0.82],
-                          boxShadow: [
-                            "0 0 4px rgba(16,185,129,0.35)",
-                            "0 0 10px rgba(16,185,129,0.7)",
-                            "0 0 4px rgba(16,185,129,0.35)",
-                          ],
-                        }
-                      : { opacity: 1, scale: 1 }
-                    }
-                    transition={isStreak && isLongStreak
-                      ? { delay: staggerDelay, duration: 3, repeat: Infinity, ease: "easeInOut" }
-                      : { delay: staggerDelay, duration: 0.22, ease: "easeOut" }
-                    }
-                    onMouseEnter={(e) => setTooltip({ index, x: e.clientX, y: e.clientY })}
-                    onMouseLeave={() => setTooltip(null)}
-                    style={{
-                      width: 14,
-                      height: 14,
-                      borderRadius: 3,
-                      background: baseBg,
-                      boxShadow: baseBoxShadow,
-                      flexShrink: 0,
-                      cursor: "default",
-                    }}
-                  />
-                );
-              })}
-            </div>
-          ))}
-        </div>
-
-        {/* Tooltip */}
-        {tooltip !== null && (
-          <div style={{
-            position: "fixed",
-            left: tooltip.x + 12,
-            top: tooltip.y - 44,
-            background: "#1A1A1A",
-            border: "1px solid rgba(217,119,6,0.3)",
-            borderRadius: 8,
-            padding: "5px 10px",
-            fontFamily: "'Inter', sans-serif",
-            fontSize: 12,
-            color: "#D97706",
-            zIndex: 200,
-            pointerEvents: "none",
-            whiteSpace: "nowrap",
-          }}>
-            {getTooltipText(tooltip.index)}
-          </div>
-        )}
-
-        {/* Legend */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 14 }}>
-          {[
-            { bg: "rgba(255,255,255,0.05)", shadow: "none", label: "No study" },
-            { bg: "rgba(217,119,6,0.5)", shadow: "none", label: "Studied" },
-            { bg: "rgba(16,185,129,0.9)", shadow: "0 0 5px rgba(16,185,129,0.5)", label: "Active streak" },
-          ].map(({ bg, shadow, label }) => (
-            <div key={label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <div style={{
-                width: 12,
-                height: 12,
-                borderRadius: 2,
-                background: bg,
-                boxShadow: shadow,
-                flexShrink: 0,
-              }} />
-              <span style={{
-                fontFamily: "'Inter', sans-serif",
-                fontSize: 11,
-                fontWeight: 400,
-                color: "rgba(255,255,255,0.4)",
-              }}>
-                {label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
 
 // ─── Main ResultsScreen ───────────────────────────────────────────────────────
 
@@ -1155,11 +761,15 @@ export default function ResultsScreen() {
 
       <ScreenColumn style={{ position: "relative", zIndex: 10 }}>
         <HeroScore correct={result.correct} total={result.total} visible={true} />
-        <QuickStats elapsedMs={result.elapsedMs} visible={true} />
+        <QuickStats
+          elapsedMs={result.elapsedMs}
+          total={result.total}
+          bestRun={result.bestRun}
+          deck={result.deck}
+          visible={true}
+        />
         <ActionButtons wordCount={result.wordCount} visible={true} />
         <MissedWordsList missedWords={result.missedWords} visible={true} />
-        <WeeklyChart visible={true} />
-        <StreakJourney visible={true} />
 
         {/* Bottom spacing */}
         <div style={{ height: 80 }} />

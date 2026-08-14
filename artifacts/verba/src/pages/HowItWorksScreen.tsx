@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation } from "wouter";
-import { BookOpen, Repeat, Target, Flame, CalendarCheck, Star, AlertTriangle, Lock } from "lucide-react";
+import { BookOpen, Repeat, Target, Flame, Star, AlertTriangle, Lock } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
 import { SCREEN_MAX } from "@/components/ScreenColumn";
 
@@ -15,7 +15,6 @@ const SECTIONS: Sec[] = [
   { icon: <Repeat size={18} />, color: LAV, title: "Spaced repetition", body: "Verba brings each word back right before you'd forget it. Reviewing at the edge of memory is what makes it stick for good — not cramming." },
   { icon: <Target size={18} />, color: GREEN, title: "Mastery", body: "Get a word right a few times in a row and it moves from Learning to Reviewing to Mastered. Mastered words return only rarely, just to stay fresh." },
   { icon: <Flame size={18} />, color: AMBER, title: "Momentum", body: "Study even a little each day to build Momentum. Small daily sessions beat rare long ones — consistency is the whole game." },
-  { icon: <CalendarCheck size={18} />, color: AMBER, title: "Daily goal", body: "Set a small target of words per day. Hitting it keeps your Momentum alive and your memory warm." },
   { icon: <Star size={18} />, color: AMBER, title: "My Verba", body: "Tap the star on any word to save it to your own collection — your hardest or favorite words, ready to drill anytime." },
   { icon: <AlertTriangle size={18} />, color: RED, title: "Trouble words", body: "Miss a word and it resurfaces automatically for extra review until it finally sticks." },
 ];

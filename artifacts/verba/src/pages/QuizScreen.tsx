@@ -292,6 +292,15 @@ export default function QuizScreen() {
           ...quizWords[idx],
           selectedAnswer,
         }));
+        // Serie più lunga di risposte corrette consecutive
+        let bestRun = 0;
+        {
+          let run = 0;
+          for (let i = 0; i < quizWords.length; i++) {
+            if (wrongAnswersRef.current.has(i)) { run = 0; }
+            else { run += 1; if (run > bestRun) bestRun = run; }
+          }
+        }
         const result = {
           correct: quizWords.length - wrongAnswersRef.current.size,
           total: quizWords.length,
@@ -300,6 +309,7 @@ export default function QuizScreen() {
           wordCount: quizWords.length,
           deck: deckParam,
           difficulty: difficultyParam,
+          bestRun,
         };
         sessionStorage.setItem("verbaSessionResult", JSON.stringify(result));
         setLocation("/results");
