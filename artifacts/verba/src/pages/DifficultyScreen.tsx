@@ -64,7 +64,8 @@ function Checkbox({ checked }: { checked: boolean }) {
       background: checked ? AMBER : "transparent",
       border: checked ? "none" : "1.5px solid rgba(255,255,255,0.25)",
       boxSizing: "border-box",
-      transition: "background 0.15s ease, border 0.15s ease",
+      // 150ms sul fondo facevano sembrare lento un click già avvenuto.
+      transition: "background 0.09s ease-out, border 0.09s ease-out",
     }}>
       {checked && <Check size={13} color="#1A1206" strokeWidth={3} />}
     </span>
@@ -188,7 +189,7 @@ export default function DifficultyScreen() {
                 return (
                   <div key={tier.difficulty} style={{ background: "rgba(255,255,255,0.02)", border: `0.5px solid ${color(isOpen ? tier.borderAlpha + 0.15 : tier.borderAlpha)}`, borderRadius: 12, overflow: "hidden", transition: "border 0.2s ease" }}>
                     {/* Header */}
-                    <button onClick={() => setExpanded(isOpen ? null : tier.difficulty)} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: 16, outline: "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <button onClick={() => setExpanded(isOpen ? null : tier.difficulty)} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: 16, outline: "none", display: "flex", justifyContent: "space-between", alignItems: "center", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}>
                       <div>
                         <DotIndicator filled={tier.filledDots} color={color} />
                         <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500, fontSize: 13, color: "#FFFFFF", margin: "10px 0 2px" }}>{getDifficultyLabel(tier.difficulty, deck)}</p>
@@ -204,7 +205,19 @@ export default function DifficultyScreen() {
                     {isOpen && (
                       <div style={{ padding: "0 16px 16px", borderTop: "0.5px solid rgba(255,255,255,0.08)" }}>
                         {/* All sets toggle */}
-                        <div onClick={() => toggleAll(tier.difficulty, sets)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 2px 10px", cursor: "pointer", userSelect: "none" }}>
+                        <div
+                          onClick={() => toggleAll(tier.difficulty, sets)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleAll(tier.difficulty, sets); } }}
+                          style={{
+                            display: "flex", alignItems: "center", justifyContent: "space-between",
+                            padding: "12px 2px 10px", cursor: "pointer", userSelect: "none",
+                            touchAction: "manipulation",
+                            WebkitTapHighlightColor: "transparent",
+                            outline: "none",
+                          }}
+                        >
                           <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, fontWeight: 500, color: "#D8D8D8" }}>All sets</span>
                           <span style={{ width: 34, height: 20, borderRadius: 10, background: allSelected ? "rgba(245,158,11,0.3)" : "rgba(255,255,255,0.12)", position: "relative", transition: "background 0.2s ease", flex: "none" }}>
                             <span style={{ position: "absolute", top: 2, left: allSelected ? 16 : 2, width: 16, height: 16, borderRadius: "50%", background: allSelected ? AMBER : "#888", transition: "left 0.2s ease, background 0.2s ease" }} />
@@ -216,7 +229,21 @@ export default function DifficultyScreen() {
                           const isSel = sel.has(s.setNumber);
                           const isStudied = completed.has(s.setNumber);
                           return (
-                            <div key={s.setNumber} onClick={() => toggleSet(tier.difficulty, s.setNumber)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 2px", cursor: "pointer", userSelect: "none" }}>
+                            <div
+                              key={s.setNumber}
+                              onClick={() => toggleSet(tier.difficulty, s.setNumber)}
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSet(tier.difficulty, s.setNumber); } }}
+                              style={{
+                                display: "flex", alignItems: "center", gap: 10,
+                                padding: "9px 2px", cursor: "pointer", userSelect: "none",
+                                // Toglie l'attesa di ~300ms con cui iOS verifica il doppio tap.
+                                touchAction: "manipulation",
+                                WebkitTapHighlightColor: "transparent",
+                                outline: "none",
+                              }}
+                            >
                               <Checkbox checked={isSel} />
                               <span style={{ flex: 1, fontFamily: "'Inter', sans-serif", fontSize: 13, color: "#F0EDF7" }}>Set {s.setNumber}</span>
                               <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: isStudied ? "rgba(245,158,11,0.7)" : "#6E6E6E" }}>

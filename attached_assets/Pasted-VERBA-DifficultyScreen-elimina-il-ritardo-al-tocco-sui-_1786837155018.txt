@@ -1,0 +1,64 @@
+VERBA — DifficultyScreen: elimina il ritardo al tocco sui set.
+File: src/pages/DifficultyScreen.tsx (+ ispeziona index.html, NON modificarlo)
+DO NOT test live — I test manually.
+Applica ogni edit indipendentemente; segnala i mismatch senza bloccare gli altri.
+
+1) CHECKBOX più reattivo — trova ESATTAMENTE:
+      background: checked ? AMBER : "transparent",
+      border: checked ? "none" : "1.5px solid rgba(255,255,255,0.25)",
+      boxSizing: "border-box",
+      transition: "background 0.15s ease, border 0.15s ease",
+   Sostituisci con:
+      background: checked ? AMBER : "transparent",
+      border: checked ? "none" : "1.5px solid rgba(255,255,255,0.25)",
+      boxSizing: "border-box",
+      // 150ms sul fondo facevano sembrare lento un click già avvenuto.
+      transition: "background 0.09s ease-out, border 0.09s ease-out",
+
+2) RIGA DEL SET — trova ESATTAMENTE:
+                            <div key={s.setNumber} onClick={() => toggleSet(tier.difficulty, s.setNumber)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 2px", cursor: "pointer", userSelect: "none" }}>
+   Sostituisci con:
+                            <div
+                              key={s.setNumber}
+                              onClick={() => toggleSet(tier.difficulty, s.setNumber)}
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSet(tier.difficulty, s.setNumber); } }}
+                              style={{
+                                display: "flex", alignItems: "center", gap: 10,
+                                padding: "9px 2px", cursor: "pointer", userSelect: "none",
+                                // Toglie l'attesa di ~300ms con cui iOS verifica il doppio tap.
+                                touchAction: "manipulation",
+                                WebkitTapHighlightColor: "transparent",
+                                outline: "none",
+                              }}
+                            >
+
+3) RIGA "ALL SETS" — trova ESATTAMENTE:
+                        <div onClick={() => toggleAll(tier.difficulty, sets)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 2px 10px", cursor: "pointer", userSelect: "none" }}>
+   Sostituisci con:
+                        <div
+                          onClick={() => toggleAll(tier.difficulty, sets)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleAll(tier.difficulty, sets); } }}
+                          style={{
+                            display: "flex", alignItems: "center", justifyContent: "space-between",
+                            padding: "12px 2px 10px", cursor: "pointer", userSelect: "none",
+                            touchAction: "manipulation",
+                            WebkitTapHighlightColor: "transparent",
+                            outline: "none",
+                          }}
+                        >
+
+4) HEADER DELLA FASCIA — nel <button> che fa setExpanded, aggiungi al suo
+   oggetto style le due proprietà:
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
+   senza toccare le altre.
+
+5) ISPEZIONA index.html (NON modificarlo) e RIPORTAMI il contenuto esatto del
+   tag <meta name="viewport" ...>.
+
+RIPORTA SOLO: file modificato, typecheck, il meta viewport trovato,
+blocchi saltati.
