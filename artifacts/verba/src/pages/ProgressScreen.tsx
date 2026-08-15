@@ -7,6 +7,7 @@ import { getDueWordIds } from "@/lib/wordStats";
 import { fetchWordsByIds } from "@/lib/quizQueries";
 import { motion } from "framer-motion";
 import { dismissTrouble } from "@/lib/troubleDismiss";
+import { cardStyle, ACCENT } from "@/lib/cardStyle";
 
 const DECK = "gre";
 const AMBER = "#F59E0B";
@@ -234,7 +235,7 @@ export default function ProgressScreen() {
             <div style={{ marginBottom: 22 }}>
               {snap.dueCount > 0 ? (
                 <>
-                <div onClick={() => startReview(getDueWordIds())} style={{ position: "relative", background: "rgba(245,158,11,0.1)", border: "0.5px solid rgba(245,158,11,0.4)", borderRadius: 16, padding: "15px 48px 15px 16px", cursor: "pointer" }}>
+                <div onClick={() => startReview(getDueWordIds())} style={{ ...cardStyle({ rgb: ACCENT.amber }, 16), position: "relative", padding: "15px 48px 15px 16px", cursor: "pointer" }}>
                   <ChevronRight size={22} color={AMBER_SOFT} style={{ position: "absolute", top: "50%", right: 16, transform: "translateY(-50%)" }} />
                   <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                     <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 23, color: AMBER_SOFT }}>{snap.dueCount}</span>
@@ -256,7 +257,7 @@ export default function ProgressScreen() {
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    style={{ marginTop: 8, background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.09)", borderRadius: 12, padding: "13px 15px" }}
+                    style={{ ...cardStyle(null, 12), marginTop: 8, padding: "13px 15px" }}
                   >
                     <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, margin: 0 }}>
                       Memory fades on a predictable curve. Verba resurfaces each word right as you're about to forget it — a quick review now resets the curve, so it sticks for longer and you avoid relearning it later.
@@ -283,7 +284,7 @@ export default function ProgressScreen() {
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    style={{ marginTop: 8, background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.09)", borderRadius: 12, padding: "13px 15px" }}
+                    style={{ ...cardStyle(null, 12), marginTop: 8, padding: "13px 15px" }}
                   >
                     <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, margin: 0 }}>
                       Memory fades on a predictable curve. Verba resurfaces each word right as you're about to forget it — a quick review now resets the curve, so it sticks for longer and you avoid relearning it later.
@@ -309,7 +310,7 @@ export default function ProgressScreen() {
                 <div style={{ marginBottom: 8 }}>
                   <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Trouble words</span>
                 </div>
-                <div style={{ border: "0.5px solid rgba(239,68,68,0.22)", borderRadius: 12, overflow: "hidden", marginBottom: 8 }}>
+                <div style={{ ...cardStyle({ rgb: ACCENT.red, intensity: 0.75 }, 12), marginBottom: 8 }}>
                   {trouble.map((t, i) => (
                     <TroubleRow
                       key={t.id}
