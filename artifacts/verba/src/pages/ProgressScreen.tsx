@@ -310,7 +310,9 @@ export default function ProgressScreen() {
                 <div style={{ marginBottom: 8 }}>
                   <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Trouble words</span>
                 </div>
-                <div style={{ ...cardStyle({ rgb: ACCENT.red, intensity: 0.75 }, 12), marginBottom: 8 }}>
+                {/* Il rosso qui CLASSIFICA l'intero elenco, quindi resta un bordo
+                    su tutti i lati: un alone d'angolo non marca il blocco. */}
+                <div style={{ ...cardStyle(null, 12), border: "0.5px solid rgba(239,68,68,0.28)", marginBottom: 8 }}>
                   {trouble.map((t, i) => (
                     <TroubleRow
                       key={t.id}
