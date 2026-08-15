@@ -242,11 +242,15 @@ function QuickStats({ elapsedMs, total, bestRun, deck, visible = true }: QuickSt
   if (!visible) return null;
 
   const rgb = deckLight(deck);
-  const paceSec = total > 0 ? Math.round(elapsedMs / total / 1000) : 0;
+  // Stessa base di formatTime (secondi troncati), così il ritmo non può
+  // mai risultare maggiore del tempo totale.
+  const totalSec = Math.floor(elapsedMs / 1000);
+  const paceSec = total > 0 ? Math.max(1, Math.round(totalSec / total)) : 0;
 
   const cards = [
     { label: "TIME",     value: formatTime(elapsedMs), sub: "total",    soft: false, strong: false },
-    { label: "PACE",     value: `${paceSec}s`,         sub: "per word", soft: true,  strong: false },
+    { label: "PACE",     value: paceSec >= 60 ? formatTime(paceSec * 1000) : `${paceSec}s`,
+                                                       sub: "per word", soft: true,  strong: false },
     { label: "BEST RUN", value: bestRun && bestRun > 0 ? `×${bestRun}` : "—",
                                                        sub: "in a row", soft: false, strong: true  },
   ];
