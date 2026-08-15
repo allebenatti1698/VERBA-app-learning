@@ -709,72 +709,85 @@ function nextReturnLabel(wordIds?: string[]): string | null {
   return `in ${days} days`;
 }
 
-interface SessionOutroProps {
-  clean: boolean;
+interface CleanNoteProps {
   wordIds?: string[];
-  onGoToProgress: () => void;
 }
 
-function SessionOutro({ clean, wordIds, onGoToProgress }: SessionOutroProps) {
-  const returnLabel = useMemo(() => (clean ? nextReturnLabel(wordIds) : null), [clean, wordIds]);
-  const dueCount = useMemo(() => {
-    try { return getDueCount(); } catch { return 0; }
-  }, []);
-
-  if (!clean && dueCount === 0) return null;
+/** Riga della sessione senza errori: resta agganciata al blocco centrale. */
+function CleanNote({ wordIds }: CleanNoteProps) {
+  const returnLabel = useMemo(() => nextReturnLabel(wordIds), [wordIds]);
 
   return (
-    <motion.div
+    <motion.p
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.8, duration: 0.45 }}
       style={{
+        fontFamily: "'Space Grotesk', sans-serif",
+        fontSize: 15,
+        fontWeight: 500,
+        color: "rgba(255,255,255,0.72)",
+        textAlign: "center",
+        lineHeight: 1.5,
         padding: "0 20px",
         maxWidth: SCREEN_MAX,
-        margin: "0 auto",
-        width: "100%",
+        margin: "30px auto 0",
         boxSizing: "border-box",
-        textAlign: "center",
       }}
     >
-      {clean && (
-        <p style={{
-          fontFamily: "'Space Grotesk', sans-serif",
-          fontSize: 15,
-          fontWeight: 500,
-          color: "rgba(255,255,255,0.72)",
-          margin: "30px 0 0",
-          lineHeight: 1.5,
-        }}>
-          Nothing missed
-          {returnLabel && (
-            <> — <span style={{ color: "#34D399" }}>these come back {returnLabel}</span></>
-          )}
-        </p>
+      Nothing missed
+      {returnLabel && (
+        <> — <span style={{ color: "#34D399" }}>these come back {returnLabel}</span></>
       )}
+    </motion.p>
+  );
+}
 
-      {dueCount > 0 && (
-        <button
-          onClick={onGoToProgress}
-          data-testid="button-review-bridge"
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            outline: "none",
-            fontFamily: "'Inter', sans-serif",
-            fontSize: 12.5,
-            color: "rgba(255,255,255,0.42)",
-            padding: "22px 8px 0",
-          }}
-        >
-          <span style={{ color: "#C7B8E8", fontWeight: 500 }}>
-            {dueCount} {dueCount === 1 ? "word" : "words"}
-          </span>
-          {" "}are ready for review{" "}
-          <span style={{ color: "#F59E0B" }}>→</span>
-        </button>
-      )}
+interface ReviewBridgeProps {
+  onGoToProgress: () => void;
+}
+
+/** Ponte verso Progress: sempre in fondo alla pagina, in entrambi gli stati. */
+function ReviewBridge({ onGoToProgress }: ReviewBridgeProps) {
+  const dueCount = useMemo(() => {
+    try { return getDueCount(); } catch { return 0; }
+  }, []);
+
+  if (dueCount === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.9, duration: 0.45 }}
+      style={{
+        position: "relative",
+        zIndex: 10,
+        flex: "0 0 auto",
+        textAlign: "center",
+        padding: "26px 20px calc(30px + env(safe-area-inset-bottom))",
+      }}
+    >
+      <button
+        onClick={onGoToProgress}
+        data-testid="button-review-bridge"
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          outline: "none",
+          fontFamily: "'Inter', sans-serif",
+          fontSize: 12.5,
+          color: "rgba(255,255,255,0.42)",
+          padding: "6px 8px",
+        }}
+      >
+        <span style={{ color: "#C7B8E8", fontWeight: 500 }}>
+          {dueCount} {dueCount === 1 ? "word" : "words"}
+        </span>
+        {" "}are ready for review{" "}
+        <span style={{ color: "#F59E0B" }}>→</span>
+      </button>
     </motion.div>
   );
 }
@@ -856,17 +869,19 @@ export default function ResultsScreen() {
       )}
       <AppBackground showWords={false} />
 
-      <ScreenColumn
+      {/* Il contenuto occupa lo spazio disponibile: si centra quando la
+          schermata è corta, resta in alto quando c'è la sezione errori. */}
+      <div
         style={{
           position: "relative",
           zIndex: 10,
-          // Senza sezione errori la schermata è corta: il blocco si centra
-          // verticalmente invece di restare incollato in alto.
-          ...(result.missedWords.length === 0
-            ? { marginTop: "auto", marginBottom: "auto" }
-            : {}),
+          flex: "1 1 auto",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: result.missedWords.length === 0 ? "center" : "flex-start",
         }}
       >
+      <ScreenColumn>
         <HeroScore correct={result.correct} total={result.total} visible={true} />
         <QuickStats
           elapsedMs={result.elapsedMs}
@@ -878,15 +893,11 @@ export default function ResultsScreen() {
         <ActionButtons wordCount={result.wordCount} visible={true} />
         <MissedWordsList missedWords={result.missedWords} visible={true} />
 
-        <SessionOutro
-          clean={result.missedWords.length === 0}
-          wordIds={result.wordIds}
-          onGoToProgress={() => navigate("/progress")}
-        />
-
-        {/* Bottom spacing */}
-        <div style={{ height: result.missedWords.length === 0 ? 28 : 80 }} />
+        {result.missedWords.length === 0 && <CleanNote wordIds={result.wordIds} />}
       </ScreenColumn>
+      </div>
+
+      <ReviewBridge onGoToProgress={() => navigate("/progress")} />
     </div>
   );
 }
