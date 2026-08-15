@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { Star } from "lucide-react";
@@ -6,6 +6,7 @@ import AppBackground from "@/components/AppBackground";
 import ScreenColumn, { SCREEN_MAX } from "@/components/ScreenColumn";
 import { lowercaseFirst } from "@/lib/formatText";
 import { getMomentum } from "@/lib/studyActivity";
+import { getDueCount, getWordStat } from "@/lib/wordStats";
 import StreakCelebration from "@/components/StreakCelebration";
 import FeedbackCard from "@/components/FeedbackCard";
 
@@ -43,6 +44,7 @@ export interface SessionResult {
   deck?: string | null;
   difficulty?: string | null;
   bestRun?: number;
+  wordIds?: string[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -686,6 +688,97 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
 }
 
 
+// ─── Session outro: quando tornano + ponte verso Progress ────────────────────
+
+/** Scadenza più vicina fra le parole della sessione. La più vicina è quella che
+ *  ti riporta davvero nell'app, e resta vera qualunque cosa facciano le altre. */
+function nextReturnLabel(wordIds?: string[]): string | null {
+  if (!wordIds || wordIds.length === 0) return null;
+  const now = Date.now();
+  let soonest = Infinity;
+  for (const id of wordIds) {
+    const s = getWordStat(id);
+    if (!s?.nextReviewAt) continue;
+    const t = new Date(s.nextReviewAt).getTime();
+    if (t > now && t < soonest) soonest = t;
+  }
+  if (!Number.isFinite(soonest)) return null;
+  const days = Math.round((soonest - now) / 86400000);
+  if (days <= 0) return "later today";
+  if (days === 1) return "tomorrow";
+  return `in ${days} days`;
+}
+
+interface SessionOutroProps {
+  clean: boolean;
+  wordIds?: string[];
+  onGoToProgress: () => void;
+}
+
+function SessionOutro({ clean, wordIds, onGoToProgress }: SessionOutroProps) {
+  const returnLabel = useMemo(() => (clean ? nextReturnLabel(wordIds) : null), [clean, wordIds]);
+  const dueCount = useMemo(() => {
+    try { return getDueCount(); } catch { return 0; }
+  }, []);
+
+  if (!clean && dueCount === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.8, duration: 0.45 }}
+      style={{
+        padding: "0 20px",
+        maxWidth: SCREEN_MAX,
+        margin: "0 auto",
+        width: "100%",
+        boxSizing: "border-box",
+        textAlign: "center",
+      }}
+    >
+      {clean && (
+        <p style={{
+          fontFamily: "'Space Grotesk', sans-serif",
+          fontSize: 15,
+          fontWeight: 500,
+          color: "rgba(255,255,255,0.72)",
+          margin: "30px 0 0",
+          lineHeight: 1.5,
+        }}>
+          Nothing missed
+          {returnLabel && (
+            <> — <span style={{ color: "#34D399" }}>these come back {returnLabel}</span></>
+          )}
+        </p>
+      )}
+
+      {dueCount > 0 && (
+        <button
+          onClick={onGoToProgress}
+          data-testid="button-review-bridge"
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            outline: "none",
+            fontFamily: "'Inter', sans-serif",
+            fontSize: 12.5,
+            color: "rgba(255,255,255,0.42)",
+            padding: "22px 8px 0",
+          }}
+        >
+          <span style={{ color: "#C7B8E8", fontWeight: 500 }}>
+            {dueCount} {dueCount === 1 ? "word" : "words"}
+          </span>
+          {" "}are ready for review{" "}
+          <span style={{ color: "#F59E0B" }}>→</span>
+        </button>
+      )}
+    </motion.div>
+  );
+}
+
 // ─── Main ResultsScreen ───────────────────────────────────────────────────────
 
 export default function ResultsScreen() {
@@ -763,7 +856,17 @@ export default function ResultsScreen() {
       )}
       <AppBackground showWords={false} />
 
-      <ScreenColumn style={{ position: "relative", zIndex: 10 }}>
+      <ScreenColumn
+        style={{
+          position: "relative",
+          zIndex: 10,
+          // Senza sezione errori la schermata è corta: il blocco si centra
+          // verticalmente invece di restare incollato in alto.
+          ...(result.missedWords.length === 0
+            ? { marginTop: "auto", marginBottom: "auto" }
+            : {}),
+        }}
+      >
         <HeroScore correct={result.correct} total={result.total} visible={true} />
         <QuickStats
           elapsedMs={result.elapsedMs}
@@ -775,8 +878,14 @@ export default function ResultsScreen() {
         <ActionButtons wordCount={result.wordCount} visible={true} />
         <MissedWordsList missedWords={result.missedWords} visible={true} />
 
+        <SessionOutro
+          clean={result.missedWords.length === 0}
+          wordIds={result.wordIds}
+          onGoToProgress={() => navigate("/progress")}
+        />
+
         {/* Bottom spacing */}
-        <div style={{ height: 80 }} />
+        <div style={{ height: result.missedWords.length === 0 ? 28 : 80 }} />
       </ScreenColumn>
     </div>
   );

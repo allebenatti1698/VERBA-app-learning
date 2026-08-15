@@ -310,6 +310,7 @@ export default function QuizScreen() {
           deck: deckParam,
           difficulty: difficultyParam,
           bestRun,
+          wordIds: quizWords.map((w) => String(w.id)),
         };
         sessionStorage.setItem("verbaSessionResult", JSON.stringify(result));
         setLocation("/results");

@@ -1,0 +1,176 @@
+VERBA — Results: riga-ponte verso Progress + stato "sessione perfetta".
+File: src/pages/QuizScreen.tsx, src/pages/ResultsScreen.tsx
+DO NOT test live — I test manually.
+
+REGOLA: applica OGNI edit in modo indipendente. Se un blocco non combacia
+ESATTAMENTE, salta quell'edit, prosegui con gli altri, e segnala alla fine
+quali hai saltato. NON bloccare gli altri edit.
+
+════════════════════════════════════════════════════════════
+1) src/pages/QuizScreen.tsx — aggiungi gli ID delle parole al risultato
+════════════════════════════════════════════════════════════
+Trova la chiamata che scrive il risultato di sessione, cioè quella contenente:
+  sessionStorage.setItem("verbaSessionResult"
+Nell'oggetto passato a JSON.stringify, accanto al campo `bestRun` già presente,
+aggiungi:
+  wordIds: quizWords.map((w) => String(w.id)),
+
+Usa la stessa variabile array delle parole della sessione che hai già usato per
+calcolare bestRun (quella di cui hai preso `.length`). Se il campo `id` non
+esiste su quegli oggetti, FERMATI e segnala com'è fatto l'oggetto parola invece
+di adattare a caso.
+
+════════════════════════════════════════════════════════════
+2) src/pages/ResultsScreen.tsx
+════════════════════════════════════════════════════════════
+
+2a) IMPORT react — trova ESATTAMENTE:
+      import { useState, useEffect, useRef } from "react";
+    Sostituisci con:
+      import { useState, useEffect, useRef, useMemo } from "react";
+
+2b) IMPORT wordStats — trova ESATTAMENTE:
+      import { getMomentum } from "@/lib/studyActivity";
+    Sostituisci con:
+      import { getMomentum } from "@/lib/studyActivity";
+      import { getDueCount, getWordStat } from "@/lib/wordStats";
+
+2c) INTERFACE — trova ESATTAMENTE:
+      bestRun?: number;
+    Sostituisci con:
+      bestRun?: number;
+      wordIds?: string[];
+
+2d) NUOVO COMPONENTE — inserisci il blocco seguente immediatamente PRIMA
+    della riga di commento:
+      // ─── Main ResultsScreen ──
+
+// ─── Session outro: quando tornano + ponte verso Progress ────────────────────
+
+/** Scadenza più vicina fra le parole della sessione. La più vicina è quella che
+ *  ti riporta davvero nell'app, e resta vera qualunque cosa facciano le altre. */
+function nextReturnLabel(wordIds?: string[]): string | null {
+  if (!wordIds || wordIds.length === 0) return null;
+  const now = Date.now();
+  let soonest = Infinity;
+  for (const id of wordIds) {
+    const s = getWordStat(id);
+    if (!s?.nextReviewAt) continue;
+    const t = new Date(s.nextReviewAt).getTime();
+    if (t > now && t < soonest) soonest = t;
+  }
+  if (!Number.isFinite(soonest)) return null;
+  const days = Math.round((soonest - now) / 86400000);
+  if (days <= 0) return "later today";
+  if (days === 1) return "tomorrow";
+  return `in ${days} days`;
+}
+
+interface SessionOutroProps {
+  clean: boolean;
+  wordIds?: string[];
+  onGoToProgress: () => void;
+}
+
+function SessionOutro({ clean, wordIds, onGoToProgress }: SessionOutroProps) {
+  const returnLabel = useMemo(() => (clean ? nextReturnLabel(wordIds) : null), [clean, wordIds]);
+  const dueCount = useMemo(() => {
+    try { return getDueCount(); } catch { return 0; }
+  }, []);
+
+  if (!clean && dueCount === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.8, duration: 0.45 }}
+      style={{
+        padding: "0 20px",
+        maxWidth: SCREEN_MAX,
+        margin: "0 auto",
+        width: "100%",
+        boxSizing: "border-box",
+        textAlign: "center",
+      }}
+    >
+      {clean && (
+        <p style={{
+          fontFamily: "'Space Grotesk', sans-serif",
+          fontSize: 15,
+          fontWeight: 500,
+          color: "rgba(255,255,255,0.72)",
+          margin: "30px 0 0",
+          lineHeight: 1.5,
+        }}>
+          Nothing missed
+          {returnLabel && (
+            <> — <span style={{ color: "#34D399" }}>these come back {returnLabel}</span></>
+          )}
+        </p>
+      )}
+
+      {dueCount > 0 && (
+        <button
+          onClick={onGoToProgress}
+          data-testid="button-review-bridge"
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            outline: "none",
+            fontFamily: "'Inter', sans-serif",
+            fontSize: 12.5,
+            color: "rgba(255,255,255,0.42)",
+            padding: "22px 8px 0",
+          }}
+        >
+          <span style={{ color: "#C7B8E8", fontWeight: 500 }}>
+            {dueCount} {dueCount === 1 ? "word" : "words"}
+          </span>
+          {" "}are ready for review{" "}
+          <span style={{ color: "#F59E0B" }}>→</span>
+        </button>
+      )}
+    </motion.div>
+  );
+}
+
+2e) CENTRATURA quando non ci sono errori — trova ESATTAMENTE:
+      <ScreenColumn style={{ position: "relative", zIndex: 10 }}>
+    Sostituisci con:
+      <ScreenColumn
+        style={{
+          position: "relative",
+          zIndex: 10,
+          // Senza sezione errori la schermata è corta: il blocco si centra
+          // verticalmente invece di restare incollato in alto.
+          ...(result.missedWords.length === 0
+            ? { marginTop: "auto", marginBottom: "auto" }
+            : {}),
+        }}
+      >
+
+2f) RENDER — trova ESATTAMENTE:
+        <MissedWordsList missedWords={result.missedWords} visible={true} />
+
+        {/* Bottom spacing */}
+        <div style={{ height: 80 }} />
+    Sostituisci con:
+        <MissedWordsList missedWords={result.missedWords} visible={true} />
+
+        <SessionOutro
+          clean={result.missedWords.length === 0}
+          wordIds={result.wordIds}
+          onGoToProgress={() => navigate("/progress")}
+        />
+
+        {/* Bottom spacing */}
+        <div style={{ height: result.missedWords.length === 0 ? 28 : 80 }} />
+
+════════════════════════════════════════════════════════════
+RIPORTA SOLO
+- File modificati
+- Typecheck pulito (sì/no + eventuali errori)
+- Il nome della variabile usata per wordIds in QuizScreen
+- Eventuali blocchi saltati per mismatch
