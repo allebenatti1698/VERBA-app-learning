@@ -277,26 +277,15 @@ function QuickStats({ elapsedMs, total, bestRun, deck, visible = true }: QuickSt
           key={card.label}
           style={{
             flex: 1,
-            position: "relative",
-            overflow: "hidden",
             padding: "12px 8px 13px",
-            borderRadius: 13,
+            borderRadius: 12,
             textAlign: "center",
-            background: "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.018))",
-            border: "1px solid rgba(255,255,255,0.055)",
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.09), 0 10px 22px rgba(0,0,0,0.45)",
+            // Grammatica app: fondo piatto + bordo del deck su tutti i lati.
+            // La card della serie ha il bordo più marcato, come Easy/Medium/Hard.
+            background: "rgba(255,255,255,0.02)",
+            border: `0.5px solid rgba(${rgb},${card.strong ? 0.5 : 0.26})`,
           }}
         >
-          {/* alone del deck, più intenso sulla card della serie */}
-          <div style={{
-            position: "absolute", top: -48, left: -24, width: 130, height: 104,
-            pointerEvents: "none",
-            background: `radial-gradient(ellipse at center, rgba(${rgb},${card.strong ? 0.26 : 0.13}), transparent 68%)`,
-          }} />
-          <div style={{
-            position: "absolute", top: 0, left: 0, right: 0, height: 1, pointerEvents: "none",
-            background: `linear-gradient(90deg, rgba(${rgb},${card.strong ? 0.8 : 0.42}), transparent 62%)`,
-          }} />
 
           <p style={{
             position: "relative",

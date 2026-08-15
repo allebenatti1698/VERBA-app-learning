@@ -1,0 +1,91 @@
+VERBA — riporta Results e Progress alla grammatica dell'app.
+File: src/pages/ResultsScreen.tsx, src/pages/ProgressScreen.tsx
+DO NOT test live — I test manually.
+Applica ogni edit indipendentemente; segnala i mismatch senza bloccare gli altri.
+
+════════════════════════════════════════════════════════════
+1) src/pages/ResultsScreen.tsx — tre card in grammatica app
+════════════════════════════════════════════════════════════
+Dentro QuickStats, trova ESATTAMENTE questo blocco:
+
+      {cards.map((card) => (
+        <div
+          key={card.label}
+          style={{
+            flex: 1,
+            position: "relative",
+            overflow: "hidden",
+            padding: "12px 8px 13px",
+            borderRadius: 13,
+            textAlign: "center",
+            background: "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.018))",
+            border: "1px solid rgba(255,255,255,0.055)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.09), 0 10px 22px rgba(0,0,0,0.45)",
+          }}
+        >
+          {/* alone del deck, più intenso sulla card della serie */}
+          <div style={{
+            position: "absolute", top: -48, left: -24, width: 130, height: 104,
+            pointerEvents: "none",
+            background: `radial-gradient(ellipse at center, rgba(${rgb},${card.strong ? 0.26 : 0.13}), transparent 68%)`,
+          }} />
+          <div style={{
+            position: "absolute", top: 0, left: 0, right: 0, height: 1, pointerEvents: "none",
+            background: `linear-gradient(90deg, rgba(${rgb},${card.strong ? 0.8 : 0.42}), transparent 62%)`,
+          }} />
+
+Sostituiscilo con:
+
+      {cards.map((card) => (
+        <div
+          key={card.label}
+          style={{
+            flex: 1,
+            padding: "12px 8px 13px",
+            borderRadius: 12,
+            textAlign: "center",
+            // Grammatica app: fondo piatto + bordo del deck su tutti i lati.
+            // La card della serie ha il bordo più marcato, come Easy/Medium/Hard.
+            background: "rgba(255,255,255,0.02)",
+            border: `0.5px solid rgba(${rgb},${card.strong ? 0.5 : 0.26})`,
+          }}
+        >
+
+NON toccare il resto di QuickStats: le tre <p> con label, valore e sottotitolo
+restano identiche, così come deckLight, paceSec e l'array cards.
+
+════════════════════════════════════════════════════════════
+2) src/pages/ProgressScreen.tsx — ripristino
+════════════════════════════════════════════════════════════
+
+2a) ACCORDION — trova ESATTAMENTE:
+                    style={{ ...cardStyle(null, 12), marginTop: 8, padding: "13px 15px" }}
+    Sostituisci con:
+                    style={{ marginTop: 8, background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.09)", borderRadius: 12, padding: "13px 15px" }}
+
+2b) CARD "WORDS TO REVIEW" — localizzala di nuovo (è l'elemento cliccabile che
+    contiene il testo `words to review` e `snap.dueCount`). Nel suo oggetto
+    style RIMUOVI lo spread `...cardStyle({ rgb: ACCENT.amber }, 16),` e
+    mettici al suo posto, nella stessa posizione:
+        background: "rgba(245,158,11,0.07)",
+        border: "0.5px solid rgba(245,158,11,0.28)",
+        borderRadius: 16,
+    Lascia invariate TUTTE le altre proprietà (padding, display, gap, cursor,
+    width, transition, ecc.). RIPORTAMI l'oggetto style prima e dopo.
+
+2c) TROUBLE WORDS — NON toccare: il bordo rosso 1px va bene com'è.
+
+2d) IMPORT — se dopo 2a e 2b `cardStyle` e `ACCENT` non sono più usati in
+    questo file, rimuovi la riga:
+        import { cardStyle, ACCENT } from "@/lib/cardStyle";
+    Verifica con una ricerca nel file prima di rimuoverla.
+
+NON cancellare src/lib/cardStyle.ts: resta sul disco inutilizzato.
+
+════════════════════════════════════════════════════════════
+RIPORTA SOLO
+- File modificati
+- Typecheck (sì/no + errori)
+- L'oggetto style della card "words to review" prima e dopo
+- Se hai rimosso l'import di cardStyle
+- Eventuali blocchi saltati per mismatch
