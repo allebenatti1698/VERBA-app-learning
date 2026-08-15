@@ -8,6 +8,7 @@ import { lowercaseFirst } from "@/lib/formatText";
 import { getMomentum } from "@/lib/studyActivity";
 import { getDueCount, getWordStat } from "@/lib/wordStats";
 import StreakCelebration from "@/components/StreakCelebration";
+import GlassDrop from "@/components/GlassDrop";
 import FeedbackCard from "@/components/FeedbackCard";
 
 // TODO: Replace `visible={true}` with user preferences from settings (Step 8)
@@ -871,6 +872,10 @@ export default function ResultsScreen() {
         }}
       >
       <ScreenColumn>
+        <GlassDrop
+          fill={result.total > 0 ? result.correct / result.total : 0}
+          perfect={result.total > 0 && result.correct === result.total}
+        />
         <HeroScore correct={result.correct} total={result.total} visible={true} />
         <QuickStats
           elapsedMs={result.elapsedMs}
