@@ -262,17 +262,37 @@ export default function DifficultyScreen() {
         </motion.div>
       </ScreenColumn>
 
-      {/* Continue unico sticky — appare quando almeno 1 set è selezionato */}
-      {totalSelected > 0 && (
-        <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 50, padding: "20px 16px 18px", display: "flex", justifyContent: "center", background: "linear-gradient(to top, #0A0A0A 60%, transparent)", pointerEvents: "none" }}>
-          <button
-            onClick={handleContinue}
-            style={{ ...primaryButtonStyle, pointerEvents: "auto" }}
-          >
-            Continue →
-          </button>
-        </div>
-      )}
+      {/* Sempre montata. Mostrarla con opacity invece che montarla al primo tap
+          evita che iOS debba creare un layer fisso a tutta larghezza nello stesso
+          frame in cui React applica la spunta: era quello a rendere lento il
+          PRIMO set selezionato mentre i successivi erano istantanei. */}
+      <div
+        aria-hidden={totalSelected === 0}
+        style={{
+          position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 50,
+          padding: "20px 16px 18px",
+          display: "flex", justifyContent: "center",
+          background: "linear-gradient(to top, #0A0A0A 60%, transparent)",
+          pointerEvents: "none",
+          opacity: totalSelected > 0 ? 1 : 0,
+          transform: totalSelected > 0 ? "translateY(0)" : "translateY(10px)",
+          transition: "opacity 0.16s ease-out, transform 0.16s ease-out",
+          willChange: "opacity, transform",
+        }}
+      >
+        <button
+          onClick={handleContinue}
+          disabled={totalSelected === 0}
+          tabIndex={totalSelected === 0 ? -1 : 0}
+          style={{
+            ...primaryButtonStyle,
+            pointerEvents: totalSelected > 0 ? "auto" : "none",
+            touchAction: "manipulation",
+          }}
+        >
+          Continue →
+        </button>
+      </div>
     </div>
   );
 }
