@@ -61,11 +61,11 @@ function Checkbox({ checked }: { checked: boolean }) {
     <span style={{
       width: 18, height: 18, borderRadius: 5, flex: "none",
       display: "flex", alignItems: "center", justifyContent: "center",
-      background: checked ? AMBER : "transparent",
-      border: checked ? "none" : "1.5px solid rgba(255,255,255,0.25)",
+      background: checked ? AMBER : "rgba(245,158,11,0)",
+      border: checked ? "1.5px solid rgba(245,158,11,0)" : "1.5px solid rgba(255,255,255,0.25)",
       boxSizing: "border-box",
       // 150ms sul fondo facevano sembrare lento un click già avvenuto.
-      transition: "background 0.09s ease-out, border 0.09s ease-out",
+      transition: "border-color 0.1s ease-out",
     }}>
       {checked && <Check size={13} color="#1A1206" strokeWidth={3} />}
     </span>
