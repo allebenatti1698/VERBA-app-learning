@@ -413,7 +413,13 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
     return st.status === "mastered" ? "mast" : "learn";
   }
   const dotColor = { learn: "#F59E0B", mast: "#34D399", new: "rgba(255,255,255,0.28)" };
-  const FILTERS: Array<["all" | "learn" | "mast" | "new", string]> = [["all", "All"], ["learn", "Learning"], ["mast", "Mastered"], ["new", "New"]];
+  // Le chiavi restano "learn"/"mast"/"new" per non allargare il diff, ma le
+  // ETICHETTE dicono la verità: questi tre stati vengono da wordStats, cioè
+  // dalle risposte nel quiz, non dallo sfoglio. "new" NON vuol dire "mai
+  // vista" — vuol dire "mai praticata". La lettura è un asse separato
+  // (verba_study_progress) e questi filtri non la leggono.
+  // Ordine: dal punto di partenza alla padronanza.
+  const FILTERS: Array<["all" | "learn" | "mast" | "new", string]> = [["all", "All"], ["new", "Unpracticed"], ["learn", "Learning"], ["mast", "Mastered"]];
 
   return (
     <div style={{ minHeight: "100%", height: "100%", display: "flex", flexDirection: "column", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>

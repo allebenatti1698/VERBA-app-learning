@@ -1,0 +1,56 @@
+VERBA — rinomina "New" in "Unpracticed" nella lista e su Progress.
+Economy Mode. Stima ~$0.15–0.30. 2 file. DO NOT test live — I test manually.
+
+Applica OGNI edit in modo INDIPENDENTE: se una find non combacia ESATTAMENTE,
+SALTA quell'edit e SEGNALALO, ma esegui comunque gli altri.
+
+ATTENZIONE: stringhe simili esistono dentro attached_assets/. Modifica SOLO i
+due file indicati, mai niente sotto attached_assets/.
+
+════════════════════════════════════════════════════════════
+① src/pages/StudyScreen.tsx — etichette dei filtri
+════════════════════════════════════════════════════════════
+Trova ESATTAMENTE:
+  const FILTERS: Array<["all" | "learn" | "mast" | "new", string]> = [["all", "All"], ["learn", "Learning"], ["mast", "Mastered"], ["new", "New"]];
+
+Sostituisci con:
+  // Le chiavi restano "learn"/"mast"/"new" per non allargare il diff, ma le
+  // ETICHETTE dicono la verità: questi tre stati vengono da wordStats, cioè
+  // dalle risposte nel quiz, non dallo sfoglio. "new" NON vuol dire "mai
+  // vista" — vuol dire "mai praticata". La lettura è un asse separato
+  // (verba_study_progress) e questi filtri non la leggono.
+  // Ordine: dal punto di partenza alla padronanza.
+  const FILTERS: Array<["all" | "learn" | "mast" | "new", string]> = [["all", "All"], ["new", "Unpracticed"], ["learn", "Learning"], ["mast", "Mastered"]];
+
+Se NON vuoi il riordino, usa invece questa versione (stesso ordine di oggi):
+  const FILTERS: Array<["all" | "learn" | "mast" | "new", string]> = [["all", "All"], ["learn", "Learning"], ["mast", "Mastered"], ["new", "Unpracticed"]];
+→ APPLICA LA PRIMA VERSIONE (quella riordinata).
+
+════════════════════════════════════════════════════════════
+② src/pages/ProgressScreen.tsx — legenda della MasteryBar
+════════════════════════════════════════════════════════════
+Dentro la funzione MasteryBar trova ESATTAMENTE:
+        <span style={{ color: "rgba(255,255,255,0.4)" }}>● {newCount} new</span>
+
+Sostituisci con:
+        <span style={{ color: "rgba(255,255,255,0.4)" }}>● {newCount} unpracticed</span>
+
+Se dopo la sostituzione le tre voci della legenda vanno a capo o si toccano
+su larghezza stretta, NON cambiare i font né il layout: SEGNALAMELO e basta.
+
+════════════════════════════════════════════════════════════
+③ CONTROLLO — altre occorrenze
+════════════════════════════════════════════════════════════
+Cerca in tutto src/ (ESCLUSO attached_assets/) altre etichette rivolte
+all'utente che dicono "New" o "new" riferite alle parole mai praticate.
+NON modificarle: fammi solo l'elenco con file e riga.
+Ignora i nomi di variabile (newCount, isNew, ecc.): mi interessa solo il
+testo che l'utente legge.
+
+RIPORTA SOLO
+- File modificati
+- Typecheck (sì/no + errori)
+- La riga FILTERS prima e dopo
+- La riga della legenda prima e dopo
+- L'elenco del punto ③
+DO NOT test live — I test manually.

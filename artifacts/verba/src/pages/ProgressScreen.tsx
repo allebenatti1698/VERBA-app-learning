@@ -104,7 +104,7 @@ function MasteryBar({ mastered, inProgress, newCount }: { mastered: number; inPr
       <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "'Inter', sans-serif", fontSize: 10 }}>
         <span style={{ color: GREEN }}>● {mastered} mastered</span>
         <span style={{ color: AMBER }}>● {inProgress} learning</span>
-        <span style={{ color: "rgba(255,255,255,0.4)" }}>● {newCount} new</span>
+        <span style={{ color: "rgba(255,255,255,0.4)" }}>● {newCount} unpracticed</span>
       </div>
     </div>
   );
