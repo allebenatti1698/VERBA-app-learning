@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronUp } from "lucide-react";
 import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
-import { lowercaseFirst } from "@/lib/formatText";
+import { lowercaseFirst, highlightWord } from "@/lib/formatText";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -186,9 +186,11 @@ export function FeedbackExample({ sentence, visible = true }: FeedbackExamplePro
 
 interface FeedbackMultiDefinitionsProps {
   definitions: { part_of_speech: string; definition: string; example: string; display_order: number }[];
+  /** parola-chiave da evidenziare dentro gli esempi */
+  word?: string;
   visible?: boolean;
 }
-export function FeedbackMultiDefinitions({ definitions, visible = true }: FeedbackMultiDefinitionsProps) {
+export function FeedbackMultiDefinitions({ definitions, word, visible = true }: FeedbackMultiDefinitionsProps) {
   if (!visible || !definitions || definitions.length === 0) return null;
 
   return (
@@ -240,7 +242,7 @@ export function FeedbackMultiDefinitions({ definitions, visible = true }: Feedba
               margin: "8px 0 0",
               lineHeight: 1.5,
             }}>
-              "{def.example}"
+              "{word ? highlightWord(def.example, word) : def.example}"
             </p>
           )}
         </div>
@@ -589,7 +591,7 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
             <FeedbackStatus isCorrect={isCorrect} visible={true} />
             <FeedbackWord word={word.word} phonetic={word.phonetic} visible={true} />
             {word.allDefinitions && word.allDefinitions.length > 1 ? (
-              <FeedbackMultiDefinitions definitions={word.allDefinitions} />
+              <FeedbackMultiDefinitions definitions={word.allDefinitions} word={word.word} />
             ) : (
               <div style={{ marginTop: 16 }}>
                 {word.allDefinitions?.[0]?.part_of_speech && (
@@ -626,7 +628,7 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
                     margin: "12px 0 0",
                     lineHeight: 1.5,
                   }}>
-                    "{word.exampleSentence}"
+                    "{highlightWord(word.exampleSentence, word.word)}"
                   </p>
                 )}
               </div>

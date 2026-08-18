@@ -1,0 +1,96 @@
+VERBA — due fix: evidenziazione della parola negli esempi + piede che copre il testo.
+DO NOT test live — I test manually.
+Applica ogni edit indipendentemente; segnala i mismatch senza bloccare gli altri.
+
+════════════════════════════════════════════════════════════
+1) EVIDENZIAZIONE — src/components/FeedbackCard.tsx
+════════════════════════════════════════════════════════════
+Oggi highlightWord è applicato SOLO nel ramo a definizione singola di
+StudyScreen. Le parole con 2-3 definizioni passano da FeedbackMultiDefinitions,
+che riceve solo `definitions` e stampa l'esempio grezzo. Serve passargli la parola.
+
+1a) IMPORT — verifica cosa importa questo file da "@/lib/formatText".
+    Se importa solo lowercaseFirst, aggiungi highlightWord allo stesso import.
+    Riportami la riga di import prima e dopo.
+
+1b) PROPS — trova ESATTAMENTE:
+interface FeedbackMultiDefinitionsProps {
+  definitions: { part_of_speech: string; definition: string; example: string; display_order: number }[];
+  visible?: boolean;
+}
+export function FeedbackMultiDefinitions({ definitions, visible = true }: FeedbackMultiDefinitionsProps) {
+    Sostituisci con:
+interface FeedbackMultiDefinitionsProps {
+  definitions: { part_of_speech: string; definition: string; example: string; display_order: number }[];
+  /** parola-chiave da evidenziare dentro gli esempi */
+  word?: string;
+  visible?: boolean;
+}
+export function FeedbackMultiDefinitions({ definitions, word, visible = true }: FeedbackMultiDefinitionsProps) {
+
+1c) ESEMPIO — dentro FeedbackMultiDefinitions trova ESATTAMENTE:
+              "{def.example}"
+    Sostituisci con:
+              "{word ? highlightWord(def.example, word) : def.example}"
+    ATTENZIONE: questa stringa esiste anche in vecchi file dentro
+    attached_assets/. Modifica SOLO src/components/FeedbackCard.tsx.
+
+1d) RAMO MONO-DEF della FeedbackCard — nello stesso file trova ESATTAMENTE:
+                    "{word.exampleSentence}"
+    Sostituisci con:
+                    "{highlightWord(word.exampleSentence, word.word)}"
+
+1e) CALL SITE nella FeedbackCard — trova ESATTAMENTE:
+              <FeedbackMultiDefinitions definitions={word.allDefinitions} />
+    Sostituisci con:
+              <FeedbackMultiDefinitions definitions={word.allDefinitions} word={word.word} />
+
+════════════════════════════════════════════════════════════
+2) ALTRI CALL SITE di FeedbackMultiDefinitions
+════════════════════════════════════════════════════════════
+Cerca in TUTTO src/ (escluso attached_assets/) ogni occorrenza di
+  <FeedbackMultiDefinitions
+e aggiungi la prop word con la parola corrispondente al contesto:
+  - in src/pages/StudyScreen.tsx dovrebbe essere  word={w.word}
+  - altrove usa la variabile che rappresenta la parola in quel punto
+Se in qualche punto non è chiaro quale sia la parola, NON inventare:
+salta e segnalalo. Riportami l'elenco dei call site trovati e modificati.
+
+════════════════════════════════════════════════════════════
+3) PIEDE CHE COPRE L'ETIMOLOGIA — src/pages/StudyScreen.tsx (BrowseView)
+════════════════════════════════════════════════════════════
+Nella vista "impilate" di BrowseView c'è una catena flex:
+  colonna scrollabile (overflowY: "auto")
+    └── contenitore del ParallaxPager, con  flex: "1 1 auto"  e  minHeight: 0
+    └── piede fisso con "swipe to flip" + contatore + barra, con flex: "0 0 auto"
+
+Il `minHeight: 0` permette al contenitore di restringersi SOTTO il proprio
+contenuto: con parole a 3 definizioni la card è più alta dello schermo, sborda
+e il piede ci finisce sopra.
+
+FAI QUESTO:
+3a) Localizza il contenitore del ParallaxPager (quello con flex: "1 1 auto" e
+    minHeight: 0). NON confonderlo con la colonna esterna che ha
+    overflowY: "auto" — quella NON va toccata.
+3b) In quel contenitore soltanto, cambia:
+        minHeight: 0
+    in:
+        // Non può restringersi sotto il contenuto: con 3 definizioni la card
+        // supera lo schermo, la colonna cresce e scrolla invece di far finire
+        // il piede sopra l'etimologia.
+        minHeight: "min-content"
+3c) RIPORTAMI l'oggetto style di quel contenitore prima e dopo, e conferma
+    che la colonna esterna con overflowY: "auto" è rimasta invariata.
+
+SE non trovi un contenitore con esattamente quelle due proprietà, FERMATI su
+questo punto e riportami la struttura JSX della vista impilate dal contenitore
+scrollabile fino al piede, senza modificare nulla.
+
+════════════════════════════════════════════════════════════
+RIPORTA SOLO
+- File modificati
+- Typecheck (sì/no + errori)
+- Riga di import di formatText prima e dopo
+- Elenco dei call site di FeedbackMultiDefinitions modificati
+- Oggetto style del contenitore pager prima e dopo
+- Blocchi saltati

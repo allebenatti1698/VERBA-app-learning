@@ -293,7 +293,7 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
       <div onClick={() => { if (blurDef) setRevealed(true); }} style={{ position: "relative", marginTop: 16, cursor: blurDef ? "pointer" : "default" }}>
         <div style={{ filter: blurDef ? "blur(7px)" : "none", transition: "filter 0.3s ease", userSelect: blurDef ? "none" : "auto", pointerEvents: blurDef ? "none" : "auto" }}>
           {w.allDefinitions && w.allDefinitions.length > 1 ? (
-            <FeedbackMultiDefinitions definitions={w.allDefinitions} />
+            <FeedbackMultiDefinitions definitions={w.allDefinitions} word={w.word} />
           ) : (
             <>
               {w.allDefinitions?.[0]?.part_of_speech && (
@@ -371,7 +371,13 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
 
         {mode === "stack" && !loading && !error && current && (
           <div style={{ display: "flex", flexDirection: "column", flex: "1 1 auto", minHeight: 0 }}>
-            <div style={{ flex: "1 1 auto", minHeight: 0 }}>
+            <div style={{
+              flex: "1 1 auto",
+              // Non può restringersi sotto il contenuto: con 3 definizioni la card
+              // supera lo schermo, la colonna cresce e scrolla invece di far finire
+              // il piede sopra l'etimologia.
+              minHeight: "min-content",
+            }}>
               <ParallaxPager
                 index={index}
                 total={total}
