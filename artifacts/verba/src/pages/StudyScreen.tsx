@@ -5,7 +5,7 @@ import { getWordStat } from "@/lib/wordStats";
 import ParallaxPager from "@/components/ParallaxPager";
 import AppBackground from "@/components/AppBackground";
 import StreakChip from "@/components/StreakChip";
-import { lowercaseFirst } from "@/lib/formatText";
+import { lowercaseFirst, highlightWord } from "@/lib/formatText";
 import { getStudySets, type StudySet } from "@/lib/studySets";
 import { getCompletedSetNumbers, getLastStudied, getSeenCount, markWordsSeen, setLastStudied } from "@/lib/studyProgress";
 import { fetchWordsByIds, type QuizWord } from "@/lib/quizQueries";
@@ -28,18 +28,7 @@ const DECK_OPTIONS = [
 
 type SetsByDifficulty = Record<string, StudySet[]>;
 
-function escapeRegExp(s: string) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-function highlightWord(text: string, word: string) {
-  if (!text || !word) return text;
-  const parts = text.split(new RegExp(`(${escapeRegExp(word)})`, "gi"));
-  return parts.map((p, i) =>
-    p.toLowerCase() === word.toLowerCase()
-      ? <span key={i} style={{ color: "#C7B8E8" }}>{p}</span>
-      : <span key={i}>{p}</span>,
-  );
-}
+
 const MY_WORDS_KEY = "verba_my_words";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function loadMyWords(): Set<string> {

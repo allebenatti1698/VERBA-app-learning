@@ -1,0 +1,88 @@
+VERBA — unifica highlightWord: stile discreto lavanda + parole flesse intere.
+DO NOT test live — I test manually.
+Applica ogni edit indipendentemente; segnala i mismatch senza bloccare gli altri.
+
+════════════════════════════════════════════════════════════
+0) ISPEZIONE — fallo PRIMA di modificare
+════════════════════════════════════════════════════════════
+Cerca in tutto src/ (escluso attached_assets/) ogni definizione di
+`highlightWord` e di `escapeRegExp`. RIPORTAMI dove sono e come sono scritte.
+Ne dovrebbero esistere due: una locale in src/pages/StudyScreen.tsx e una
+aggiunta di recente altrove (formatText o FeedbackCard).
+
+════════════════════════════════════════════════════════════
+1) src/lib/formatText.ts — versione canonica unica
+════════════════════════════════════════════════════════════
+Aggiungi in cima al file:
+  import { createElement, type ReactNode } from "react";
+
+Poi aggiungi in fondo al file (e se in questo file esiste già una
+highlightWord o una escapeRegExp, SOSTITUISCILE integralmente con queste):
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Evidenzia la parola-chiave dentro un testo.
+ * Stile volutamente DISCRETO: cambia solo la tinta in lavanda, mantiene peso
+ * e corsivo del contesto. Niente grassetto, che spezzerebbe il corsivo.
+ * Il match copre l'intera parola flessa: "cherish" evidenzia "cherished",
+ * non "cherish" lasciando fuori "ed".
+ */
+export function highlightWord(text: string, word: string): ReactNode {
+  if (!text || !word) return text;
+  const stem = escapeRegExp(word);
+  const splitRe = new RegExp(`(\\b${stem}\\w*)`, "gi");
+  const matchRe = new RegExp(`^${stem}\\w*$`, "i");
+  return text.split(splitRe).map((p, i) =>
+    matchRe.test(p)
+      ? createElement("span", { key: i, style: { color: "#C7B8E8" } }, p)
+      : createElement("span", { key: i }, p),
+  );
+}
+
+NOTA: uso createElement invece di JSX perché questo è un file .ts.
+NON rinominare il file.
+
+════════════════════════════════════════════════════════════
+2) src/pages/StudyScreen.tsx — usa quella condivisa
+════════════════════════════════════════════════════════════
+2a) ELIMINA le due funzioni locali. Trova ESATTAMENTE:
+
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function highlightWord(text: string, word: string) {
+  if (!text || !word) return text;
+  const parts = text.split(new RegExp(`(${escapeRegExp(word)})`, "gi"));
+  return parts.map((p, i) =>
+    p.toLowerCase() === word.toLowerCase()
+      ? <span key={i} style={{ color: "#C7B8E8" }}>{p}</span>
+      : <span key={i}>{p}</span>,
+  );
+}
+
+ed eliminale entrambe (non lasciare righe vuote di troppo).
+
+2b) IMPORT — trova ESATTAMENTE:
+  import { lowercaseFirst } from "@/lib/formatText";
+Sostituisci con:
+  import { lowercaseFirst, highlightWord } from "@/lib/formatText";
+
+════════════════════════════════════════════════════════════
+3) src/components/FeedbackCard.tsx — elimina il duplicato
+════════════════════════════════════════════════════════════
+Se in questo file esiste una definizione locale di highlightWord (o di
+escapeRegExp), ELIMINALA e assicurati che highlightWord sia importato da
+"@/lib/formatText". Le chiamate esistenti restano identiche.
+
+Se invece highlightWord era già importato da formatText, non toccare nulla qui:
+la correzione al punto 1 si propaga da sola.
+
+════════════════════════════════════════════════════════════
+RIPORTA SOLO
+- Dove hai trovato le definizioni di highlightWord/escapeRegExp
+- File modificati
+- Typecheck (sì/no + errori)
+- Blocchi saltati
