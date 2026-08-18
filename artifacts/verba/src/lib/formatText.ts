@@ -19,8 +19,10 @@ function escapeRegExp(s: string): string {
 export function highlightWord(text: string, word: string): ReactNode {
   if (!text || !word) return text;
   const stem = escapeRegExp(word);
-  const splitRe = new RegExp(`(\\b${stem}\\w*)`, "gi");
-  const matchRe = new RegExp(`^${stem}\\w*$`, "i");
+  // Max 3 lettere in coda: prende -s, -ed, -ing, -ly, -es, -er (desinenze reali)
+  // ma NON parole diverse con la stessa radice (arch → architecture).
+  const splitRe = new RegExp(`(\\b${stem}\\w{0,3})`, "gi");
+  const matchRe = new RegExp(`^${stem}\\w{0,3}$`, "i");
   return text.split(splitRe).map((p, i) =>
     matchRe.test(p)
       ? createElement("span", { key: i, style: { color: "#C7B8E8" } }, p)
