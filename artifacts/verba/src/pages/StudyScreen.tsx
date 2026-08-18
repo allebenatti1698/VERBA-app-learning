@@ -7,7 +7,7 @@ import AppBackground from "@/components/AppBackground";
 import StreakChip from "@/components/StreakChip";
 import { lowercaseFirst, highlightWord } from "@/lib/formatText";
 import { getStudySets, type StudySet } from "@/lib/studySets";
-import { getCompletedSetNumbers, getLastStudied, getResumeIndex, getSeenCount, markWordsSeen, setLastStudied, setLastWordId } from "@/lib/studyProgress";
+import { getCompletedSetNumbers, getLastStudied, getResumeIndex, getSeenCount, markWordsSeen, setLastPosition, setLastStudied } from "@/lib/studyProgress";
 import { fetchWordsByIds, type QuizWord } from "@/lib/quizQueries";
 import { FeedbackWord, FeedbackSynonyms, FeedbackAntonyms, FeedbackTranslation, FeedbackEtymology, FeedbackMultiDefinitions } from "@/components/FeedbackCard";
 
@@ -244,7 +244,7 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
         setWords(w);
         // Resume granulare. L'indice si risolve sull'ordine REALE dell'array
         // caricato, non su set.wordIds: fetchWordsByIds non garantisce l'ordine.
-        setIndex(getResumeIndex(DECK, difficulty, setNumber, w.map((x) => x.id)));
+        setIndex(getResumeIndex(DECK, difficulty, setNumber, w.map((x) => x.id), difficulty === "myverba"));
         setDir(1);
         setLoading(false);
       })
@@ -258,9 +258,11 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
   useEffect(() => {
     if (!set || !current) return;
     markWordsSeen(DECK, difficulty, set.setNumber, [current.id]);
-    setLastStudied(DECK, difficulty, set.setNumber);
-    // Posizione esatta per il resume: sempre l'ID, mai l'indice.
-    setLastWordId(DECK, difficulty, set.setNumber, current.id);
+    // My Verba è una collezione, non un percorso: se scrivesse qui,
+    // ContinueCard cercherebbe "myverba" dentro TIERS, non lo troverebbe e
+    // farebbe sparire del tutto la card dal deck GRE.
+    if (difficulty !== "myverba") setLastStudied(DECK, difficulty, set.setNumber);
+    setLastPosition(DECK, difficulty, set.setNumber, current.id, index);
   }, [index, current, set, difficulty]);
 
   useEffect(() => { setRevealed(false); }, [index, selfTest]);

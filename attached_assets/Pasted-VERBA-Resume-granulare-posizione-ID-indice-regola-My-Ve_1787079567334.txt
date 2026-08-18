@@ -1,0 +1,211 @@
+VERBA — Resume granulare: posizione ID+indice, regola My Verba, fix Continue.
+Economy Mode. Stima ~$0.5–0.9. 2 file. DO NOT test live — I test manually.
+
+Applica OGNI edit in modo INDIPENDENTE: se una find non combacia ESATTAMENTE,
+SALTA quell'edit e SEGNALALO, ma esegui comunque gli altri. NON bloccare tutto
+per un mismatch.
+
+════════════════════════════════════════════════════════════
+① src/lib/studyProgress.ts — blocco resume (sostituisci O aggiungi)
+════════════════════════════════════════════════════════════
+CASO 1 — se nel file esiste già `const LAST_INDEX_KEY`:
+  CANCELLA tutto dal commento/riga che introduce LAST_INDEX_KEY fino alla
+  graffa di chiusura di getResumeIndex COMPRESA (quindi anche readLastIndex,
+  writeLastIndex, setLastWordId, getLastWordId), e metti al suo posto il
+  BLOCCO qui sotto.
+
+CASO 2 — se LAST_INDEX_KEY NON esiste:
+  AGGIUNGI il BLOCCO in fondo al file, subito dopo la graffa di chiusura di
+  getLastStudied.
+
+In entrambi i casi non toccare NIENTE che venga prima: markWordsSeen,
+getSeenWordIds, getSeenCount, isSetCompleted, getCompletedSetNumbers,
+setLastStudied, getLastStudied restano identici.
+
+──────── BLOCCO ────────
+// ── Posizione esatta dentro un set (resume granulare) ─────────────────────
+// Chiave separata da verba_study_progress: la foglia di quella mappa è un
+// string[] puro e cambiarne la forma richiederebbe una migration.
+// Si salvano DUE cose: l'ID della parola e il suo indice. L'ID vince quando
+// esiste ancora; l'indice è la rete di sicurezza per My Verba, dove togliere
+// una stella fa scalare la lista — e l'indice vecchio punta allora alla
+// parola che veniva subito dopo, che è esattamente dove si vuole ripartire.
+const LAST_INDEX_KEY = "verba_last_index";
+
+type SavedPos = { id: string; i: number };
+type LastIndexMap = Record<string, Record<string, Record<string, SavedPos>>>;
+
+function readLastIndex(): LastIndexMap {
+  try {
+    const raw = localStorage.getItem(LAST_INDEX_KEY);
+    return raw ? (JSON.parse(raw) as LastIndexMap) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLastIndex(map: LastIndexMap): void {
+  try {
+    localStorage.setItem(LAST_INDEX_KEY, JSON.stringify(map));
+  } catch {
+    /* storage non disponibile */
+  }
+}
+
+/** Salva dove l'utente è fermo: ID della parola + indice nella lista. */
+export function setLastPosition(
+  deckSlug: string,
+  difficulty: string,
+  setNumber: number,
+  wordId: string,
+  index: number,
+): void {
+  if (!wordId) return;
+  const map = readLastIndex();
+  const deck = (map[deckSlug] ??= {});
+  const diff = (deck[difficulty] ??= {});
+  diff[String(setNumber)] = { id: String(wordId), i: index };
+  writeLastIndex(map);
+}
+
+/** Legge la posizione. Accetta anche il vecchio formato (stringa nuda). */
+export function getLastPosition(
+  deckSlug: string,
+  difficulty: string,
+  setNumber: number,
+): SavedPos | null {
+  const v = readLastIndex()[deckSlug]?.[difficulty]?.[String(setNumber)];
+  if (!v) return null;
+  if (typeof v === "string") return { id: v, i: -1 };
+  return v;
+}
+
+/**
+ * Indice da cui riaprire lo sfoglio.
+ *
+ * `keepPosition = true` (My Verba): sempre e solo dove eri. Una collezione non
+ * ha un completamento da raggiungere, quindi il concetto di "buco" non esiste
+ * e saltare a una parola non letta sembrerebbe casuale.
+ *
+ * `keepPosition = false` (set GRE): dove eri, ma non oltre il primo buco.
+ * Serve perché la vista a lista permette di saltare in fondo: chi ha visto
+ * 1-2-3-4 e poi 24-25 non deve rientrare in coda. Se il set è completo si
+ * resta dove si era: rimandare alla prima chi ha finito è una punizione.
+ *
+ * `wordIds` deve essere l'ordine REALE delle parole caricate.
+ */
+export function getResumeIndex(
+  deckSlug: string,
+  difficulty: string,
+  setNumber: number,
+  wordIds: string[],
+  keepPosition = false,
+): number {
+  if (wordIds.length === 0) return 0;
+
+  const pos = getLastPosition(deckSlug, difficulty, setNumber);
+  let last = -1;
+  if (pos) {
+    const byId = pos.id ? wordIds.indexOf(pos.id) : -1;
+    if (byId >= 0) last = byId;
+    else if (pos.i >= 0) last = Math.min(pos.i, wordIds.length - 1);
+  }
+
+  if (keepPosition) return last >= 0 ? last : 0;
+
+  // Le viste vanno ristrette a quelle DAVVERO presenti nella lista caricata.
+  const present = new Set(wordIds);
+  const seen = new Set(
+    getSeenWordIds(deckSlug, difficulty, setNumber).filter((id) => present.has(id)),
+  );
+  const firstUnseen = wordIds.findIndex((id) => !seen.has(id));
+
+  if (firstUnseen === -1) return last >= 0 ? last : wordIds.length - 1;
+  if (last < 0) return firstUnseen;
+  return Math.min(last, firstUnseen);
+}
+──────── FINE BLOCCO ────────
+
+════════════════════════════════════════════════════════════
+② src/pages/StudyScreen.tsx — import
+════════════════════════════════════════════════════════════
+LOCALIZZA la riga di import da "@/lib/studyProgress". Assicurati che
+contenga getResumeIndex e setLastPosition. Se contiene setLastWordId o
+getLastWordId, RIMUOVILI (non esistono più).
+RIPORTAMI la riga prima e dopo.
+
+════════════════════════════════════════════════════════════
+③ src/pages/StudyScreen.tsx — BrowseView riparte dalla parola giusta
+════════════════════════════════════════════════════════════
+CASO 1 — trova ESATTAMENTE:
+      .then((w) => { if (!active) return; setWords(w); setIndex(0); setDir(1); setLoading(false); })
+
+CASO 2 — se non c'è, cerca la variante già modificata che contiene
+`getResumeIndex(` dentro la .then e sostituisci quella.
+
+In entrambi i casi il risultato finale della useEffect deve essere:
+
+  useEffect(() => {
+    if (!set) { setError("Set non trovato"); setLoading(false); return; }
+    // Estratto FUORI dalla callback: dentro una closure TypeScript perde il
+    // narrowing di `set` e segnalerebbe "possibly undefined".
+    const setNumber = set.setNumber;
+    let active = true;
+    setLoading(true); setError(null);
+    fetchWordsByIds(set.wordIds)
+      .then((w) => {
+        if (!active) return;
+        setWords(w);
+        // L'indice si risolve sull'ordine REALE dell'array caricato, non su
+        // set.wordIds: fetchWordsByIds non garantisce l'ordine.
+        setIndex(getResumeIndex(DECK, difficulty, setNumber, w.map((x) => x.id), difficulty === "myverba"));
+        setDir(1);
+        setLoading(false);
+      })
+
+NON toccare il .catch, il cleanup, né l'array di dipendenze [set]. Se il
+linter segnala `difficulty` come dipendenza mancante, SEGNALALO e NON
+aggiungerla: è costante per tutta la vita del componente.
+
+════════════════════════════════════════════════════════════
+④ src/pages/StudyScreen.tsx — salvataggio posizione + fix Continue
+════════════════════════════════════════════════════════════
+LOCALIZZA la useEffect di BrowseView che chiama markWordsSeen (dipendenze
+[index, current, set, difficulty]) e falla diventare ESATTAMENTE così,
+qualunque sia la sua forma attuale:
+
+  useEffect(() => {
+    if (!set || !current) return;
+    markWordsSeen(DECK, difficulty, set.setNumber, [current.id]);
+    // My Verba è una collezione, non un percorso: se scrivesse qui,
+    // ContinueCard cercherebbe "myverba" dentro TIERS, non lo troverebbe e
+    // farebbe sparire del tutto la card dal deck GRE.
+    if (difficulty !== "myverba") setLastStudied(DECK, difficulty, set.setNumber);
+    setLastPosition(DECK, difficulty, set.setNumber, current.id, index);
+  }, [index, current, set, difficulty]);
+
+RIPORTAMI il corpo della useEffect prima e dopo.
+
+════════════════════════════════════════════════════════════
+⑤ src/pages/ProfileScreen.tsx — la chiave nel reset
+════════════════════════════════════════════════════════════
+LOCALIZZA `const PROGRESS_KEYS = [...]`. Se non contiene "verba_last_index",
+AGGIUNGILA come ultima voce. Non rimuovere né riordinare le altre.
+RIPORTAMI l'array completo prima e dopo.
+Se PROGRESS_KEYS non esiste in questo file, FERMATI su questo edit e dimmi
+dove si trova la logica di reset del progresso.
+
+════════════════════════════════════════════════════════════
+NON TOCCARE
+════════════════════════════════════════════════════════════
+src/components/ParallaxPager.tsx · ContinueCard · le righe dei set
+nell'accordion · recordWordsToday / verba_study_counts.
+
+RIPORTA SOLO
+- File modificati
+- Typecheck (sì/no + errori)
+- Riga di import prima e dopo
+- useEffect di markWordsSeen prima e dopo
+- PROGRESS_KEYS prima e dopo
+- Edit applicati / saltati con motivo
+DO NOT test live — I test manually.

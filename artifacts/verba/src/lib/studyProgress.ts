@@ -105,12 +105,15 @@ export function getLastStudied(): LastStudy | null {
 
 // ── Posizione esatta dentro un set (resume granulare) ─────────────────────
 // Chiave separata da verba_study_progress: la foglia di quella mappa è un
-// string[] puro, e cambiarne la forma richiederebbe una migration dei dati
-// già presenti nel localStorage degli utenti.
+// string[] puro e cambiarne la forma richiederebbe una migration.
+// Si salvano DUE cose: l'ID della parola e il suo indice. L'ID vince quando
+// esiste ancora; l'indice è la rete di sicurezza per My Verba, dove togliere
+// una stella fa scalare la lista — e l'indice vecchio punta allora alla
+// parola che veniva subito dopo, che è esattamente dove si vuole ripartire.
 const LAST_INDEX_KEY = "verba_last_index";
 
-// { [deckSlug]: { [difficulty]: { [setNumber]: wordId } } }
-type LastIndexMap = Record<string, Record<string, Record<string, string>>>;
+type SavedPos = { id: string; i: number };
+type LastIndexMap = Record<string, Record<string, Record<string, SavedPos>>>;
 
 function readLastIndex(): LastIndexMap {
   try {
@@ -129,74 +132,75 @@ function writeLastIndex(map: LastIndexMap): void {
   }
 }
 
-/** Salva la parola su cui l'utente è fermo. Sempre l'ID, mai l'indice. */
-export function setLastWordId(
+/** Salva dove l'utente è fermo: ID della parola + indice nella lista. */
+export function setLastPosition(
   deckSlug: string,
   difficulty: string,
   setNumber: number,
   wordId: string,
+  index: number,
 ): void {
   if (!wordId) return;
   const map = readLastIndex();
   const deck = (map[deckSlug] ??= {});
   const diff = (deck[difficulty] ??= {});
-  diff[String(setNumber)] = String(wordId);
+  diff[String(setNumber)] = { id: String(wordId), i: index };
   writeLastIndex(map);
 }
 
-export function getLastWordId(
+/** Legge la posizione. Accetta anche il vecchio formato (stringa nuda). */
+export function getLastPosition(
   deckSlug: string,
   difficulty: string,
   setNumber: number,
-): string | null {
-  return readLastIndex()[deckSlug]?.[difficulty]?.[String(setNumber)] ?? null;
+): SavedPos | null {
+  const v = readLastIndex()[deckSlug]?.[difficulty]?.[String(setNumber)];
+  if (!v) return null;
+  if (typeof v === "string") return { id: v, i: -1 };
+  return v;
 }
 
 /**
- * Indice da cui riaprire lo sfoglio di un set.
+ * Indice da cui riaprire lo sfoglio.
  *
- * Regola: torna DOVE ERI, ma non oltre il primo buco. Serve perché la vista
- * a lista permette di saltare in fondo: chi ha visto 1-2-3-4 e poi 24-25 non
- * deve rientrare in coda, dove non c'è più niente da fare.
+ * `keepPosition = true` (My Verba): sempre e solo dove eri. Una collezione non
+ * ha un completamento da raggiungere, quindi il concetto di "buco" non esiste
+ * e saltare a una parola non letta sembrerebbe casuale.
  *
- * - set completo → dove eri (di solito l'ultima parola). NON si riparte da
- *   capo: se hai finito il set, rimandarti alla prima è una punizione.
- * - c'è ancora del nuovo DOPO dove eri → dove eri, non una dopo. La parola su
- *   cui ti eri fermato viene contata come vista appena compare sullo schermo,
- *   anche se sei uscito subito: riportarti lì ti fa leggere davvero quella che
- *   avevi solo intravisto.
- * - il primo buco è PRIMA di dove eri → il primo buco, cioè il primo punto in
- *   cui c'è materiale nuovo.
+ * `keepPosition = false` (set GRE): dove eri, ma non oltre il primo buco.
+ * Serve perché la vista a lista permette di saltare in fondo: chi ha visto
+ * 1-2-3-4 e poi 24-25 non deve rientrare in coda. Se il set è completo si
+ * resta dove si era: rimandare alla prima chi ha finito è una punizione.
  *
- * `wordIds` deve essere l'ordine REALE delle parole caricate, non quello di
- * set.wordIds.
+ * `wordIds` deve essere l'ordine REALE delle parole caricate.
  */
 export function getResumeIndex(
   deckSlug: string,
   difficulty: string,
   setNumber: number,
   wordIds: string[],
+  keepPosition = false,
 ): number {
   if (wordIds.length === 0) return 0;
 
-  // Le viste vanno ristrette a quelle DAVVERO presenti nella lista caricata:
-  // My Verba cambia composizione quando si toglie una stella, e lo storico
-  // conserva ID che non ci sono più.
+  const pos = getLastPosition(deckSlug, difficulty, setNumber);
+  let last = -1;
+  if (pos) {
+    const byId = pos.id ? wordIds.indexOf(pos.id) : -1;
+    if (byId >= 0) last = byId;
+    else if (pos.i >= 0) last = Math.min(pos.i, wordIds.length - 1);
+  }
+
+  if (keepPosition) return last >= 0 ? last : 0;
+
+  // Le viste vanno ristrette a quelle DAVVERO presenti nella lista caricata.
   const present = new Set(wordIds);
   const seen = new Set(
     getSeenWordIds(deckSlug, difficulty, setNumber).filter((id) => present.has(id)),
   );
-
   const firstUnseen = wordIds.findIndex((id) => !seen.has(id));
 
-  const saved = getLastWordId(deckSlug, difficulty, setNumber);
-  const last = saved ? wordIds.indexOf(saved) : -1;
-
-  // Set completo: resta dove eri. Se la posizione è illeggibile, l'ultima.
   if (firstUnseen === -1) return last >= 0 ? last : wordIds.length - 1;
-
-  // Nessuna posizione salvata (o parola sparita): vai al primo buco.
   if (last < 0) return firstUnseen;
-
   return Math.min(last, firstUnseen);
 }
