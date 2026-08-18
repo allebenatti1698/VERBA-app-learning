@@ -102,3 +102,74 @@ export function getLastStudied(): LastStudy | null {
     return null;
   }
 }
+
+// ── Posizione esatta dentro un set (resume granulare) ─────────────────────
+// Chiave separata da verba_study_progress: la foglia di quella mappa è un
+// string[] puro, e cambiarne la forma richiederebbe una migration dei dati
+// già presenti nel localStorage degli utenti.
+const LAST_INDEX_KEY = "verba_last_index";
+
+// { [deckSlug]: { [difficulty]: { [setNumber]: wordId } } }
+type LastIndexMap = Record<string, Record<string, Record<string, string>>>;
+
+function readLastIndex(): LastIndexMap {
+  try {
+    const raw = localStorage.getItem(LAST_INDEX_KEY);
+    return raw ? (JSON.parse(raw) as LastIndexMap) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLastIndex(map: LastIndexMap): void {
+  try {
+    localStorage.setItem(LAST_INDEX_KEY, JSON.stringify(map));
+  } catch {
+    /* storage non disponibile */
+  }
+}
+
+/** Salva la parola su cui l'utente è fermo. Sempre l'ID, mai l'indice. */
+export function setLastWordId(
+  deckSlug: string,
+  difficulty: string,
+  setNumber: number,
+  wordId: string,
+): void {
+  if (!wordId) return;
+  const map = readLastIndex();
+  const deck = (map[deckSlug] ??= {});
+  const diff = (deck[difficulty] ??= {});
+  diff[String(setNumber)] = String(wordId);
+  writeLastIndex(map);
+}
+
+export function getLastWordId(
+  deckSlug: string,
+  difficulty: string,
+  setNumber: number,
+): string | null {
+  return readLastIndex()[deckSlug]?.[difficulty]?.[String(setNumber)] ?? null;
+}
+
+/**
+ * Indice da cui riaprire lo sfoglio.
+ * Torna 0 (inizio) in tre casi: niente salvato · la parola non è più nella
+ * lista (tipico di My Verba dopo che una stella è stata tolta) · era l'ULTIMA
+ * parola del set, dove riprendere significherebbe atterrare in un vicolo cieco.
+ * ATTENZIONE: `wordIds` deve essere l'ordine REALE delle parole caricate, non
+ * quello di set.wordIds, che può differire.
+ */
+export function getResumeIndex(
+  deckSlug: string,
+  difficulty: string,
+  setNumber: number,
+  wordIds: string[],
+): number {
+  if (wordIds.length === 0) return 0;
+  const saved = getLastWordId(deckSlug, difficulty, setNumber);
+  if (!saved) return 0;
+  const i = wordIds.indexOf(saved);
+  if (i < 0 || i === wordIds.length - 1) return 0;
+  return i;
+}

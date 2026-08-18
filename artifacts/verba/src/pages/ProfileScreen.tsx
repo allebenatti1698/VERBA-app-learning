@@ -30,6 +30,7 @@ const PROGRESS_KEYS = [
   "verba_trouble_dismissed",
   "verba_my_words",
   "verba_last_session",
+  "verba_last_index",
 ];
 function resetProgress(): void {
   try { PROGRESS_KEYS.forEach((k) => localStorage.removeItem(k)); } catch { /* */ }

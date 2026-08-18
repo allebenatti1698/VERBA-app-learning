@@ -7,7 +7,7 @@ import AppBackground from "@/components/AppBackground";
 import StreakChip from "@/components/StreakChip";
 import { lowercaseFirst, highlightWord } from "@/lib/formatText";
 import { getStudySets, type StudySet } from "@/lib/studySets";
-import { getCompletedSetNumbers, getLastStudied, getSeenCount, markWordsSeen, setLastStudied } from "@/lib/studyProgress";
+import { getCompletedSetNumbers, getLastStudied, getResumeIndex, getSeenCount, markWordsSeen, setLastStudied, setLastWordId } from "@/lib/studyProgress";
 import { fetchWordsByIds, type QuizWord } from "@/lib/quizQueries";
 import { FeedbackWord, FeedbackSynonyms, FeedbackAntonyms, FeedbackTranslation, FeedbackEtymology, FeedbackMultiDefinitions } from "@/components/FeedbackCard";
 
@@ -233,10 +233,21 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
 
   useEffect(() => {
     if (!set) { setError("Set non trovato"); setLoading(false); return; }
+    // Estratto FUORI dalla callback: dentro una closure TypeScript perde il
+    // narrowing di `set` e segnalerebbe "possibly undefined".
+    const setNumber = set.setNumber;
     let active = true;
     setLoading(true); setError(null);
     fetchWordsByIds(set.wordIds)
-      .then((w) => { if (!active) return; setWords(w); setIndex(0); setDir(1); setLoading(false); })
+      .then((w) => {
+        if (!active) return;
+        setWords(w);
+        // Resume granulare. L'indice si risolve sull'ordine REALE dell'array
+        // caricato, non su set.wordIds: fetchWordsByIds non garantisce l'ordine.
+        setIndex(getResumeIndex(DECK, difficulty, setNumber, w.map((x) => x.id)));
+        setDir(1);
+        setLoading(false);
+      })
       .catch((e) => { if (active) { setError(e?.message ?? "Errore di caricamento"); setLoading(false); } });
     return () => { active = false; };
   }, [set]);
@@ -248,6 +259,8 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
     if (!set || !current) return;
     markWordsSeen(DECK, difficulty, set.setNumber, [current.id]);
     setLastStudied(DECK, difficulty, set.setNumber);
+    // Posizione esatta per il resume: sempre l'ID, mai l'indice.
+    setLastWordId(DECK, difficulty, set.setNumber, current.id);
   }, [index, current, set, difficulty]);
 
   useEffect(() => { setRevealed(false); }, [index, selfTest]);

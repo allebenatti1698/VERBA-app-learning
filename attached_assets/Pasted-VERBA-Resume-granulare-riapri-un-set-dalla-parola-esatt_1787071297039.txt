@@ -1,0 +1,189 @@
+VERBA — Resume granulare: riapri un set dalla parola esatta dove ti eri fermato.
+Economy Mode. Stima ~$0.7–1.3. DO NOT test live — I test manually.
+
+3 file. Applica OGNI edit in modo INDIPENDENTE: se una find non combacia
+ESATTAMENTE, SALTA quell'edit e SEGNALALO, ma esegui comunque gli altri. NON
+bloccare tutto per un mismatch.
+
+════════════════════════════════════════════════════════════
+1) src/lib/studyProgress.ts — nuova chiave + tre funzioni (SOLO AGGIUNTE)
+════════════════════════════════════════════════════════════
+Non modificare niente di esistente in questo file. Trova la FINE di
+getLastStudied, cioè questo blocco ESATTO:
+
+export function getLastStudied(): LastStudy | null {
+  try {
+    const raw = localStorage.getItem(LAST_STUDY_KEY);
+    return raw ? (JSON.parse(raw) as LastStudy) : null;
+  } catch {
+    return null;
+  }
+}
+
+e AGGIUNGI subito DOPO, in fondo al file:
+
+// ── Posizione esatta dentro un set (resume granulare) ─────────────────────
+// Chiave separata da verba_study_progress: la foglia di quella mappa è un
+// string[] puro, e cambiarne la forma richiederebbe una migration dei dati
+// già presenti nel localStorage degli utenti.
+const LAST_INDEX_KEY = "verba_last_index";
+
+// { [deckSlug]: { [difficulty]: { [setNumber]: wordId } } }
+type LastIndexMap = Record<string, Record<string, Record<string, string>>>;
+
+function readLastIndex(): LastIndexMap {
+  try {
+    const raw = localStorage.getItem(LAST_INDEX_KEY);
+    return raw ? (JSON.parse(raw) as LastIndexMap) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLastIndex(map: LastIndexMap): void {
+  try {
+    localStorage.setItem(LAST_INDEX_KEY, JSON.stringify(map));
+  } catch {
+    /* storage non disponibile */
+  }
+}
+
+/** Salva la parola su cui l'utente è fermo. Sempre l'ID, mai l'indice. */
+export function setLastWordId(
+  deckSlug: string,
+  difficulty: string,
+  setNumber: number,
+  wordId: string,
+): void {
+  if (!wordId) return;
+  const map = readLastIndex();
+  const deck = (map[deckSlug] ??= {});
+  const diff = (deck[difficulty] ??= {});
+  diff[String(setNumber)] = String(wordId);
+  writeLastIndex(map);
+}
+
+export function getLastWordId(
+  deckSlug: string,
+  difficulty: string,
+  setNumber: number,
+): string | null {
+  return readLastIndex()[deckSlug]?.[difficulty]?.[String(setNumber)] ?? null;
+}
+
+/**
+ * Indice da cui riaprire lo sfoglio.
+ * Torna 0 (inizio) in tre casi: niente salvato · la parola non è più nella
+ * lista (tipico di My Verba dopo che una stella è stata tolta) · era l'ULTIMA
+ * parola del set, dove riprendere significherebbe atterrare in un vicolo cieco.
+ * ATTENZIONE: `wordIds` deve essere l'ordine REALE delle parole caricate, non
+ * quello di set.wordIds, che può differire.
+ */
+export function getResumeIndex(
+  deckSlug: string,
+  difficulty: string,
+  setNumber: number,
+  wordIds: string[],
+): number {
+  if (wordIds.length === 0) return 0;
+  const saved = getLastWordId(deckSlug, difficulty, setNumber);
+  if (!saved) return 0;
+  const i = wordIds.indexOf(saved);
+  if (i < 0 || i === wordIds.length - 1) return 0;
+  return i;
+}
+
+════════════════════════════════════════════════════════════
+2) src/pages/StudyScreen.tsx — import
+════════════════════════════════════════════════════════════
+LOCALIZZA la riga di import esistente da "@/lib/studyProgress" (non la
+riscrivo perché non conosco l'ordine esatto dei nomi già importati) e
+AGGIUNGI alla lista: getResumeIndex, setLastWordId
+Lascia invariato tutto il resto della riga.
+RIPORTAMI la riga di import prima e dopo.
+
+════════════════════════════════════════════════════════════
+3) src/pages/StudyScreen.tsx — BrowseView riparte dalla parola giusta
+════════════════════════════════════════════════════════════
+Trova ESATTAMENTE (dentro BrowseView):
+
+  useEffect(() => {
+    if (!set) { setError("Set non trovato"); setLoading(false); return; }
+    let active = true;
+    setLoading(true); setError(null);
+    fetchWordsByIds(set.wordIds)
+      .then((w) => { if (!active) return; setWords(w); setIndex(0); setDir(1); setLoading(false); })
+
+Sostituisci con:
+
+  useEffect(() => {
+    if (!set) { setError("Set non trovato"); setLoading(false); return; }
+    // Estratto FUORI dalla callback: dentro una closure TypeScript perde il
+    // narrowing di `set` e segnalerebbe "possibly undefined".
+    const setNumber = set.setNumber;
+    let active = true;
+    setLoading(true); setError(null);
+    fetchWordsByIds(set.wordIds)
+      .then((w) => {
+        if (!active) return;
+        setWords(w);
+        // Resume granulare. L'indice si risolve sull'ordine REALE dell'array
+        // caricato, non su set.wordIds: fetchWordsByIds non garantisce l'ordine.
+        setIndex(getResumeIndex(DECK, difficulty, setNumber, w.map((x) => x.id)));
+        setDir(1);
+        setLoading(false);
+      })
+
+NON toccare il .catch né il cleanup né l'array di dipendenze [set]. Se il
+linter segnala `difficulty` come dipendenza mancante, SEGNALALO e NON
+aggiungerla: difficulty è costante per tutta la vita del componente e
+aggiungerla farebbe rieseguire il fetch senza motivo.
+
+════════════════════════════════════════════════════════════
+4) src/pages/StudyScreen.tsx — salva la posizione a ogni parola
+════════════════════════════════════════════════════════════
+Trova ESATTAMENTE:
+
+  useEffect(() => {
+    if (!set || !current) return;
+    markWordsSeen(DECK, difficulty, set.setNumber, [current.id]);
+    setLastStudied(DECK, difficulty, set.setNumber);
+  }, [index, current, set, difficulty]);
+
+Sostituisci con:
+
+  useEffect(() => {
+    if (!set || !current) return;
+    markWordsSeen(DECK, difficulty, set.setNumber, [current.id]);
+    setLastStudied(DECK, difficulty, set.setNumber);
+    // Posizione esatta per il resume: sempre l'ID, mai l'indice.
+    setLastWordId(DECK, difficulty, set.setNumber, current.id);
+  }, [index, current, set, difficulty]);
+
+════════════════════════════════════════════════════════════
+5) src/pages/ProfileScreen.tsx — la nuova chiave va nel reset
+════════════════════════════════════════════════════════════
+LOCALIZZA l'array `const PROGRESS_KEYS = [...]` e AGGIUNGI come ultima voce:
+  "verba_last_index",
+Non rimuovere né riordinare le voci esistenti.
+RIPORTAMI l'array COMPLETO prima e dopo.
+Se PROGRESS_KEYS non esiste in questo file, FERMATI su questo edit e dimmi
+dove si trova invece la logica di reset del progresso.
+
+════════════════════════════════════════════════════════════
+NON TOCCARE
+════════════════════════════════════════════════════════════
+- src/components/ParallaxPager.tsx — nessuna modifica. Le sue props sono
+  invariate e la cache per indice è popolata pigramente, quindi un indice
+  iniziale diverso da zero non richiede interventi.
+- La ContinueCard e le righe dei set nell'accordion: continuano a chiamare
+  setBrowse / onOpen esattamente come ora.
+- Qualsiasi cosa relativa a recordWordsToday / verba_study_counts.
+
+RIPORTA SOLO
+- File modificati
+- Typecheck (sì/no + errori)
+- La riga di import di studyProgress prima e dopo
+- L'array PROGRESS_KEYS prima e dopo
+- Edit applicati / saltati con motivo
+DO NOT test live — I test manually.
