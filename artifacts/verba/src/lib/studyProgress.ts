@@ -153,12 +153,23 @@ export function getLastWordId(
 }
 
 /**
- * Indice da cui riaprire lo sfoglio.
- * Torna 0 (inizio) in tre casi: niente salvato · la parola non è più nella
- * lista (tipico di My Verba dopo che una stella è stata tolta) · era l'ULTIMA
- * parola del set, dove riprendere significherebbe atterrare in un vicolo cieco.
- * ATTENZIONE: `wordIds` deve essere l'ordine REALE delle parole caricate, non
- * quello di set.wordIds, che può differire.
+ * Indice da cui riaprire lo sfoglio di un set.
+ *
+ * Regola: torna DOVE ERI, ma non oltre il primo buco. Serve perché la vista
+ * a lista permette di saltare in fondo: chi ha visto 1-2-3-4 e poi 24-25 non
+ * deve rientrare in coda, dove non c'è più niente da fare.
+ *
+ * - set completo → dove eri (di solito l'ultima parola). NON si riparte da
+ *   capo: se hai finito il set, rimandarti alla prima è una punizione.
+ * - c'è ancora del nuovo DOPO dove eri → dove eri, non una dopo. La parola su
+ *   cui ti eri fermato viene contata come vista appena compare sullo schermo,
+ *   anche se sei uscito subito: riportarti lì ti fa leggere davvero quella che
+ *   avevi solo intravisto.
+ * - il primo buco è PRIMA di dove eri → il primo buco, cioè il primo punto in
+ *   cui c'è materiale nuovo.
+ *
+ * `wordIds` deve essere l'ordine REALE delle parole caricate, non quello di
+ * set.wordIds.
  */
 export function getResumeIndex(
   deckSlug: string,
@@ -167,9 +178,25 @@ export function getResumeIndex(
   wordIds: string[],
 ): number {
   if (wordIds.length === 0) return 0;
+
+  // Le viste vanno ristrette a quelle DAVVERO presenti nella lista caricata:
+  // My Verba cambia composizione quando si toglie una stella, e lo storico
+  // conserva ID che non ci sono più.
+  const present = new Set(wordIds);
+  const seen = new Set(
+    getSeenWordIds(deckSlug, difficulty, setNumber).filter((id) => present.has(id)),
+  );
+
+  const firstUnseen = wordIds.findIndex((id) => !seen.has(id));
+
   const saved = getLastWordId(deckSlug, difficulty, setNumber);
-  if (!saved) return 0;
-  const i = wordIds.indexOf(saved);
-  if (i < 0 || i === wordIds.length - 1) return 0;
-  return i;
+  const last = saved ? wordIds.indexOf(saved) : -1;
+
+  // Set completo: resta dove eri. Se la posizione è illeggibile, l'ultima.
+  if (firstUnseen === -1) return last >= 0 ? last : wordIds.length - 1;
+
+  // Nessuna posizione salvata (o parola sparita): vai al primo buco.
+  if (last < 0) return firstUnseen;
+
+  return Math.min(last, firstUnseen);
 }
