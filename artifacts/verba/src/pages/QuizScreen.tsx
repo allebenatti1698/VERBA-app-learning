@@ -12,6 +12,7 @@ import { parseSetsParam, getWordIdsForSelection } from "@/lib/studySets";
 import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
 import { recordAnswer, getWordStat } from "@/lib/wordStats";
 import { undismissTrouble } from "@/lib/troubleDismiss";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -597,9 +598,10 @@ export default function QuizScreen() {
                       </div>
                     )}
                     <motion.button
-                      whileTap={{ scale: 0.96 }}
+                      whileTap={tapScale()}
+                      transition={TAP_SPRING}
                       onClick={() => handleReverseNext(reverseResult === "correct")}
-                      style={{ ...primaryButtonStyle, display: "block", margin: "20px auto 0" }}>
+                      style={{ ...primaryButtonStyle, display: "block", margin: "20px auto 0", touchAction: "manipulation" }}>
                       {reverseResult === "correct" && reviewQueue.length <= 1 ? "Finish" : "Next →"}
                     </motion.button>
                   </>
@@ -675,9 +677,9 @@ export default function QuizScreen() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
-                transition={{ duration: 0.2 }}
-                whileTap={{ scale: 0.96 }}
-                style={{ ...primaryButtonStyle, display: "block", margin: "8px auto 0" }}
+                transition={{ duration: 0.2, scale: TAP_SPRING }}
+                whileTap={tapScale()}
+                style={{ ...primaryButtonStyle, display: "block", margin: "8px auto 0", touchAction: "manipulation" }}
               >
                 {isLastNormal ? "Finish" : "Next →"}
               </motion.button>

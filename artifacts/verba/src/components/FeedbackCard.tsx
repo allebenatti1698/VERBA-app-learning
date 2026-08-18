@@ -4,6 +4,7 @@ import { ChevronUp } from "lucide-react";
 import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
 import { lowercaseFirst, highlightWord } from "@/lib/formatText";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -671,7 +672,8 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
           >
             {/* Show feedback pill — styled to match the Hint button (secondary, ghost) */}
             <motion.button
-              whileTap={{ scale: 0.95 }}
+              whileTap={tapScale()}
+              transition={TAP_SPRING}
               onClick={() => setMinimized(false)}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLButtonElement).style.opacity = "1";
@@ -708,7 +710,8 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
 
             {/* Next pill */}
             <motion.button
-              whileTap={{ scale: 0.95 }}
+              whileTap={tapScale()}
+              transition={TAP_SPRING}
               onClick={onNext}
               style={{
                 pointerEvents: "auto",

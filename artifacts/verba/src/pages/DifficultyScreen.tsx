@@ -8,6 +8,7 @@ import { getDifficultyLabel, getDifficultyDescription } from "@/lib/difficultyLa
 import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
 import { getStudySets, type StudySet } from "@/lib/studySets";
 import { getCompletedSetNumbers } from "@/lib/studyProgress";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 
 const FAMILY = {
   blue:  (a: number) => `rgba(125,211,252,${a})`,
@@ -280,10 +281,12 @@ export default function DifficultyScreen() {
           willChange: "opacity, transform",
         }}
       >
-        <button
+        <motion.button
           onClick={handleContinue}
           disabled={totalSelected === 0}
           tabIndex={totalSelected === 0 ? -1 : 0}
+          whileTap={totalSelected > 0 ? tapScale() : undefined}
+          transition={TAP_SPRING}
           style={{
             ...primaryButtonStyle,
             pointerEvents: totalSelected > 0 ? "auto" : "none",
@@ -291,7 +294,7 @@ export default function DifficultyScreen() {
           }}
         >
           Continue →
-        </button>
+        </motion.button>
       </div>
     </div>
   );

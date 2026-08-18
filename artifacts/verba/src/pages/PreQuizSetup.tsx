@@ -5,6 +5,7 @@ import AppBackground from "@/components/AppBackground";
 import ScreenColumn, { SCREEN_MAX } from "@/components/ScreenColumn";
 import { parseSetsParam, getWordIdsForSelection } from "@/lib/studySets";
 import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 
 const cardStyle: React.CSSProperties = {
   background: "rgba(255,255,255,0.03)",
@@ -219,8 +220,9 @@ export default function PreQuizSetup() {
           <motion.button
             data-testid="button-begin"
             onClick={handleBegin}
-            whileTap={{ scale: 0.96 }}
-            style={{ ...primaryButtonStyle }}
+            whileTap={tapScale()}
+            transition={TAP_SPRING}
+            style={{ ...primaryButtonStyle, touchAction: "manipulation" }}
           >
             Begin
           </motion.button>

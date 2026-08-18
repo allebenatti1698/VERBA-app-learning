@@ -1,0 +1,169 @@
+VERBA — SpringTap: indole unica del tocco sui bottoni primari.
+Economy Mode. Stima ~$0.5–0.9. 5 file. DO NOT test live — I test manually.
+
+Applica OGNI edit in modo INDIPENDENTE: se una find non combacia ESATTAMENTE,
+SALTA quell'edit e SEGNALALO, ma esegui comunque gli altri.
+ATTENZIONE: stringhe simili esistono in attached_assets/. NON toccare niente lì.
+
+════════════════════════════════════════════════════════════
+① CREA src/components/SpringTap.tsx
+════════════════════════════════════════════════════════════
+// src/components/SpringTap.tsx
+// Indole unica del tocco in tutta l'app: "Soft" — preme, cede, torna pulito.
+// L'overshoot marcato NON sta qui: è riservato agli eventi rari (parola
+// masterizzata, set completato). Se lo usa anche il gesto ordinario — il Next
+// del quiz si preme ~25 volte a sessione — smette di essere un premio e
+// diventa un tic, e quando arriva il momento speciale non resta niente in
+// riserva.
+import type { Transition } from "framer-motion";
+
+export const TAP_SPRING: Transition = { type: "spring", stiffness: 240, damping: 24, mass: 1 };
+
+// Più grande è l'oggetto, MENO deve muoversi: l'occhio misura i pixel di
+// spostamento del bordo, non la percentuale. Il 10% su una card da 340px sono
+// 34px di scivolamento, ed è per quello che sembra gomma.
+export const TAP = {
+  button: 0.94,
+  icon: 0.88,
+  chip: 0.93,
+  card: 0.98,
+  row: 0.985,
+} as const;
+
+export type TapKind = keyof typeof TAP;
+
+/** Da usare come whileTap={tapScale()} oppure tapScale("icon"). */
+export function tapScale(kind: TapKind = "button") {
+  return { scale: TAP[kind] };
+}
+
+════════════════════════════════════════════════════════════
+② src/pages/PreQuizSetup.tsx — bottone Begin
+════════════════════════════════════════════════════════════
+2a) Aggiungi con gli altri import:
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+
+2b) Trova ESATTAMENTE:
+          <motion.button
+            data-testid="button-begin"
+            onClick={handleBegin}
+            whileTap={{ scale: 0.96 }}
+            style={{ ...primaryButtonStyle }}
+          >
+Sostituisci con:
+          <motion.button
+            data-testid="button-begin"
+            onClick={handleBegin}
+            whileTap={tapScale()}
+            transition={TAP_SPRING}
+            style={{ ...primaryButtonStyle, touchAction: "manipulation" }}
+          >
+
+════════════════════════════════════════════════════════════
+③ src/pages/QuizScreen.tsx — due bottoni
+════════════════════════════════════════════════════════════
+3a) Aggiungi con gli altri import:
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+
+3b) NEXT FLOTTANTE — trova ESATTAMENTE:
+                transition={{ duration: 0.2 }}
+                whileTap={{ scale: 0.96 }}
+                style={{ ...primaryButtonStyle, display: "block", margin: "8px auto 0" }}
+Sostituisci con:
+                transition={{ duration: 0.2, scale: TAP_SPRING }}
+                whileTap={tapScale()}
+                style={{ ...primaryButtonStyle, display: "block", margin: "8px auto 0", touchAction: "manipulation" }}
+
+NOTA: qui il transition NON va sostituito in blocco. `duration: 0.2` governa
+l'entrata in scena del bottone dentro l'AnimatePresence; la molla si applica
+SOLO alla scala. Sovrascriverlo interamente romperebbe l'entrata.
+
+3c) NEXT DEL REVERSE QUIZ — trova ESATTAMENTE:
+                    <motion.button
+                      whileTap={{ scale: 0.96 }}
+                      onClick={() => handleReverseNext(reverseResult === "correct")}
+                      style={{ ...primaryButtonStyle, display: "block", margin: "20px auto 0" }}>
+Sostituisci con:
+                    <motion.button
+                      whileTap={tapScale()}
+                      transition={TAP_SPRING}
+                      onClick={() => handleReverseNext(reverseResult === "correct")}
+                      style={{ ...primaryButtonStyle, display: "block", margin: "20px auto 0", touchAction: "manipulation" }}>
+
+════════════════════════════════════════════════════════════
+④ src/pages/DifficultyScreen.tsx — barra Continue
+════════════════════════════════════════════════════════════
+4a) Aggiungi con gli altri import:
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+(motion è già importato in questo file: verificalo e, se non lo fosse,
+SEGNALALO senza aggiungerlo.)
+
+4b) Trova ESATTAMENTE:
+        <button
+          onClick={handleContinue}
+          disabled={totalSelected === 0}
+          tabIndex={totalSelected === 0 ? -1 : 0}
+          style={{
+            ...primaryButtonStyle,
+            pointerEvents: totalSelected > 0 ? "auto" : "none",
+            touchAction: "manipulation",
+          }}
+        >
+          Continue →
+        </button>
+Sostituisci con:
+        <motion.button
+          onClick={handleContinue}
+          disabled={totalSelected === 0}
+          tabIndex={totalSelected === 0 ? -1 : 0}
+          whileTap={totalSelected > 0 ? tapScale() : undefined}
+          transition={TAP_SPRING}
+          style={{
+            ...primaryButtonStyle,
+            pointerEvents: totalSelected > 0 ? "auto" : "none",
+            touchAction: "manipulation",
+          }}
+        >
+          Continue →
+        </motion.button>
+
+NOTA: whileTap condizionato — un bottone disabilitato che risponde al tocco
+promette un'azione che non avverrà.
+
+════════════════════════════════════════════════════════════
+⑤ src/components/FeedbackCard.tsx — le pill
+════════════════════════════════════════════════════════════
+5a) Aggiungi con gli altri import:
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+
+5b) Sostituisci OGNI occorrenza di:
+              whileTap={{ scale: 0.95 }}
+con:
+              whileTap={tapScale()}
+              transition={TAP_SPRING}
+Dovrebbero essere DUE. RIPORTAMI quante ne hai trovate: se il numero è
+diverso da 2, dimmelo senza fermarti.
+
+5c) Cerca in questo file un componente FeedbackNextButton (o simile) e dimmi
+se ha già un whileTap. NON modificarlo: fammi solo il rapporto.
+
+════════════════════════════════════════════════════════════
+⑥ CONTROLLO — bottoni primari rimasti scoperti
+════════════════════════════════════════════════════════════
+Cerca in src/ (ESCLUSO attached_assets/) ogni uso di primaryButtonStyle.
+Fammi l'elenco file + riga indicando quali hanno già un whileTap dopo questi
+edit e quali NO. NON modificare quelli scoperti: mi serve solo l'elenco.
+
+════════════════════════════════════════════════════════════
+NON TOCCARE
+════════════════════════════════════════════════════════════
+Icone della topbar · chip dei filtri · ContinueCard · righe della lista ·
+BottomNav · ParallaxPager. Sono il passaggio due.
+
+RIPORTA SOLO
+- File creati / modificati
+- Typecheck (sì/no + errori)
+- Quante occorrenze di whileTap 0.95 trovate in FeedbackCard
+- Il rapporto del punto ⑤c e l'elenco del punto ⑥
+- Edit applicati / saltati con motivo
+DO NOT test live — I test manually.
