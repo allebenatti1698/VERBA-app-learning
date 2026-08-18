@@ -1,0 +1,153 @@
+VERBA — ContinueCard: avanza al set successivo, cambio fascia, stato ripasso.
+Economy Mode. Stima ~$0.6–1.1. 1 file. DO NOT test live — I test manually.
+
+File: src/pages/StudyScreen.tsx
+
+Applica OGNI edit in modo INDIPENDENTE: se una find non combacia ESATTAMENTE,
+SALTA quell'edit e SEGNALALO, ma esegui comunque gli altri.
+
+════════════════════════════════════════════════════════════
+① IMPORT — due aggiunte
+════════════════════════════════════════════════════════════
+1a) Se il file NON importa già useLocation da "wouter", aggiungi in cima,
+    insieme agli altri import:
+      import { useLocation } from "wouter";
+    Se lo importa già, non fare niente.
+
+1b) Se il file NON importa getDueCount da "@/lib/wordStats", aggiungilo.
+    Se esiste già un import da "@/lib/wordStats", aggiungi getDueCount alla
+    lista invece di creare una seconda riga.
+
+RIPORTAMI le righe di import prima e dopo.
+
+════════════════════════════════════════════════════════════
+② SOSTITUISCI L'INTERA FUNZIONE ContinueCard
+════════════════════════════════════════════════════════════
+Cancella tutto dalla riga che inizia con
+  function ContinueCard({ setsByDiff, onOpen }
+fino alla graffa `}` che la chiude — cioè la riga immediatamente precedente a
+  function BrowseView({ difficulty, label, set, onBack }
+e mettici la funzione qui sotto.
+
+PRIMA di sostituire, RIPORTAMI la funzione ContinueCard attuale per intero,
+così verifico che i valori di stile non siano cambiati.
+
+──────── NUOVA FUNZIONE ────────
+function ContinueCard({ setsByDiff, onOpen }: { setsByDiff: SetsByDifficulty; onOpen: (d: string, n: number) => void }) {
+  const [, navigate] = useLocation();
+
+  // Stili estratti: valori identici a prima, solo riusati dai tre stati.
+  const CARD: React.CSSProperties = { width: "100%", textAlign: "left", border: "0.5px solid rgba(167,139,250,0.35)", background: "linear-gradient(135deg, rgba(167,139,250,0.12), rgba(167,139,250,0.03))", borderRadius: 16, padding: 15, marginBottom: 20, outline: "none" };
+  const EYEBROW: React.CSSProperties = { fontFamily: "'Inter', sans-serif", fontSize: 10, color: "#A99CC4", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 };
+  const ROW: React.CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "center" };
+  const TITLE: React.CSSProperties = { fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, color: "#E8E4F0" };
+  const SUB: React.CSSProperties = { fontFamily: "'Inter', sans-serif", fontSize: 11, color: "#9A93AC", marginTop: 3 };
+  const DISC: React.CSSProperties = { width: 38, height: 38, borderRadius: "50%", background: "#A78BFA", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" };
+
+  // Elenco piatto di tutti i set nell'ordine di studio: Common → Uncommon → Rare.
+  const flat: { difficulty: string; label: string; set: StudySet; done: boolean }[] = [];
+  for (const t of TIERS) {
+    const sets = setsByDiff[t.difficulty] ?? [];
+    const completed = getCompletedSetNumbers(DECK, t.difficulty, sets);
+    for (const s of sets) {
+      flat.push({ difficulty: t.difficulty, label: t.label, set: s, done: completed.includes(s.setNumber) });
+    }
+  }
+  if (flat.length === 0) return null;
+
+  const last = getLastStudied();
+  const lastIdx = last && last.deck === DECK
+    ? flat.findIndex((f) => f.difficulty === last.difficulty && f.set.setNumber === last.setNumber)
+    : -1;
+  // Nessuna sessione precedente (o dato illeggibile): niente card, come prima.
+  if (lastIdx < 0) return null;
+
+  // Priorità: 1) il set dell'ultima volta se non è finito · 2) il primo non
+  // finito DOPO di quello · 3) il primo non finito in assoluto, per chi ha
+  // saltato avanti lasciandosi indietro dei buchi.
+  let target = flat[lastIdx].done ? -1 : lastIdx;
+  if (target < 0) {
+    for (let i = lastIdx + 1; i < flat.length; i++) if (!flat[i].done) { target = i; break; }
+  }
+  if (target < 0) target = flat.findIndex((f) => !f.done);
+
+  // ── Stato C: non c'è più niente da leggere ──────────────────────────────
+  if (target < 0) {
+    const totalWords = flat.reduce((a, f) => a + f.set.wordCount, 0);
+    const due = getDueCount();
+    if (due === 0) {
+      return (
+        <div style={CARD}>
+          <div style={EYEBROW}>All read</div>
+          <div style={ROW}>
+            <div>
+              <div style={TITLE}>{totalWords} of {totalWords} words</div>
+              <div style={SUB}>Nothing due yet — come back tomorrow</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <button onClick={() => navigate("/progress")} style={{ ...CARD, cursor: "pointer" }}>
+        <div style={EYEBROW}>Ready for review</div>
+        <div style={ROW}>
+          <div>
+            <div style={TITLE}>{due} {due === 1 ? "word is" : "words are"} due</div>
+            <div style={SUB}>You've read all {totalWords} — time to test them</div>
+          </div>
+          <span style={DISC}><Play size={16} color="#1A1622" fill="#1A1622" /></span>
+        </div>
+      </button>
+    );
+  }
+
+  // ── Stati A e B ─────────────────────────────────────────────────────────
+  const cur = flat[target];
+  const isResume = target === lastIdx;
+  const tierChanged = !isResume && cur.difficulty !== flat[lastIdx].difficulty;
+  const seen = getSeenCount(DECK, cur.difficulty, cur.set.setNumber);
+  const pct = cur.set.wordCount > 0 ? Math.min(100, Math.round((seen / cur.set.wordCount) * 100)) : 0;
+
+  return (
+    <button onClick={() => onOpen(cur.difficulty, cur.set.setNumber)} style={{ ...CARD, cursor: "pointer" }}>
+      <div style={EYEBROW}>{isResume ? "Continue" : "Next up"}</div>
+      <div style={ROW}>
+        <div>
+          <div style={TITLE}>
+            {cur.label} · Set {cur.set.setNumber}
+            {tierChanged && (
+              <span style={{ display: "inline-block", fontFamily: "'Inter', sans-serif", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "#A78BFA", border: "0.5px solid rgba(167,139,250,0.45)", borderRadius: 20, padding: "2px 7px", marginLeft: 7, verticalAlign: 2 }}>new tier</span>
+            )}
+          </div>
+          {/* Il conteggio e la barra compaiono solo se c'è progresso da
+              mostrare: una barra a zero si legge come un elemento rotto. */}
+          <div style={SUB}>
+            {seen > 0 ? `${seen} of ${cur.set.wordCount} words` : `${cur.set.wordCount} words · not started`}
+          </div>
+        </div>
+        <span style={DISC}><Play size={16} color="#1A1622" fill="#1A1622" /></span>
+      </div>
+      {seen > 0 && (
+        <div style={{ height: 4, background: "rgba(255,255,255,0.10)", borderRadius: 2, marginTop: 12 }}>
+          <div style={{ width: `${pct}%`, height: "100%", background: "#F59E0B", borderRadius: 2 }} />
+        </div>
+      )}
+    </button>
+  );
+}
+──────── FINE FUNZIONE ────────
+
+════════════════════════════════════════════════════════════
+NON TOCCARE
+════════════════════════════════════════════════════════════
+BrowseView · l'accordion e le righe dei set · la card My Verba · il
+selettore deck · ParallaxPager · qualsiasi file diverso da StudyScreen.tsx.
+
+RIPORTA SOLO
+- File modificato
+- Typecheck (sì/no + errori)
+- Le righe di import prima e dopo
+- La funzione ContinueCard PRIMA della sostituzione, per intero
+- Edit applicati / saltati con motivo
+DO NOT test live — I test manually.

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
+import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Check, Play, Eye, EyeOff, Star, GraduationCap, BookOpen, Library, Search } from "lucide-react";
-import { getWordStat } from "@/lib/wordStats";
+import { getDueCount, getWordStat } from "@/lib/wordStats";
 import ParallaxPager from "@/components/ParallaxPager";
 import AppBackground from "@/components/AppBackground";
 import StreakChip from "@/components/StreakChip";
@@ -196,24 +197,105 @@ export default function StudyScreen() {
 }
 
 function ContinueCard({ setsByDiff, onOpen }: { setsByDiff: SetsByDifficulty; onOpen: (d: string, n: number) => void }) {
+  const [, navigate] = useLocation();
+
+  // Stili estratti: valori identici a prima, solo riusati dai tre stati.
+  const CARD: React.CSSProperties = { width: "100%", textAlign: "left", border: "0.5px solid rgba(167,139,250,0.35)", background: "linear-gradient(135deg, rgba(167,139,250,0.12), rgba(167,139,250,0.03))", borderRadius: 16, padding: 15, marginBottom: 20, outline: "none" };
+  const EYEBROW: React.CSSProperties = { fontFamily: "'Inter', sans-serif", fontSize: 10, color: "#A99CC4", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 };
+  const ROW: React.CSSProperties = { display: "flex", justifyContent: "space-between", alignItems: "center" };
+  const TITLE: React.CSSProperties = { fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, color: "#E8E4F0" };
+  const SUB: React.CSSProperties = { fontFamily: "'Inter', sans-serif", fontSize: 11, color: "#9A93AC", marginTop: 3 };
+  const DISC: React.CSSProperties = { width: 38, height: 38, borderRadius: "50%", background: "#A78BFA", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" };
+
+  // Elenco piatto di tutti i set nell'ordine di studio: Common → Uncommon → Rare.
+  const flat: { difficulty: string; label: string; set: StudySet; done: boolean }[] = [];
+  for (const t of TIERS) {
+    const sets = setsByDiff[t.difficulty] ?? [];
+    const completed = getCompletedSetNumbers(DECK, t.difficulty, sets);
+    for (const s of sets) {
+      flat.push({ difficulty: t.difficulty, label: t.label, set: s, done: completed.includes(s.setNumber) });
+    }
+  }
+  if (flat.length === 0) return null;
+
   const last = getLastStudied();
-  if (!last || last.deck !== DECK) return null;
-  const tier = TIERS.find((t) => t.difficulty === last.difficulty);
-  const set = (setsByDiff[last.difficulty] ?? []).find((s) => s.setNumber === last.setNumber);
-  if (!tier || !set) return null;
-  const seen = getSeenCount(DECK, last.difficulty, last.setNumber);
-  const pct = set.wordCount > 0 ? Math.min(100, Math.round((seen / set.wordCount) * 100)) : 0;
-  return (
-    <button onClick={() => onOpen(last.difficulty, last.setNumber)} style={{ width: "100%", textAlign: "left", border: "0.5px solid rgba(167,139,250,0.35)", background: "linear-gradient(135deg, rgba(167,139,250,0.12), rgba(167,139,250,0.03))", borderRadius: 16, padding: 15, marginBottom: 20, cursor: "pointer", outline: "none" }}>
-      <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "#A99CC4", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Continue</div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 16, color: "#E8E4F0" }}>{tier.label} · Set {set.setNumber}</div>
-          <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "#9A93AC", marginTop: 3 }}>{seen} of {set.wordCount} words</div>
+  const lastIdx = last && last.deck === DECK
+    ? flat.findIndex((f) => f.difficulty === last.difficulty && f.set.setNumber === last.setNumber)
+    : -1;
+  // Nessuna sessione precedente (o dato illeggibile): niente card, come prima.
+  if (lastIdx < 0) return null;
+
+  // Priorità: 1) il set dell'ultima volta se non è finito · 2) il primo non
+  // finito DOPO di quello · 3) il primo non finito in assoluto, per chi ha
+  // saltato avanti lasciandosi indietro dei buchi.
+  let target = flat[lastIdx].done ? -1 : lastIdx;
+  if (target < 0) {
+    for (let i = lastIdx + 1; i < flat.length; i++) if (!flat[i].done) { target = i; break; }
+  }
+  if (target < 0) target = flat.findIndex((f) => !f.done);
+
+  // ── Stato C: non c'è più niente da leggere ──────────────────────────────
+  if (target < 0) {
+    const totalWords = flat.reduce((a, f) => a + f.set.wordCount, 0);
+    const due = getDueCount();
+    if (due === 0) {
+      return (
+        <div style={CARD}>
+          <div style={EYEBROW}>All read</div>
+          <div style={ROW}>
+            <div>
+              <div style={TITLE}>{totalWords} of {totalWords} words</div>
+              <div style={SUB}>Nothing due yet — come back tomorrow</div>
+            </div>
+          </div>
         </div>
-        <span style={{ width: 38, height: 38, borderRadius: "50%", background: "#A78BFA", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}><Play size={16} color="#1A1622" fill="#1A1622" /></span>
+      );
+    }
+    return (
+      <button onClick={() => navigate("/progress")} style={{ ...CARD, cursor: "pointer" }}>
+        <div style={EYEBROW}>Ready for review</div>
+        <div style={ROW}>
+          <div>
+            <div style={TITLE}>{due} {due === 1 ? "word is" : "words are"} due</div>
+            <div style={SUB}>You've read all {totalWords} — time to test them</div>
+          </div>
+          <span style={DISC}><Play size={16} color="#1A1622" fill="#1A1622" /></span>
+        </div>
+      </button>
+    );
+  }
+
+  // ── Stati A e B ─────────────────────────────────────────────────────────
+  const cur = flat[target];
+  const isResume = target === lastIdx;
+  const tierChanged = !isResume && cur.difficulty !== flat[lastIdx].difficulty;
+  const seen = getSeenCount(DECK, cur.difficulty, cur.set.setNumber);
+  const pct = cur.set.wordCount > 0 ? Math.min(100, Math.round((seen / cur.set.wordCount) * 100)) : 0;
+
+  return (
+    <button onClick={() => onOpen(cur.difficulty, cur.set.setNumber)} style={{ ...CARD, cursor: "pointer" }}>
+      <div style={EYEBROW}>{isResume ? "Continue" : "Next up"}</div>
+      <div style={ROW}>
+        <div>
+          <div style={TITLE}>
+            {cur.label} · Set {cur.set.setNumber}
+            {tierChanged && (
+              <span style={{ display: "inline-block", fontFamily: "'Inter', sans-serif", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "#A78BFA", border: "0.5px solid rgba(167,139,250,0.45)", borderRadius: 20, padding: "2px 7px", marginLeft: 7, verticalAlign: 2 }}>new tier</span>
+            )}
+          </div>
+          {/* Il conteggio e la barra compaiono solo se c'è progresso da
+              mostrare: una barra a zero si legge come un elemento rotto. */}
+          <div style={SUB}>
+            {seen > 0 ? `${seen} of ${cur.set.wordCount} words` : `${cur.set.wordCount} words · not started`}
+          </div>
+        </div>
+        <span style={DISC}><Play size={16} color="#1A1622" fill="#1A1622" /></span>
       </div>
-      <div style={{ height: 4, background: "rgba(255,255,255,0.10)", borderRadius: 2, marginTop: 12 }}><div style={{ width: `${pct}%`, height: "100%", background: "#F59E0B", borderRadius: 2 }} /></div>
+      {seen > 0 && (
+        <div style={{ height: 4, background: "rgba(255,255,255,0.10)", borderRadius: 2, marginTop: 12 }}>
+          <div style={{ width: `${pct}%`, height: "100%", background: "#F59E0B", borderRadius: 2 }} />
+        </div>
+      )}
     </button>
   );
 }
