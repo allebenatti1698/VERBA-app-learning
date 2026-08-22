@@ -1,0 +1,107 @@
+VERBA — Results: riga-ponte sotto la FeedbackCard + niente taglio su desktop.
+Economy Mode. Stima ~$0.2–0.4. 1 file. DO NOT test live — I test manually.
+
+File: src/pages/ResultsScreen.tsx
+
+Applica OGNI edit in modo INDIPENDENTE: se una find non combacia ESATTAMENTE,
+SALTA quell'edit e SEGNALALO, ma esegui comunque gli altri.
+ATTENZIONE: stringhe simili esistono in attached_assets/. NON toccare niente lì.
+
+════════════════════════════════════════════════════════════
+① ReviewBridge — deve stare SOTTO la FeedbackCard
+════════════════════════════════════════════════════════════
+Dentro il componente ReviewBridge trova ESATTAMENTE:
+
+      style={{
+        position: "relative",
+        zIndex: 10,
+        flex: "0 0 auto",
+        textAlign: "center",
+        padding: "26px 20px calc(30px + env(safe-area-inset-bottom))",
+      }}
+
+Sostituisci con:
+
+      style={{
+        // zIndex 1, NON 10: il contenitore centrale ha position:relative +
+        // zIndex:10 e quindi crea un contesto di impilamento — lo zIndex:50
+        // della FeedbackCard vale solo LÌ DENTRO, non nella pagina. A parità
+        // di 10 vinceva questo blocco perché viene dopo nel DOM, e la riga
+        // si vedeva sopra la card aperta. Sotto il contenitore, sparisce.
+        position: "relative",
+        zIndex: 1,
+        flex: "0 0 auto",
+        textAlign: "center",
+        padding: "26px 20px calc(30px + env(safe-area-inset-bottom))",
+      }}
+
+════════════════════════════════════════════════════════════
+② Il contenitore centrale non deve più centrare con justifyContent
+════════════════════════════════════════════════════════════
+Trova ESATTAMENTE:
+
+        style={{
+          position: "relative",
+          zIndex: 10,
+          flex: "1 1 auto",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: result.missedWords.length === 0 ? "center" : "flex-start",
+        }}
+
+Sostituisci con:
+
+        style={{
+          position: "relative",
+          zIndex: 10,
+          flex: "1 1 auto",
+          display: "flex",
+          flexDirection: "column",
+          // MAI justifyContent:"center" qui. Su finestre larghe ma basse
+          // (desktop) il contenuto supera l'altezza e il centraggio lo fa
+          // debordare da ENTRAMBI i lati: la parte alta — la goccia — finisce
+          // fuori e non si raggiunge nemmeno scorrendo. Il centraggio si fa
+          // con margin auto sulla colonna, che si azzera da solo quando non
+          // c'è spazio libero.
+          justifyContent: "flex-start",
+          overflowY: "auto",
+          minHeight: 0,
+        }}
+
+════════════════════════════════════════════════════════════
+③ Il centraggio verticale passa alla colonna
+════════════════════════════════════════════════════════════
+Trova ESATTAMENTE (è l'apertura della colonna dentro quel contenitore):
+
+      <ScreenColumn>
+        <GlassDrop
+
+Sostituisci con:
+
+      <ScreenColumn
+        style={
+          result.missedWords.length === 0
+            ? { marginTop: "auto", marginBottom: "auto" }
+            : undefined
+        }
+      >
+        <GlassDrop
+
+NOTA IMPORTANTE: usa marginTop/marginBottom separati, NON la scorciatoia
+`margin: "auto 0"` — ScreenColumn imposta già marginLeft/marginRight auto per
+centrarsi in orizzontale, e la scorciatoia li azzererebbe spostando tutta la
+colonna a sinistra.
+
+════════════════════════════════════════════════════════════
+NON TOCCARE
+════════════════════════════════════════════════════════════
+FeedbackCard.tsx · MissedWordsList · CleanNote · GlassDrop · HeroScore ·
+QuickStats · ActionButtons · il div radice di ResultsScreen.
+
+RIPORTA SOLO
+- File modificato
+- Typecheck (sì/no + errori)
+- L'oggetto style del contenitore centrale PRIMA e DOPO, per intero
+- L'oggetto style di ReviewBridge PRIMA e DOPO, per intero
+- Edit applicati / saltati con motivo
+DO NOT test live — I test manually.

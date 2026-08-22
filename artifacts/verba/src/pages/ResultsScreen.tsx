@@ -751,8 +751,13 @@ function ReviewBridge({ onGoToProgress }: ReviewBridgeProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.9, duration: 0.45 }}
       style={{
+        // zIndex 1, NON 10: il contenitore centrale ha position:relative +
+        // zIndex:10 e quindi crea un contesto di impilamento — lo zIndex:50
+        // della FeedbackCard vale solo LÌ DENTRO, non nella pagina. A parità
+        // di 10 vinceva questo blocco perché viene dopo nel DOM, e la riga
+        // si vedeva sopra la card aperta. Sotto il contenitore, sparisce.
         position: "relative",
-        zIndex: 10,
+        zIndex: 1,
         flex: "0 0 auto",
         textAlign: "center",
         padding: "26px 20px calc(30px + env(safe-area-inset-bottom))",
@@ -868,10 +873,24 @@ export default function ResultsScreen() {
           flex: "1 1 auto",
           display: "flex",
           flexDirection: "column",
-          justifyContent: result.missedWords.length === 0 ? "center" : "flex-start",
+          // MAI justifyContent:"center" qui. Su finestre larghe ma basse
+          // (desktop) il contenuto supera l'altezza e il centraggio lo fa
+          // debordare da ENTRAMBI i lati: la parte alta — la goccia — finisce
+          // fuori e non si raggiunge nemmeno scorrendo. Il centraggio si fa
+          // con margin auto sulla colonna, che si azzera da solo quando non
+          // c'è spazio libero.
+          justifyContent: "flex-start",
+          overflowY: "auto",
+          minHeight: 0,
         }}
       >
-      <ScreenColumn>
+      <ScreenColumn
+        style={
+          result.missedWords.length === 0
+            ? { marginTop: "auto", marginBottom: "auto" }
+            : undefined
+        }
+      >
         <GlassDrop
           fill={result.total > 0 ? result.correct / result.total : 0}
           perfect={result.total > 0 && result.correct === result.total}
