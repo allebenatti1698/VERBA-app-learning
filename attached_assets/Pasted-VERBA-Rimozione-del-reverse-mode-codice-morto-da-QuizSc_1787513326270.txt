@@ -1,0 +1,130 @@
+VERBA — Rimozione del reverse mode (codice morto) da QuizScreen.
+ECONOMY MODE, Claude Sonnet 5, Effort Medium. Stima ~$1.00–2.00.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/ per nessun motivo, nemmeno in lettura.
+Applica gli STEP in ordine. Dentro ogni step, se una parte non corrisponde,
+SALTALA, segnalala e PROSEGUI. Non fermarti al primo mismatch.
+
+CONTESTO: la modalità reverse di QuizScreen è irraggiungibile — nessun file in
+src/ scrive "mode=reverse" o "verbaReviewQueue". Va rimossa. Il quiz normale
+(scelta multipla) e il ripasso SRS (source=due) DEVONO continuare a funzionare
+esattamente come adesso.
+
+╔══════════════════════════════════════════════════════════╗
+║ REGOLA D'ORO — vale per ogni edit di questo prompt        ║
+║                                                           ║
+║ · `isReverseMode ? A : B`  →  tieni SOLO B (il ramo FALSE)║
+║ · `{!isReverseMode && (X)}` →  tieni X, togli il wrapper  ║
+║ · `{isReverseMode && (Y)}`  →  cancella tutto             ║
+║                                                           ║
+║ Non riscrivere il ramo che tieni: copialo IDENTICO.       ║
+║ Nessun "miglioramento" di stile, nomi, formattazione.     ║
+╚══════════════════════════════════════════════════════════╝
+
+════════════════════════════════════════
+STEP 1 — ARCHIVIO (fallo PRIMA di cancellare)
+════════════════════════════════════════
+Crea il file  docs/reverse-typing-reference.md
+
+Prima riga del file, esatta:
+> ATTENZIONE — file di sola documentazione. NON è codice compilato, NON va
+> importato. Conserva verbatim la schermata di digitazione rimossa da
+> QuizScreen.tsx, per ricostruirla come "gradino 3 — Produce".
+
+Poi, in blocchi ```tsx separati e con un titolo ciascuno, INCOLLA VERBATIM
+(copia esatta, non riscrivere, non riassumere, non riformattare) tutto ciò che
+lo STEP 2 cancellerà:
+  1. il tipo ReviewItem
+  2. le dichiarazioni di state e ref reverse-only
+  3. i due useEffect reverse-only (init da sessionStorage; reset+autofocus)
+  4. shakeReverse, submitReverseTyping, handleReverseNext, reviewItemToFeedbackWord
+  5. il ramo TRUE del ternario che mostra la definizione (~riga 499)
+  6. il ramo TRUE del ternario che mostra l'input di digitazione (~riga 571)
+  7. una lista dei valori di stile reverse-only presi dai ternari inline, nel
+     formato "proprietà: valore-reverse (valore-normale)". Includi almeno
+     justifyContent, padding del wrapper del contenuto, paddingTop del prompt.
+
+Fedeltà assoluta: questo file è l'unica cosa che sopravvive alla cancellazione.
+
+════════════════════════════════════════
+STEP 2 — src/pages/QuizScreen.tsx
+════════════════════════════════════════
+2a) Cancella il tipo ReviewItem e la funzione reviewItemToFeedbackWord.
+
+2b) Cancella queste dichiarazioni di state:
+    reviewQueue, initialQueueSize, reverseMasteredCount, reverseWordKey,
+    typedAnswer, reverseResult
+
+2c) Cancella questi ref:
+    originalQueueRef, reverseRetryCountRef, reviewDeckRef,
+    reviewDifficultyRef, reverseInputRef, reverseAdvancingRef
+    e la riga di shakeControls (useAnimationControls()).
+
+2d) Cancella per intero i due useEffect reverse-only:
+    - quello che legge sessionStorage "verbaReviewQueue"
+    - quello che resetta la digitazione e fa autofocus su reverseWordKey
+
+2e) Cancella per intero le funzioni:
+    shakeReverse, submitReverseTyping, handleReverseNext
+    (dentro handleReverseNext c'è anche la scrittura in localStorage di
+     "verba_mastered_words": sparisce con la funzione).
+
+2f) Cancella la variabile derivata currentReviewWord e la costante
+    isReverseMode con la riga che la calcola da params.get("mode").
+    ATTENZIONE: params / useSearch servono ancora per deck, difficulty, sets,
+    source, words. NON toccarli.
+
+2g) Applica la REGOLA D'ORO a OGNI occorrenza di isReverseMode nel JSX e nelle
+    variabili derivate, incluse quelle inline dentro gli oggetti style e
+    incluse quelle annidate dentro activeOptions.map. Al termine, la stringa
+    "isReverseMode" non deve comparire più da nessuna parte nel file.
+
+2h) Semplifica, SE ancora ramificano su reverse:
+    activeOptions, handleSelectActive, handleNextActive, animKey, feedbackWord,
+    progress, counterLabel  →  devono restare solo con la versione normale.
+    Se una di queste è già priva di rami reverse, lasciala com'è.
+
+2i) Rimuovi dagli import SOLO ciò che è diventato inutilizzato:
+    useAnimationControls, damerauLevenshtein, nearMissThreshold.
+    Prima di rimuovere ognuno, verifica che non abbia più occorrenze nel file.
+    NON rimuovere nessun altro import. In particolare NON toccare:
+    getWordStat, recordAnswer, FeedbackCard, primaryButtonStyle, tapScale,
+    TAP_SPRING, SCREEN_MAX, lowercaseFirst, AppBackground.
+
+════════════════════════════════════════
+STEP 3 — schermata orfana
+════════════════════════════════════════
+3a) Verifica in tutto src/ (escluso attached_assets/) che dopo lo STEP 2 non
+    esista più nessun setLocation/navigate verso "/review-complete".
+    Se ne trovi anche uno solo: SALTA tutto lo STEP 3 e segnalalo.
+3b) Se non ce ne sono: rimuovi da src/App.tsx la riga della route
+    <Route path="/review-complete" component={ReviewCompleteScreen} />
+    e il relativo import di ReviewCompleteScreen.
+3c) Cancella il file src/pages/ReviewCompleteScreen.tsx.
+    NON toccare ReviewSummaryScreen.tsx né la sua route: quella è viva.
+
+════════════════════════════════════════
+CHECKLIST FINALE — riportala punto per punto
+════════════════════════════════════════
+□ Il file docs/reverse-typing-reference.md esiste e contiene tutti e 7 i blocchi
+□ In src/ non esiste più nessuna occorrenza di: isReverseMode, reviewQueue,
+  typedAnswer, reverseResult, shakeControls, submitReverseTyping,
+  handleReverseNext, verbaReviewQueue, verba_mastered_words, ReviewItem
+□ handleSelectOption e la sua chiamata a recordAnswer sono INTATTE
+□ Il ramo sourceParam === "due" dentro handleNext è INTATTO
+□ Il blocco <FeedbackCard> ora si renderizza senza guardia su isReverseMode
+□ Il Next flottante ora si renderizza senza guardia su isReverseMode
+□ Nuovo conteggio righe di QuizScreen.tsx
+□ Typecheck (sì/no + errori)
+
+════════════════════════════════════════
+NON FARE
+════════════════════════════════════════
+· NESSUNA modifica al comportamento del quiz normale: scoring, timer, progress
+  bar, counter, hint, traduzione, suoni, animazioni, SpringTap.
+· NESSUNA modifica a wordStats.ts, progressStats.ts, studyProgress.ts,
+  ResultsScreen, ProgressScreen, StudyScreen, ReviewSummaryScreen.
+· NESSUN refactor "di cortesia": non estrarre componenti, non rinominare, non
+  riordinare, non riformattare codice che non stai cancellando.
+· Nessuna dipendenza nuova, nessuna modifica a Supabase.

@@ -1,11 +1,10 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useSearch } from "wouter";
 import { Loader2 } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
 import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { lowercaseFirst } from "@/lib/formatText";
-import { damerauLevenshtein, nearMissThreshold } from "@/lib/typoMatch";
 import FeedbackCard, { type QuizWord as FeedbackQuizWord } from "@/components/FeedbackCard";
 import { fetchQuizWords, fetchWordsByIds, type QuizWord, type QuizWordDefinition } from "@/lib/quizQueries";
 import { parseSetsParam, getWordIdsForSelection } from "@/lib/studySets";
@@ -15,19 +14,6 @@ import { undismissTrouble } from "@/lib/troubleDismiss";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-type ReviewItem = {
-  id: string | number;
-  word: string;
-  correctDefinition: string;
-  italianTranslation: string;
-  italianDefinition?: string;
-  exampleSentence: string;
-  synonyms: string[];
-  antonyms: string[];
-  etymology?: string;
-  allDefinitions?: QuizWordDefinition[];
-};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,21 +59,6 @@ function toFeedbackWord(w: QuizWord): FeedbackQuizWord {
   };
 }
 
-function reviewItemToFeedbackWord(item: ReviewItem): FeedbackQuizWord {
-  return {
-    word: item.word,
-    phonetic: "",
-    correctDefinition: item.correctDefinition,
-    exampleSentence: item.exampleSentence,
-    synonyms: item.synonyms,
-    antonyms: item.antonyms,
-    etymology: item.etymology ?? "",
-    italianTranslation: item.italianTranslation,
-    italianDefinition: item.italianDefinition ?? "",
-    allDefinitions: item.allDefinitions,
-  };
-}
-
 function getOptionStyle(
   option: string,
   correctAnswer: string,
@@ -118,7 +89,6 @@ export default function QuizScreen() {
   const difficultyParam = params.get("difficulty") ?? null;
   const setsParam = params.get("sets") ?? null;
   const sourceParam = params.get("source") ?? null;
-  const isReverseMode = params.get("mode") === "reverse";
 
   // ── Shared state ────────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);
@@ -136,26 +106,8 @@ export default function QuizScreen() {
   const startTimeRef = useRef<number>(Date.now());
   const wrongAnswersRef = useRef<Map<number, string>>(new Map());
 
-  // ── Reverse mode state ───────────────────────────────────────────────────
-  const [reviewQueue, setReviewQueue] = useState<ReviewItem[]>([]);
-  const [initialQueueSize, setInitialQueueSize] = useState(0);
-  const [reverseMasteredCount, setReverseMasteredCount] = useState(0);
-  const [reverseWordKey, setReverseWordKey] = useState(0);
-  const originalQueueRef = useRef<ReviewItem[]>([]);
-  const reverseRetryCountRef = useRef<Map<string, number>>(new Map());
-  const reviewDeckRef = useRef<string>("gre");
-  const reviewDifficultyRef = useRef<string | null>(null);
-
-  // Free-text reverse typing state
-  const [typedAnswer, setTypedAnswer] = useState("");
-  const [reverseResult, setReverseResult] = useState<null | "correct" | "near" | "wrong">(null);
-  const reverseInputRef = useRef<HTMLInputElement>(null);
-  const shakeControls = useAnimationControls();
-  const reverseAdvancingRef = useRef(false);
-
   // ── Normal mode: fetch words ─────────────────────────────────────────────
   useEffect(() => {
-    if (isReverseMode) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -201,42 +153,7 @@ export default function QuizScreen() {
         setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [deckParam, difficultyParam, setsParam, sourceParam, requestedWords, fetchKey, isReverseMode]);
-
-  // ── Reverse mode: init from sessionStorage ───────────────────────────────
-  useEffect(() => {
-    if (!isReverseMode) return;
-    try {
-      const raw = sessionStorage.getItem("verbaReviewQueue");
-      if (!raw) { setLocation("/results"); return; }
-      const queue = JSON.parse(raw) as ReviewItem[];
-      if (!queue || queue.length === 0) { setLocation("/results"); return; }
-
-      const resultRaw = sessionStorage.getItem("verbaSessionResult");
-      if (resultRaw) {
-        const result = JSON.parse(resultRaw) as { deck?: string | null; difficulty?: string | null };
-        reviewDeckRef.current = result.deck ?? "gre";
-        reviewDifficultyRef.current = result.difficulty ?? null;
-      }
-
-      originalQueueRef.current = queue;
-      setReviewQueue(queue);
-      setInitialQueueSize(queue.length);
-      setLoading(false);
-    } catch {
-      setLocation("/results");
-    }
-  }, [isReverseMode]);
-
-  // ── Reverse mode: reset typing + autofocus on word change ────────────────
-  useEffect(() => {
-    if (!isReverseMode) return;
-    setTypedAnswer("");
-    setReverseResult(null);
-    reverseAdvancingRef.current = false;
-    const t = setTimeout(() => reverseInputRef.current?.focus(), 60);
-    return () => clearTimeout(t);
-  }, [isReverseMode, reverseWordKey]);
+  }, [deckParam, difficultyParam, setsParam, sourceParam, requestedWords, fetchKey]);
 
   const handleRetry = useCallback(() => setFetchKey((k) => k + 1), []);
 
@@ -244,12 +161,9 @@ export default function QuizScreen() {
   const currentWord: QuizWord | undefined = quizWords[currentIndex];
 
   const shuffledOptions = useMemo(() => {
-    if (!currentWord || isReverseMode) return [];
+    if (!currentWord) return [];
     return shuffleArray([currentWord.correctDefinition, ...currentWord.distractors]);
-  }, [currentWord, isReverseMode]);
-
-  // ── Reverse mode: derived ────────────────────────────────────────────────
-  const currentReviewWord: ReviewItem | undefined = reviewQueue[0];
+  }, [currentWord]);
 
   // ── Normal mode handlers ─────────────────────────────────────────────────
   function handleSelectOption(option: string) {
@@ -326,77 +240,6 @@ export default function QuizScreen() {
     }, 300);
   }
 
-  // ── Reverse mode handlers ────────────────────────────────────────────────
-  function shakeReverse(kind: "hard" | "soft") {
-    shakeControls.start({
-      x: kind === "hard" ? [0, -11, 10, -8, 6, -4, 2, 0] : [0, -4, 3, -2, 0],
-      transition: { duration: kind === "hard" ? 0.42 : 0.3, ease: "easeInOut" },
-    });
-  }
-
-  function submitReverseTyping() {
-    if (!currentReviewWord || reverseResult === "correct" || reverseResult === "wrong") return;
-    const target = currentReviewWord.word;
-    const guess = typedAnswer.trim().toLowerCase();
-    if (!guess) return;
-    const dist = damerauLevenshtein(guess, target.toLowerCase());
-    const thr = nearMissThreshold(target.length);
-    if (dist === 0) {
-      setReverseResult("correct");
-      playCorrectSound();
-    } else if (dist <= thr) {
-      setReverseResult("near");
-      shakeReverse("soft");
-      setTimeout(() => reverseInputRef.current?.focus(), 0);
-    } else {
-      setReverseResult("wrong");
-      shakeReverse("hard");
-      const key = String(currentReviewWord.id);
-      reverseRetryCountRef.current.set(key, (reverseRetryCountRef.current.get(key) ?? 0) + 1);
-    }
-  }
-
-  function handleReverseNext(wasCorrect: boolean) {
-    if (reverseAdvancingRef.current) return;
-    reverseAdvancingRef.current = true;
-    setShowFeedback(false);
-    setTimeout(() => {
-      if (!currentReviewWord) return;
-      let newQueue = reviewQueue.slice(1);
-
-      if (!wasCorrect) {
-        newQueue = [...newQueue, currentReviewWord];
-      } else {
-        setReverseMasteredCount((c) => c + 1);
-      }
-
-      if (newQueue.length === 0) {
-        const mastered = originalQueueRef.current.map((item) => ({
-          id: item.id,
-          word: item.word,
-          retries: reverseRetryCountRef.current.get(String(item.id)) ?? 0,
-        }));
-        try {
-          const existing = new Set(
-            JSON.parse(localStorage.getItem("verba_mastered_words") ?? "[]") as string[],
-          );
-          originalQueueRef.current.forEach((item) => existing.add(String(item.id)));
-          localStorage.setItem("verba_mastered_words", JSON.stringify([...existing]));
-        } catch { /* storage unavailable */ }
-        sessionStorage.setItem("verbaReviewMastered", JSON.stringify(mastered));
-        setLocation("/review-complete");
-        return;
-      }
-
-      setReviewQueue(newQueue);
-      setSelectedOption(null);
-      setIsAnswered(false);
-      setShowTranslation(false);
-      setShowFeedback(false);
-      setReverseWordKey((k) => k + 1);
-    }, 300);
-  }
-
   // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -437,27 +280,22 @@ export default function QuizScreen() {
   }
 
   // ── Guards ───────────────────────────────────────────────────────────────
-  if (!isReverseMode && !currentWord) return null;
-  if (isReverseMode && !currentReviewWord) return null;
+  if (!currentWord) return null;
 
   // ── Computed values ──────────────────────────────────────────────────────
-  const animKey = isReverseMode ? reverseWordKey : wordKey;
-  const correctAnswer = isReverseMode ? currentReviewWord!.word : currentWord!.correctDefinition;
+  const animKey = wordKey;
+  const correctAnswer = currentWord!.correctDefinition;
   const activeOptions = shuffledOptions;
   const isCorrect = selectedOption === correctAnswer;
-  const feedbackWord = isReverseMode ? reviewItemToFeedbackWord(currentReviewWord!) : toFeedbackWord(currentWord!);
+  const feedbackWord = toFeedbackWord(currentWord!);
   const handleSelectActive = handleSelectOption;
   const handleNextActive = handleNext;
 
-  const progress = isReverseMode
-    ? (reverseMasteredCount / Math.max(initialQueueSize, 1)) * 100
-    : (currentIndex / Math.max(quizWords.length, 1)) * 100;
+  const progress = (currentIndex / Math.max(quizWords.length, 1)) * 100;
 
-  const counterLabel = isReverseMode
-    ? `${reverseMasteredCount} / ${initialQueueSize}`
-    : `${currentIndex + 1} / ${quizWords.length}`;
+  const counterLabel = `${currentIndex + 1} / ${quizWords.length}`;
 
-  const isLastNormal = !isReverseMode && currentIndex + 1 >= quizWords.length;
+  const isLastNormal = currentIndex + 1 >= quizWords.length;
 
   const wlen = currentWord?.word.length ?? 0;
   const wordFontSize =
@@ -484,7 +322,7 @@ export default function QuizScreen() {
       </div>
 
       {/* Main content */}
-      <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", flex: 1, alignItems: "center", justifyContent: isReverseMode ? "space-between" : "flex-start", padding: isReverseMode ? "0 20px 40px" : "0 20px 120px", gap: 16 }}>
+      <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", flex: 1, alignItems: "center", justifyContent: "flex-start", padding: "0 20px 120px", gap: 16 }}>
 
         {/* Prompt */}
         <AnimatePresence mode="wait">
@@ -494,27 +332,9 @@ export default function QuizScreen() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: isReverseMode ? 80 : 24, paddingBottom: 8, width: "100%", maxWidth: SCREEN_MAX }}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 24, paddingBottom: 8, width: "100%", maxWidth: SCREEN_MAX }}
           >
-            {isReverseMode ? (
-              <>
-                {/* Reverse: show definition */}
-                <p style={{
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  fontWeight: 400,
-                  fontSize: "clamp(18px, 4.5vw, 24px)",
-                  lineHeight: 1.4,
-                  color: "rgba(255,255,255,0.95)",
-                  margin: 0,
-                  textAlign: "center",
-                  padding: "20px 8px 28px",
-                }}>
-                  {lowercaseFirst(currentReviewWord!.correctDefinition)}
-                </p>
-
-              </>
-            ) : (
-              <>
+            <>
                 {/* Normal: show word */}
                 <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: wordFontSize, lineHeight: 1.3, color: "#C7B8E8", margin: 0, textAlign: "center", width: "100%", maxWidth: "100%", padding: "20px 14px 32px 14px", boxSizing: "border-box", overflow: "visible", whiteSpace: "nowrap", wordBreak: "keep-all" }}>
                   {currentWord!.word}
@@ -554,7 +374,6 @@ export default function QuizScreen() {
                   )}
                 </AnimatePresence>
               </>
-            )}
           </motion.div>
         </AnimatePresence>
 
@@ -568,75 +387,7 @@ export default function QuizScreen() {
             transition={{ duration: 0.25 }}
             style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: SCREEN_MAX }}
           >
-            {isReverseMode ? (
-              <motion.div animate={shakeControls} style={{ width: "100%" }}>
-                {reverseResult === "correct" || reverseResult === "wrong" ? (
-                  <>
-                    <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 13,
-                      letterSpacing: "0.1em", textTransform: "uppercase", textAlign: "center", margin: 0,
-                      color: reverseResult === "correct" ? "#10B981" : "#EF4444" }}>
-                      {reverseResult === "correct" ? "✓ Correct" : "✗ Incorrect"}
-                    </p>
-                    {reverseResult === "correct" && (
-                      <motion.p
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.34, ease: [0.2, 1.3, 0.4, 1] }}
-                        style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500, fontSize: 26,
-                          color: "#C7B8E8", margin: "12px 0 0", textAlign: "center" }}
-                      >
-                        {currentReviewWord!.word}
-                      </motion.p>
-                    )}
-                    {reverseResult === "wrong" && (
-                      <div style={{ textAlign: "center", marginTop: 12 }}>
-                        <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: 11,
-                          letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)",
-                          margin: "0 0 2px" }}>the word was</p>
-                        <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500, fontSize: 26,
-                          color: "#C7B8E8", margin: 0 }}>{currentReviewWord!.word}</p>
-                      </div>
-                    )}
-                    <motion.button
-                      whileTap={tapScale()}
-                      transition={TAP_SPRING}
-                      onClick={() => handleReverseNext(reverseResult === "correct")}
-                      style={{ ...primaryButtonStyle, display: "block", margin: "20px auto 0", touchAction: "manipulation" }}>
-                      {reverseResult === "correct" && reviewQueue.length <= 1 ? "Finish" : "Next →"}
-                    </motion.button>
-                  </>
-                ) : (
-                  <>
-                    {reverseResult === "near" && (
-                      <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 13,
-                        letterSpacing: "0.1em", textTransform: "uppercase", textAlign: "center",
-                        color: "#FACC15", margin: "0 0 12px" }}>
-                        ≈ Almost — check your spelling
-                      </p>
-                    )}
-                    <input
-                      ref={reverseInputRef}
-                      value={typedAnswer}
-                      onChange={(e) => { setTypedAnswer(e.target.value); if (reverseResult === "near") setReverseResult(null); }}
-                      onKeyDown={(e) => { if (e.key === "Enter") submitReverseTyping(); }}
-                      placeholder="type the word…"
-                      autoComplete="off"
-                      style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.03)",
-                        border: `1px solid ${reverseResult === "near" ? "rgba(250,204,21,0.65)" : "rgba(217,119,6,0.28)"}`,
-                        borderRadius: 14, padding: "14px 18px", fontFamily: "'Space Grotesk', sans-serif",
-                        fontWeight: 500, fontSize: "1.05rem", color: "#C7B8E8", textAlign: "left", outline: "none" }}
-                    />
-                    <motion.button
-                      whileTap={{ scale: 0.96 }}
-                      onClick={submitReverseTyping}
-                      style={{ ...primaryButtonStyle, display: "block", margin: "10px auto 0" }}>
-                      Check
-                    </motion.button>
-                  </>
-                )}
-              </motion.div>
-            ) : (
-              activeOptions.map((option, i) => (
+            {activeOptions.map((option, i) => (
                 <motion.button
                   key={option}
                   data-testid={`option-${i}`}
@@ -648,28 +399,26 @@ export default function QuizScreen() {
                   style={{
                     ...getOptionStyle(option, correctAnswer, selectedOption, isAnswered),
                     borderRadius: 12,
-                    padding: isReverseMode ? "14px 18px" : "15px 18px",
+                    padding: "15px 18px",
                     cursor: isAnswered ? "default" : "pointer",
-                    fontFamily: isReverseMode ? "'Space Grotesk', sans-serif" : "'Inter', sans-serif",
-                    fontWeight: isReverseMode ? 500 : 300,
-                    fontSize: isReverseMode ? "1.1rem" : "0.88rem",
-                    color: isReverseMode ? "#C7B8E8" : "rgba(255,255,255,0.85)",
-                    textAlign: isReverseMode ? "center" : "left",
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: 300,
+                    fontSize: "0.88rem",
+                    color: "rgba(255,255,255,0.85)",
+                    textAlign: "left",
                     transition: "border 0.2s ease, background 0.2s ease, box-shadow 0.2s ease",
                     outline: "none",
                     lineHeight: 1.4,
                   }}
                 >
-                  {isReverseMode ? option : lowercaseFirst(option)}
+                  {lowercaseFirst(option)}
                 </motion.button>
-              ))
-            )}
+              ))}
           </motion.div>
         </AnimatePresence>
 
         {/* Floating Next button — normal mode only */}
-        {!isReverseMode && (
-          <AnimatePresence>
+        <AnimatePresence>
             {isAnswered && !showFeedback && (
               <motion.button
                 data-testid="button-next-floating"
@@ -685,12 +434,10 @@ export default function QuizScreen() {
               </motion.button>
             )}
           </AnimatePresence>
-        )}
       </div>
 
       {/* Feedback card — normal mode only */}
-      {!isReverseMode && (
-        <FeedbackCard
+      <FeedbackCard
           show={showFeedback}
           word={feedbackWord}
           isCorrect={isCorrect}
@@ -699,7 +446,6 @@ export default function QuizScreen() {
           onNext={handleNext}
           allowMinimize={true}
         />
-      )}
     </div>
   );
 }
