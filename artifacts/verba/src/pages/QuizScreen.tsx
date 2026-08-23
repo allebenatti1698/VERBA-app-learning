@@ -391,13 +391,29 @@ export default function QuizScreen() {
                 <motion.button
                   key={option}
                   data-testid={`option-${i}`}
+                  className="lumen-opt"
                   initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.06, duration: 0.25, ease: "easeOut" }}
+                  animate={{
+                    // le opzioni fuori gioco si spengono, non spariscono
+                    opacity: isAnswered && option !== correctAnswer && option !== selectedOption ? 0.24 : 1,
+                    y: 0,
+                    // spinta indietro: solo sulla scelta sbagliata
+                    x: isAnswered && option === selectedOption && option !== correctAnswer ? [0, -7, 6, -4, 2, 0] : 0,
+                  }}
+                  transition={{
+                    delay: i * 0.06,
+                    duration: 0.25,
+                    ease: "easeOut",
+                    opacity: { duration: 0.3, delay: isAnswered ? 0 : i * 0.06 },
+                    x: { duration: 0.34, ease: [0.36, 0.07, 0.19, 0.97], delay: 0 },
+                  }}
+                  whileTap={isAnswered ? undefined : tapScale("card")}
                   onClick={() => handleSelectActive(option)}
                   disabled={isAnswered}
                   style={{
                     ...getOptionStyle(option, correctAnswer, selectedOption, isAnswered),
+                    position: "relative",
+                    overflow: "hidden",
                     borderRadius: 12,
                     padding: "15px 18px",
                     cursor: isAnswered ? "default" : "pointer",
@@ -411,7 +427,8 @@ export default function QuizScreen() {
                     lineHeight: 1.4,
                   }}
                 >
-                  {lowercaseFirst(option)}
+                  <span aria-hidden className="lumen-glow" />
+                  <span style={{ position: "relative" }}>{lowercaseFirst(option)}</span>
                 </motion.button>
               ))}
           </motion.div>
@@ -435,6 +452,20 @@ export default function QuizScreen() {
             )}
           </AnimatePresence>
       </div>
+
+      <style>{`
+        .lumen-glow {
+          position: absolute;
+          inset: 0;
+          border-radius: 12px;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.25s ease;
+          background: radial-gradient(ellipse at 50% 130%, rgba(245,158,11,0.13), transparent 70%);
+        }
+        .lumen-opt:not(:disabled):hover .lumen-glow { opacity: 1; }
+        .lumen-opt:not(:disabled):hover { border-color: rgba(217,119,6,0.38) !important; }
+      `}</style>
 
       {/* Feedback card — normal mode only */}
       <FeedbackCard

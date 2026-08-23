@@ -1,0 +1,127 @@
+VERBA — Lumen nel quiz a scelta multipla (Lumen 2/2).
+ECONOMY MODE, Claude Sonnet 5, Effort Medium. Stima ~$0.80–1.50.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+File UNICO: src/pages/QuizScreen.tsx.
+Applica OGNI edit in modo INDIPENDENTE: se una stringa non corrisponde, SALTA,
+segnala e PROSEGUI.
+
+OBIETTIVO: alone sulle opzioni al passaggio, pressione a molla, spinta indietro
+sull'errore, opzioni non pertinenti che si spengono. Nessun cambio alla logica
+del quiz, allo scoring, a recordAnswer o alla FeedbackCard.
+
+════════════════════════════════════════
+EDIT 1 — props del bottone opzione
+════════════════════════════════════════
+TROVA ESATTAMENTE:
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.06, duration: 0.25, ease: "easeOut" }}
+                  onClick={() => handleSelectActive(option)}
+                  disabled={isAnswered}
+
+SOSTITUISCI CON:
+                  className="lumen-opt"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{
+                    // le opzioni fuori gioco si spengono, non spariscono
+                    opacity: isAnswered && option !== correctAnswer && option !== selectedOption ? 0.24 : 1,
+                    y: 0,
+                    // spinta indietro: solo sulla scelta sbagliata
+                    x: isAnswered && option === selectedOption && option !== correctAnswer ? [0, -7, 6, -4, 2, 0] : 0,
+                  }}
+                  transition={{
+                    delay: i * 0.06,
+                    duration: 0.25,
+                    ease: "easeOut",
+                    opacity: { duration: 0.3, delay: isAnswered ? 0 : i * 0.06 },
+                    x: { duration: 0.34, ease: [0.36, 0.07, 0.19, 0.97], delay: 0 },
+                  }}
+                  whileTap={isAnswered ? undefined : tapScale("card")}
+                  onClick={() => handleSelectActive(option)}
+                  disabled={isAnswered}
+
+NOTA: il delay sull'opacity va tenuto durante l'entrata (i * 0.06) e azzerato
+dopo la risposta, altrimenti lo spegnimento arriva scaglionato invece che
+insieme.
+
+════════════════════════════════════════
+EDIT 2 — il bottone diventa contenitore
+════════════════════════════════════════
+TROVA ESATTAMENTE:
+                    ...getOptionStyle(option, correctAnswer, selectedOption, isAnswered),
+                    borderRadius: 12,
+                    padding: "15px 18px",
+
+SOSTITUISCI CON:
+                    ...getOptionStyle(option, correctAnswer, selectedOption, isAnswered),
+                    position: "relative",
+                    overflow: "hidden",
+                    borderRadius: 12,
+                    padding: "15px 18px",
+
+════════════════════════════════════════
+EDIT 3 — l'alone dentro il bottone
+════════════════════════════════════════
+TROVA ESATTAMENTE:
+                >
+                  {lowercaseFirst(option)}
+                </motion.button>
+
+SOSTITUISCI CON:
+                >
+                  <span aria-hidden className="lumen-glow" />
+                  <span style={{ position: "relative" }}>{lowercaseFirst(option)}</span>
+                </motion.button>
+
+NOTA: il testo va avvolto in uno span con position relative, altrimenti l'alone
+assoluto gli si dipinge sopra.
+
+════════════════════════════════════════
+EDIT 4 — le regole CSS
+════════════════════════════════════════
+Verifica se in questo file esiste già un blocco <style>{` ... `}</style>.
+· Se esiste: aggiungi le regole sotto DENTRO quel blocco, senza toccare il resto.
+· Se NON esiste: inserisci il blocco intero subito PRIMA della riga
+      {/* Feedback card — normal mode only */}
+  (deve restare dentro il div radice del componente).
+
+      <style>{`
+        .lumen-glow {
+          position: absolute;
+          inset: 0;
+          border-radius: 12px;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.25s ease;
+          background: radial-gradient(ellipse at 50% 130%, rgba(245,158,11,0.13), transparent 70%);
+        }
+        .lumen-opt:not(:disabled):hover .lumen-glow { opacity: 1; }
+        .lumen-opt:not(:disabled):hover { border-color: rgba(217,119,6,0.38) !important; }
+      `}</style>
+
+════════════════════════════════════════
+DA RIPORTARE (verifica, nessuna modifica)
+════════════════════════════════════════
+V1) Incolla VERBATIM, con i numeri di riga, il blocco JSX che renderizza la
+    parola grande in lavanda in cima allo schermo: dal contenitore che la
+    avvolge fino alla sua chiusura, incluse le props di animazione e l'uso di
+    wordFontSize. NON modificarlo — mi serve per il passo successivo.
+
+════════════════════════════════════════
+REPORT
+════════════════════════════════════════
+· Edit applicati e saltati con motivo
+· Il blocco <style> esisteva già? sì/no
+· Il blocco JSX richiesto in V1
+· Typecheck (sì/no + errori)
+
+════════════════════════════════════════
+NON FARE
+════════════════════════════════════════
+· NESSUNA modifica a handleSelectOption, handleNext, recordAnswer, getOptionStyle,
+  allo scoring, alla progress bar, al counter, all'hint, alla traduzione,
+  ai suoni, alla FeedbackCard, al Next flottante.
+· NESSUNA modifica ad altri file.
+· Nessuna dipendenza nuova, nessun refactor di cortesia.
