@@ -1,0 +1,58 @@
+VERBA — Ricognizione (SOLA LETTURA): superficie di rendering del quiz.
+ECONOMY MODE, Claude Sonnet 5, Effort Low, Plan attivo. Stima ~$0.15–0.35.
+
+NON MODIFICARE NESSUN FILE. Nessun edit, nessun checkpoint di codice.
+NON leggere attached_assets/: è archivio di vecchi prompt e NON riflette il codice.
+
+Leggi src/pages/QuizScreen.tsx e src/components/AppBackground.tsx.
+Dove chiedo del codice, INCOLLALO VERBATIM (copiato, non riscritto né riassunto),
+con i numeri di riga.
+
+════════════════════════════════════════
+1) LA PAROLA IN CIMA (QuizScreen)
+════════════════════════════════════════
+Incolla il blocco JSX che renderizza la parola grande in lavanda, dall'apertura
+del suo contenitore alla chiusura. Includi wordFontSize e qualunque
+motion.div/AnimatePresence che lo avvolge, con le sue props di animazione.
+
+════════════════════════════════════════
+2) LE QUATTRO OPZIONI (QuizScreen)
+════════════════════════════════════════
+Incolla per intero il blocco activeOptions.map, dalla riga che lo apre alla sua
+chiusura: contenitore, motion.button o div, tutte le props, l'oggetto style
+completo, la chiamata a getOptionStyle, whileTap, transition, e il testo interno.
+
+════════════════════════════════════════
+3) STATO E TEMPI
+════════════════════════════════════════
+3a) Incolla handleSelectOption per intero (già la conosco, mi serve la versione
+    attuale con i numeri di riga).
+3b) C'è un setTimeout che ritarda la comparsa della FeedbackCard? Quanti ms?
+    Incolla la riga.
+3c) Come viene deciso quando appare il bottone Next flottante? Incolla la
+    condizione e il blocco.
+
+════════════════════════════════════════
+4) CSS GLOBALE (QuizScreen)
+════════════════════════════════════════
+Esiste in questo file un blocco <style>{` ... `}</style> con keyframes o regole
+globali? Se sì incollalo. Se no, scrivi "non presente".
+Esiste già da qualche parte un'animazione di shake o scuotimento? Cerca in tutto
+src/ le stringhe "shake", "@keyframes" e "animate-" e riporta file e riga.
+
+════════════════════════════════════════
+5) SFONDO (AppBackground)
+════════════════════════════════════════
+5a) Elenca i livelli che compone (orbs, halos, floating words, gradienti…), con
+    riga di inizio e le props che accetta.
+5b) Esiste già un livello di rumore, grana, texture o noise? Cerca "noise",
+    "grain", "feTurbulence", "texture". Sì/no + dove.
+5c) C'è un elemento in overlay sopra tutti gli altri con un suo z-index?
+    Incolla la riga con lo z-index più alto del file.
+
+════════════════════════════════════════
+FORMATO
+════════════════════════════════════════
+Solo i cinque punti, nessuna raccomandazione, nessuna proposta di modifica,
+nessuna opinione. Se qualcosa non lo trovi, scrivi "non trovato" invece di
+ipotizzare.
