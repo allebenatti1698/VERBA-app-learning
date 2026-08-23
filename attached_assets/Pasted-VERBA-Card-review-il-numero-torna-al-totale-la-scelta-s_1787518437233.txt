@@ -1,0 +1,85 @@
+VERBA — Card review: il numero torna al totale, la scelta si dice a parole.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.40–0.80.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+File UNICO: src/pages/ProgressScreen.tsx. Nessun altro file.
+Applica OGNI edit in modo INDIPENDENTE: se una stringa non corrisponde, SALTA,
+segnala e PROSEGUI.
+
+CONTESTO: la card mostra oggi "5 words now · of 72 due · 67 after this one".
+Il 5 è il valore ricordato dell'ultima sessione, ma la lunghezza si sceglie ora
+nella schermata successiva, quindi quel numero annuncia una decisione non ancora
+presa. Il numero grande deve tornare al totale dovuto; la possibilità di
+scegliere va detta a parole.
+
+════════════════════════════════════════
+EDIT 1 — riga del numero
+════════════════════════════════════════
+TROVA (le tre righe consecutive con reviewNow / reviewRest):
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 23, color: AMBER_SOFT }}>{reviewNow}</span>
+                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: AMBER_SOFT }}>{reviewRest > 0 ? "words now" : "words to review"}</span>
+                    {reviewRest > 0 && (
+                      <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: "rgba(248,184,78,0.6)" }}>of {snap.dueCount} due</span>
+                    )}
+
+SOSTITUISCI CON:
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 23, color: AMBER_SOFT }}>{snap.dueCount}</span>
+                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: AMBER_SOFT }}>words to review</span>
+
+Se l'indentazione non combacia alla lettera, cerca comunque il blocco che
+contiene {reviewNow} dentro la card cliccabile e applica la stessa sostituzione,
+conservando l'indentazione che trovi. NON toccare il <button> con l'icona Info
+che segue: resta dov'è.
+
+════════════════════════════════════════
+EDIT 2 — riga delle rimanenti → riga d'azione
+════════════════════════════════════════
+TROVA:
+                  {reviewRest > 0 && (
+                    <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>
+                      {reviewRest} after this one
+                    </div>
+                  )}
+
+SOSTITUISCI CON:
+                  <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(248,184,78,0.95)", marginTop: 8 }}>
+                    Choose how many to do now →
+                  </div>
+
+Questa riga deve restare DENTRO la stessa card cliccabile, subito dopo il
+paragrafo "Resurfaced right before you'd forget them — review to make them stick."
+
+════════════════════════════════════════
+EDIT 3 — pulizia dello stato non più usato
+════════════════════════════════════════
+Dopo gli edit 1 e 2, VERIFICA che nel file non resti nessun altro uso di
+reviewNow, reviewRest e reviewSize.
+
+· Se non ne resta nessuno: cancella
+    - le due righe  const reviewNow = ...  e  const reviewRest = ...
+    - lo stato  const [reviewSize, setReviewSize] = useState(10);
+    - il useEffect che legge localStorage "verba_review_size" in QUESTO file
+· Se qualcuno di questi è ancora usato altrove nel file: NON cancellarlo,
+  segnala dove è usato e fermati su quel punto.
+
+ATTENZIONE: la chiave "verba_review_size" continua a essere scritta e letta in
+src/pages/PreQuizSetup.tsx e NON va toccata lì. Qui rimuoviamo solo la lettura,
+perché la card non mostra più quel valore.
+
+════════════════════════════════════════
+REPORT
+════════════════════════════════════════
+· Edit applicati e edit saltati con motivo
+· reviewNow / reviewRest / reviewSize: rimossi o ancora usati (dove)
+· Conferma che src/pages/PreQuizSetup.tsx non è stato toccato
+· Typecheck (sì/no + errori)
+
+════════════════════════════════════════
+NON FARE
+════════════════════════════════════════
+· NESSUNA modifica al bottone Info, al pannello che apre, a startReview,
+  al chevron, allo stile o al bordo della card.
+· NESSUNA modifica a HeroRing, MasteryBar, Trouble words, accordion.
+· NESSUNA modifica ad altri file.
+· Nessun refactor di cortesia.
