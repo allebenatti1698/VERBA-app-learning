@@ -134,6 +134,13 @@ export default function ProgressScreen() {
   const [myWords, setMyWords] = useState<Set<string>>(new Set());
   const [swipeHintDone, setSwipeHintDone] = useState(true);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [reviewSize, setReviewSize] = useState(10);
+  useEffect(() => {
+    try {
+      const v = Number(localStorage.getItem("verba_review_size"));
+      if (Number.isFinite(v) && v >= 1) setReviewSize(v);
+    } catch { /* storage non disponibile */ }
+  }, []);
 
   useEffect(() => {
     try {
@@ -180,7 +187,7 @@ export default function ProgressScreen() {
   function startReview(ids: string[]) {
     if (ids.length === 0) return;
     try { sessionStorage.setItem(REVIEW_DUE_KEY, JSON.stringify(ids)); } catch { /* */ }
-    navigate("/quiz?source=due");
+    navigate("/setup?source=due");
   }
 
   function toggleStar(id: string) {
@@ -200,6 +207,9 @@ export default function ProgressScreen() {
       try { localStorage.setItem("verba_hint_trouble_swipe", "1"); } catch { /* */ }
     }
   }
+
+  const reviewNow = snap ? Math.min(reviewSize, snap.dueCount) : 0;
+  const reviewRest = snap ? Math.max(0, snap.dueCount - reviewNow) : 0;
 
   return (
     <div style={{ minHeight: "100%", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
@@ -237,8 +247,11 @@ export default function ProgressScreen() {
                 <div onClick={() => startReview(getDueWordIds())} style={{ background: "rgba(245,158,11,0.07)", border: "0.5px solid rgba(245,158,11,0.28)", borderRadius: 16, position: "relative", padding: "15px 48px 15px 16px", cursor: "pointer" }}>
                   <ChevronRight size={22} color={AMBER_SOFT} style={{ position: "absolute", top: "50%", right: 16, transform: "translateY(-50%)" }} />
                   <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 23, color: AMBER_SOFT }}>{snap.dueCount}</span>
-                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: AMBER_SOFT }}>words to review</span>
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 23, color: AMBER_SOFT }}>{reviewNow}</span>
+                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: AMBER_SOFT }}>{reviewRest > 0 ? "words now" : "words to review"}</span>
+                    {reviewRest > 0 && (
+                      <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: "rgba(248,184,78,0.6)" }}>of {snap.dueCount} due</span>
+                    )}
                     <button
                       onClick={(e) => { e.stopPropagation(); setInfoOpen((o) => !o); }}
                       aria-label="What is this?"
@@ -250,6 +263,11 @@ export default function ProgressScreen() {
                   <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(248,184,78,0.7)", lineHeight: 1.5, marginTop: 5 }}>
                     Resurfaced right before you'd forget them — review to make them stick.
                   </div>
+                  {reviewRest > 0 && (
+                    <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>
+                      {reviewRest} after this one
+                    </div>
+                  )}
                 </div>
                 {infoOpen && (
                   <motion.div

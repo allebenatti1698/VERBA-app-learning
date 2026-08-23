@@ -1,0 +1,165 @@
+VERBA — Sessione di ripasso a lunghezza scelta.
+ECONOMY MODE, Claude Sonnet 5, Effort Medium. Stima ~$1.20–2.20.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/ per nessun motivo, nemmeno in lettura: è archivio di
+vecchi prompt e NON riflette lo stato del codice.
+Applica OGNI edit in modo INDIPENDENTE: se una stringa non corrisponde, SALTA
+quell'edit, segnalalo e PROSEGUI. Non fermarti al primo mismatch.
+
+OBIETTIVO: oggi la card "words to review" lancia il quiz con TUTTE le parole
+dovute (76). Deve invece portare a /setup?source=due, dove lo slider già
+esistente sceglie quante farne, e il quiz ne prende solo quelle.
+
+════════════════════════════════════════
+FILE 1 — src/pages/PreQuizSetup.tsx
+════════════════════════════════════════
+
+1a) MAX SLIDER. Dentro il useEffect che calcola maxWords, INSERISCI subito
+    PRIMA della riga:
+    const selection = parseSetsParam(setsParam);
+    questo blocco:
+
+    if (sourceParam === "due") {
+      try {
+        const ids = JSON.parse(sessionStorage.getItem("verba_review_due") || "[]") as string[];
+        setMaxWords(Math.max(1, ids.length));
+      } catch { setMaxWords(1); }
+      return;
+    }
+
+    (La dependency array di quel useEffect contiene già sourceParam: verificalo
+     e, se manca, aggiungilo.)
+
+1b) VALORE RICORDATO. Subito DOPO quel useEffect, aggiungi:
+
+    useEffect(() => {
+      if (sourceParam !== "due") return;
+      try {
+        const v = Number(localStorage.getItem("verba_review_size"));
+        if (Number.isFinite(v) && v >= 1) setWordCount(v);
+      } catch { /* storage non disponibile */ }
+    }, [sourceParam]);
+
+1c) handleBegin. Subito DOPO la riga:
+      const finalWords = Math.min(wordCount, maxWords);
+    e PRIMA del blocco `if (sourceParam === "myverba")`, inserisci:
+
+      if (sourceParam === "due") {
+        try { localStorage.setItem("verba_review_size", String(finalWords)); }
+        catch { /* storage non disponibile */ }
+        setLocation(`/quiz?source=due&words=${finalWords}`);
+        return;
+      }
+
+1d) SOTTOTITOLO. Trova:
+    {sourceParam === "myverba" ? "Drill your saved collection" : "Choose how many words to practice"}
+    Sostituisci con:
+    {sourceParam === "due" ? "Choose how many to review today" : sourceParam === "myverba" ? "Drill your saved collection" : "Choose how many words to practice"}
+
+1e) FRECCIA BACK — VERIFICA, non modificare alla cieca. Se in questo file la
+    freccia back ha una destinazione fissa (es. sempre /study o history.back),
+    riportamela nel report indicando riga e destinazione. NON cambiarla.
+
+════════════════════════════════════════
+FILE 2 — src/pages/ProgressScreen.tsx
+════════════════════════════════════════
+
+2a) STATO. Dopo la riga:
+      const [infoOpen, setInfoOpen] = useState(false);
+    aggiungi:
+
+      const [reviewSize, setReviewSize] = useState(10);
+      useEffect(() => {
+        try {
+          const v = Number(localStorage.getItem("verba_review_size"));
+          if (Number.isFinite(v) && v >= 1) setReviewSize(v);
+        } catch { /* storage non disponibile */ }
+      }, []);
+
+2b) VALORI DERIVATI. Subito PRIMA del `return (` del componente, aggiungi:
+
+      const reviewNow = snap ? Math.min(reviewSize, snap.dueCount) : 0;
+      const reviewRest = snap ? Math.max(0, snap.dueCount - reviewNow) : 0;
+
+2c) CARD — riga del numero. Trova ESATTAMENTE:
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 23, color: AMBER_SOFT }}>{snap.dueCount}</span>
+                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: AMBER_SOFT }}>words to review</span>
+    Sostituisci con:
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 23, color: AMBER_SOFT }}>{reviewNow}</span>
+                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: AMBER_SOFT }}>{reviewRest > 0 ? "words now" : "words to review"}</span>
+                    {reviewRest > 0 && (
+                      <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: "rgba(248,184,78,0.6)" }}>of {snap.dueCount} due</span>
+                    )}
+
+2d) CARD — riga delle rimanenti. Trova ESATTAMENTE:
+                  <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(248,184,78,0.7)", lineHeight: 1.5, marginTop: 5 }}>
+                    Resurfaced right before you'd forget them — review to make them stick.
+                  </div>
+    Sostituisci con:
+                  <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(248,184,78,0.7)", lineHeight: 1.5, marginTop: 5 }}>
+                    Resurfaced right before you'd forget them — review to make them stick.
+                  </div>
+                  {reviewRest > 0 && (
+                    <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>
+                      {reviewRest} after this one
+                    </div>
+                  )}
+
+2e) DESTINAZIONE DEL TOCCO — richiede attenzione, leggi tutto prima di agire.
+    La card ha  onClick={() => startReview(getDueWordIds())}.
+    Trova la funzione startReview e conta QUANTI punti del file la chiamano.
+
+    · Se la chiama SOLO questa card: modifica startReview in modo che continui a
+      scrivere gli id in sessionStorage "verba_review_due" ESATTAMENTE come ora,
+      ma navighi a  /setup?source=due  invece che a /quiz.
+    · Se la chiamano DUE O PIÙ punti (es. anche le Trouble words): NON toccare
+      startReview. Crea invece una nuova funzione accanto ad essa che faccia la
+      stessa scrittura in sessionStorage e navighi a /setup?source=due, e usa
+      quella SOLO nell'onClick di questa card.
+
+    In entrambi i casi riporta nel report: corpo originale di startReview,
+    numero e posizione dei chiamanti, e quale delle due strade hai preso.
+
+════════════════════════════════════════
+FILE 3 — src/pages/QuizScreen.tsx
+════════════════════════════════════════
+
+3a) Trova ESATTAMENTE:
+        ? fetchWordsByIds(dueIds).then((ws) => shuffleArray(ws))
+    Sostituisci con:
+        ? fetchWordsByIds(dueIds.slice(0, requestedWords)).then((ws) => shuffleArray(ws))
+
+    (Il taglio va fatto sugli ID e non sulle parole già caricate: la lista di
+     getDueWordIds è ordinata per scadenza, quindi tagliare prima significa
+     prendere le più a rischio. Lo shuffle successivo serve solo a variare
+     l'ordine di presentazione.)
+
+════════════════════════════════════════
+VERIFICA (solo report, nessuna modifica)
+════════════════════════════════════════
+V1) In src/lib/wordStats.ts, la funzione getDueWordIds ordina davvero le parole
+    dalla più scaduta alla meno scaduta? Incolla le righe dell'ordinamento.
+    Se NON ordina, segnalalo e basta: non modificarla.
+
+════════════════════════════════════════
+CHECKLIST FINALE
+════════════════════════════════════════
+□ /setup?source=due: slider min 1, max = numero di parole dovute, step 1
+□ Begin da source=due porta a /quiz?source=due&words=N
+□ La card di Progress mostra il valore ricordato, "of N due" e "N after this one"
+□ Con dueCount minore o uguale al valore ricordato, la card torna a dire
+  semplicemente "N words to review" senza righe extra
+□ Esito del punto 2e (quale strada presa e perché)
+□ Esito della verifica V1
+□ Typecheck (sì/no + errori)
+
+════════════════════════════════════════
+NON FARE
+════════════════════════════════════════
+· NESSUNA modifica allo slider stesso, al suo stile, al thumb, al gradiente,
+  al bottone Begin, al toggle timer.
+· NESSUNA modifica al percorso Practice normale né a source=myverba.
+· NESSUNA modifica a HeroRing, MasteryBar, Trouble words, accordion di Progress.
+· NESSUNA modifica a wordStats.ts, progressStats.ts.
+· Nessun refactor "di cortesia", nessuna dipendenza nuova.

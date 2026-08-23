@@ -125,7 +125,7 @@ export default function QuizScreen() {
     }
     const loader =
       sourceParam === "due"
-        ? fetchWordsByIds(dueIds).then((ws) => shuffleArray(ws))
+        ? fetchWordsByIds(dueIds.slice(0, requestedWords)).then((ws) => shuffleArray(ws))
         : sourceParam === "myverba"
           ? fetchWordsByIds(myVerbaIds).then((ws) => shuffleArray(ws).slice(0, requestedWords))
           : hasSets

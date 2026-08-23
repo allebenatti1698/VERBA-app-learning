@@ -45,6 +45,13 @@ export default function PreQuizSetup() {
       } catch { setMaxWords(1); }
       return;
     }
+    if (sourceParam === "due") {
+      try {
+        const ids = JSON.parse(sessionStorage.getItem("verba_review_due") || "[]") as string[];
+        setMaxWords(Math.max(1, ids.length));
+      } catch { setMaxWords(1); }
+      return;
+    }
     const selection = parseSetsParam(setsParam);
     if (Object.keys(selection).length === 0) { setMaxWords(50); return; }
     let active = true;
@@ -53,11 +60,26 @@ export default function PreQuizSetup() {
       .catch(() => { if (active) setMaxWords(50); });
     return () => { active = false; };
   }, [setsParam, deck, sourceParam]);
+
+  useEffect(() => {
+    if (sourceParam !== "due") return;
+    try {
+      const v = Number(localStorage.getItem("verba_review_size"));
+      if (Number.isFinite(v) && v >= 1) setWordCount(v);
+    } catch { /* storage non disponibile */ }
+  }, [sourceParam]);
+
   const sliderMax = Math.min(50, maxWords);
   useEffect(() => { setWordCount((w) => Math.min(w, sliderMax)); }, [sliderMax]);
 
   function handleBegin() {
     const finalWords = Math.min(wordCount, maxWords);
+    if (sourceParam === "due") {
+      try { localStorage.setItem("verba_review_size", String(finalWords)); }
+      catch { /* storage non disponibile */ }
+      setLocation(`/quiz?source=due&words=${finalWords}`);
+      return;
+    }
     if (sourceParam === "myverba") {
       setLocation(`/quiz?source=myverba&words=${finalWords}&mode=mc`);
       return;
@@ -146,7 +168,7 @@ export default function PreQuizSetup() {
               letterSpacing: "0.02em",
             }}
           >
-            {sourceParam === "myverba" ? "Drill your saved collection" : "Choose how many words to practice"}
+            {sourceParam === "due" ? "Choose how many to review today" : sourceParam === "myverba" ? "Drill your saved collection" : "Choose how many words to practice"}
           </p>
         </motion.div>
 
