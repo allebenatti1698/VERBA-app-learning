@@ -1,0 +1,65 @@
+VERBA — Passo 1: disinnesco della falsa padronanza in wordStats.ts.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.25–0.45.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/ per nessun motivo.
+File UNICO: src/lib/wordStats.ts. Nessun altro file va modificato.
+Applica OGNI edit in modo INDIPENDENTE: se una stringa non corrisponde, SALTA
+quell'edit, segnalalo e PROSEGUI con i successivi. Non fermarti al primo mismatch.
+Riporta solo: edit applicati, edit saltati con motivo, typecheck (sì/no + errori).
+
+CONTESTO (non agire su questo, serve solo a capire): la chiave localStorage
+"verba_mastered_words" veniva riempita da un loop di review che non esiste più
+nell'app. Conteneva parole SBAGLIATE e poi ritentate nella stessa sessione.
+ensureMigrated() le importa nell'SRS come status "mastered". Va rimossa.
+
+════════════════════════════════════════
+EDIT 1 — cancella queste DUE righe intere
+════════════════════════════════════════
+const MASTERED_LEGACY_KEY = "verba_mastered_words"; // Set serializzata come Array (reverse-review storico)
+const MIGRATION_FLAG = "verba_word_stats_migrated_v1";
+
+════════════════════════════════════════
+EDIT 2 — cancella questa riga intera
+════════════════════════════════════════
+let migrated = false;
+
+════════════════════════════════════════
+EDIT 3 — cancella la funzione ensureMigrated per intero
+════════════════════════════════════════
+Cancella dal commento:
+// Migrazione one-shot: assorbe verba_mastered_words senza perdere progresso.
+fino alla graffa di chiusura della funzione ensureMigrated() COMPRESA.
+Non lasciare righe vuote doppie al suo posto.
+
+════════════════════════════════════════
+EDIT 4 — sostituisci
+════════════════════════════════════════
+TROVA:
+function read(): StatsMap {
+  ensureMigrated();
+  return rawRead();
+}
+SOSTITUISCI CON:
+function read(): StatsMap {
+  return rawRead();
+}
+
+════════════════════════════════════════
+CONTROLLO FINALE
+════════════════════════════════════════
+Verifica che nel file non resti NESSUNA occorrenza delle stringhe
+"verba_mastered_words", "MASTERED_LEGACY_KEY", "MIGRATION_FLAG",
+"ensureMigrated", "migrated". Se ne resta qualcuna, segnalala nel report
+indicando riga e contesto, ma NON improvvisare altri edit.
+
+════════════════════════════════════════
+NON FARE
+════════════════════════════════════════
+· NON toccare recordAnswer, getWordStat, getAllWordStats, getDueWordIds,
+  MASTERY_THRESHOLD, INTERVAL_DAYS, LAPSE_MINUTES, statusFor, intervalDaysFor,
+  isoInDays, isoInMinutes, emptyStat, rawRead, rawWrite.
+· NON modificare QuizScreen, ResultsScreen, ReviewCompleteScreen, ProgressScreen
+  o qualunque altro file.
+· Nessuna nuova dipendenza, nessuna modifica a Supabase.
+· Nessun refactor "di cortesia".
