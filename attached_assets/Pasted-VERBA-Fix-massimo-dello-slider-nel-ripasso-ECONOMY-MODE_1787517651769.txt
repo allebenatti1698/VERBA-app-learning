@@ -1,0 +1,56 @@
+VERBA — Fix: massimo dello slider nel ripasso.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.30–0.60.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+File UNICO: src/pages/PreQuizSetup.tsx.
+
+SINTOMO: su /setup?source=due lo slider arriva sempre a 50, anche quando le
+parole dovute sono meno. Il 50 non è un tetto voluto: è il fallback che scatta
+perché manca un ramo per source=due. Il tetto a 50 lo vogliamo, ma solo quando
+le dovute sono di più.
+
+════════════════════════════════════════
+COSA FARE
+════════════════════════════════════════
+1) Individua il useEffect che imposta maxWords (quello che gestisce già
+   sourceParam === "myverba").
+
+2) Se dentro esiste GIÀ un ramo per sourceParam === "due": non aggiungerne un
+   altro, correggi quello esistente perché faccia esattamente quanto sotto, e
+   dimmi nel report cosa c'era prima.
+
+3) Se non esiste, aggiungilo subito dopo il ramo di "myverba" e comunque PRIMA
+   di qualunque riga che porti a setMaxWords(50):
+
+    if (sourceParam === "due") {
+      try {
+        const ids = JSON.parse(sessionStorage.getItem("verba_review_due") || "[]") as string[];
+        // tetto a 50: oltre, la sessione diventa troppo lunga.
+        setMaxWords(Math.min(50, Math.max(1, ids.length)));
+      } catch { setMaxWords(1); }
+      return;
+    }
+
+4) Dependency array di quel useEffect: deve contenere sourceParam.
+   Se manca aggiungilo, se c'è non toccarla.
+
+5) Etichetta a destra sotto lo slider: deve mostrare {sliderMax}, non un 50
+   scritto a mano. Se è già {sliderMax}, non toccare nulla.
+
+════════════════════════════════════════
+REPORT
+════════════════════════════════════════
+· Il ramo "due" esisteva già? sì/no — e se sì, com'era
+· Righe modificate
+· Dependency array finale
+· Etichetta destra dello slider: prima e dopo
+· Typecheck (sì/no + errori)
+
+════════════════════════════════════════
+NON FARE
+════════════════════════════════════════
+· NESSUNA modifica a handleBegin, sottotitolo, titolo, stile dello slider,
+  thumb, gradiente, bottone Begin.
+· NESSUNA modifica ad altri file, né al percorso Practice o myverba.
+· Nessun refactor di cortesia.

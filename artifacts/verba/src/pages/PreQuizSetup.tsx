@@ -48,7 +48,8 @@ export default function PreQuizSetup() {
     if (sourceParam === "due") {
       try {
         const ids = JSON.parse(sessionStorage.getItem("verba_review_due") || "[]") as string[];
-        setMaxWords(Math.max(1, ids.length));
+        // tetto a 50: oltre, la sessione diventa troppo lunga.
+        setMaxWords(Math.min(50, Math.max(1, ids.length)));
       } catch { setMaxWords(1); }
       return;
     }
