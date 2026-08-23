@@ -1,0 +1,70 @@
+VERBA — Ricognizione (SOLA LETTURA): perimetro del reverse mode in QuizScreen.
+ECONOMY MODE, Claude Sonnet 5, Effort Low, Plan attivo. Stima ~$0.15–0.35.
+
+NON MODIFICARE NESSUN FILE. Nessun edit, nessun refactor, nessun checkpoint di
+codice. Questo è solo un report di lettura.
+NON toccare attached_assets/ nemmeno in lettura: è archivio di vecchi prompt e
+NON riflette lo stato del codice.
+
+Leggi src/pages/QuizScreen.tsx e rispondi ai punti sotto. Dove chiedo del codice,
+INCOLLALO VERBATIM (copiato, non riscritto o riassunto), con i numeri di riga.
+
+════════════════════════════════════════
+1) INVENTARIO DEL REVERSE
+════════════════════════════════════════
+Elenca TUTTO ciò che esiste solo per il reverse mode, con riga di inizio e fine:
+  a) variabili di state (useState) usate SOLO in reverse
+  b) ref (useRef) usati SOLO in reverse
+  c) useEffect usati SOLO in reverse
+  d) funzioni/handler usati SOLO in reverse
+  e) costanti, helper o variabili derivate usate SOLO in reverse
+Per ognuno indica il nome e se compare anche in percorsi non-reverse.
+
+════════════════════════════════════════
+2) CONFINE CONDIVISO
+════════════════════════════════════════
+Elenca tutto ciò che è usato SIA dal reverse SIA dal quiz normale:
+state, ref, funzioni, import, componenti. Questo è il confine che
+un'estrazione non può tagliare — voglio sapere esattamente dov'è.
+
+════════════════════════════════════════
+3) JSX
+════════════════════════════════════════
+Elenca ogni blocco JSX che dipende da `isReverseMode`, con riga iniziale e
+finale, e specifica per ciascuno se è:
+  - solo reverse
+  - solo normale
+  - un ternario che serve entrambi (in questo caso incolla il ternario verbatim)
+
+════════════════════════════════════════
+4) IMPORT
+════════════════════════════════════════
+Quali import in cima al file sono usati SOLO dal codice reverse?
+(guarda in particolare typoMatch / damerauLevenshtein, useAnimationControls,
+getReverseDistractors, e qualunque altro)
+
+════════════════════════════════════════
+5) VERIFICHE PUNTUALI — rispondi sì/no e incolla la prova
+════════════════════════════════════════
+ 5a) Esiste ancora, dentro handleReverseNext, la scrittura in localStorage della
+     chiave "verba_mastered_words"? Se sì incolla il blocco.
+ 5b) Cerca in TUTTO src/ (escluso attached_assets/) la stringa "mode=reverse".
+     In quali file compare, a quale riga? Esiste ancora un punto dell'interfaccia
+     da cui un utente può raggiungerla?
+ 5c) Cerca in TUTTO src/ la stringa "verbaReviewQueue". Chi la scrive, chi la legge?
+ 5d) La route "/review-complete" è ancora registrata in App.tsx? Da dove ci si
+     arriva, oltre che da handleReverseNext?
+ 5e) Cerca in TUTTO src/ la stringa "verba_mastered_words". Elenca ogni file e riga.
+
+════════════════════════════════════════
+6) DIMENSIONE
+════════════════════════════════════════
+Righe totali di QuizScreen.tsx, e quante di queste appartengono
+esclusivamente al reverse (stima ragionata, non serve precisione al numero).
+
+════════════════════════════════════════
+FORMATO DEL REPORT
+════════════════════════════════════════
+Testo strutturato per i sei punti. Nessuna raccomandazione, nessuna proposta di
+refactor, nessuna opinione: solo cosa c'è e dove. Se qualcosa non lo trovi,
+scrivi "non trovato" invece di ipotizzare.
