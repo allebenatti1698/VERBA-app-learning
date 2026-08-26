@@ -1,3 +1,24 @@
+VERBA — Impianto dati della scala di padronanza in wordStats.ts.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.60–1.20.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/ per nessun motivo, nemmeno in lettura.
+File UNICO: src/lib/wordStats.ts. NESSUN altro file va modificato.
+
+COSA FARE: sostituire INTEGRALMENTE il contenuto di src/lib/wordStats.ts con il
+testo fra le due righe di separazione qui sotto. Copialo VERBATIM, senza
+riformattare, senza rinominare, senza "migliorare" niente.
+
+Se il file attuale contiene qualcosa che NON ti aspetti — per esempio funzioni
+esportate che non compaiono nella versione nuova — FERMATI e segnalale prima di
+sovrascrivere.
+
+Dopo la sostituzione, VERIFICA e riporta:
+· quali file importano da "@/lib/wordStats" e quali simboli usano
+· se qualcuno di quei simboli non esiste più nella versione nuova
+· typecheck (sì/no + errori)
+
+════════════════════════════════════════════════════════════════════
 // src/lib/wordStats.ts
 // Motore SRS in localStorage. Stesso data-model di user_word_progress (Supabase):
 // in Fase 2 la migrazione cloud diventa una copia 1:1 dei campi.
@@ -352,3 +373,11 @@ export function getLevelCounts(): { level1: number; level2: number; level3: numb
   }
   return out;
 }
+════════════════════════════════════════════════════════════════════
+
+NON FARE
+· NESSUNA modifica a QuizScreen, ProgressScreen, progressStats.ts, studyProgress.ts,
+  studyActivity.ts o a qualunque altro file. Se il typecheck segnala un errore in
+  un altro file, SEGNALALO senza correggerlo: lo sistemo io nel passo successivo.
+· NESSUNA dipendenza nuova, nessuna modifica a Supabase.
+· Nessun refactor di cortesia.
