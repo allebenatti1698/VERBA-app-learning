@@ -5,6 +5,8 @@ export type QuizWordDefinition = {
   definition: string;
   example: string;
   display_order: number;
+  /** Frase con ____ al posto della parola. Gradino 2. Non tutte le definizioni ce l'hanno. */
+  context_stem?: string;
 };
 
 export type QuizWord = {
@@ -20,6 +22,10 @@ export type QuizWord = {
   antonyms: string[];
   etymology?: string;
   allDefinitions: QuizWordDefinition[];
+  /** Gradino 2 — Recall in context. Frase con ____ presa dalla definizione primaria. */
+  contextStem?: string;
+  /** Gradino 2 — tre distrattori pensati per la frase, diversi da `distractors`. */
+  contextDistractors: string[];
 };
 
 type DbWordRow = {
@@ -31,12 +37,14 @@ type DbWordRow = {
   synonyms: string[] | null;
   antonyms: string[] | null;
   distractors: string[] | null;
+  context_distractors: string[] | null;
   word_definitions:
     | {
         part_of_speech: string | null;
         definition: string | null;
         example: string | null;
         display_order: number | null;
+        context_stem: string | null;
       }[]
     | null;
 };
@@ -90,7 +98,7 @@ export async function fetchWordsByIds(ids: string[]): Promise<QuizWord[]> {
   if (ids.length === 0) return [];
   const { data, error } = await supabase
     .from("words")
-    .select("id, word, italian_translation, italian_definition, etymology, synonyms, antonyms, distractors, word_definitions(part_of_speech, definition, example, display_order)")
+    .select("id, word, italian_translation, italian_definition, etymology, synonyms, antonyms, distractors, context_distractors, word_definitions(part_of_speech, definition, example, display_order, context_stem)")
     .in("id", ids);
   if (error) throw new Error(error.message);
   const rows = (data ?? []) as DbWordRow[];
@@ -105,6 +113,7 @@ export async function fetchWordsByIds(ids: string[]): Promise<QuizWord[]> {
           definition: d.definition ?? "",
           example: d.example ?? "",
           display_order: d.display_order ?? 0,
+          context_stem: d.context_stem ?? undefined,
         }))
         .sort((a, b) => a.display_order - b.display_order);
       const primary = defs[0];
@@ -113,6 +122,8 @@ export async function fetchWordsByIds(ids: string[]): Promise<QuizWord[]> {
         word: row.word,
         correctDefinition: primary?.definition ?? "",
         distractors: row.distractors ?? [],
+        contextStem: primary?.context_stem,
+        contextDistractors: row.context_distractors ?? [],
         italianTranslation: row.italian_translation ?? "",
         italianDefinition: row.italian_definition ?? undefined,
         exampleSentence: primary?.example ?? "",
@@ -132,7 +143,7 @@ export async function fetchQuizWords(
 ): Promise<QuizWord[]> {
   let query = supabase
     .from("words")
-    .select("id, word, italian_translation, italian_definition, etymology, synonyms, antonyms, distractors, word_definitions(part_of_speech, definition, example, display_order)")
+    .select("id, word, italian_translation, italian_definition, etymology, synonyms, antonyms, distractors, context_distractors, word_definitions(part_of_speech, definition, example, display_order, context_stem)")
     .eq("deck_slug", deckSlug)
     .limit(CANDIDATE_POOL_SIZE);
 
@@ -151,6 +162,14 @@ export async function fetchQuizWords(
   const rows = data as DbWordRow[];
   const sampled = shuffleArray(rows).slice(0, count);
 
+  // [CTX-PROBE] temporaneo: verifica che i dati del gradino 2 arrivino davvero.
+  // DA RIMUOVERE nel prompt successivo.
+  console.warn("[CTX-PROBE]", sampled.length, "parole ·",
+    sampled.filter((r) => (r.word_definitions ?? []).some((d) => d.context_stem)).length,
+    "con stem ·",
+    sampled.filter((r) => (r.context_distractors ?? []).length === 3).length,
+    "con 3 distrattori");
+
   return sampled.map<QuizWord>((row) => {
     const defs: QuizWordDefinition[] = (row.word_definitions ?? [])
       .map((d) => ({
@@ -158,6 +177,7 @@ export async function fetchQuizWords(
         definition: d.definition ?? "",
         example: d.example ?? "",
         display_order: d.display_order ?? 0,
+        context_stem: d.context_stem ?? undefined,
       }))
       .sort((a, b) => a.display_order - b.display_order);
 
@@ -171,6 +191,8 @@ export async function fetchQuizWords(
       word: row.word,
       correctDefinition,
       distractors: row.distractors ?? [],
+      contextStem: primary?.context_stem,
+      contextDistractors: row.context_distractors ?? [],
       italianTranslation,
       italianDefinition: row.italian_definition ?? undefined,
       exampleSentence,

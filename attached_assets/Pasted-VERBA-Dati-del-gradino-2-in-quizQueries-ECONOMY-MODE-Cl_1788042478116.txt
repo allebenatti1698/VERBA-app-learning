@@ -1,0 +1,188 @@
+VERBA — Dati del gradino 2 in quizQueries.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.30–0.60.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Applica OGNI edit in modo indipendente: se uno non combacia, saltalo, continua
+con gli altri, e segnala alla fine cosa hai saltato. NON fermarti al primo.
+
+UN SOLO FILE: src/lib/quizQueries.ts
+Sei edit. Attenzione: alcune stringhe compaiono DUE VOLTE nel file, quindi ogni
+find include la riga seguente per distinguerle. Verifica il contesto prima di
+sostituire.
+
+──────────────────────────────────────── EDIT 1 — tipo QuizWordDefinition
+TROVA:
+export type QuizWordDefinition = {
+  part_of_speech: string;
+  definition: string;
+  example: string;
+  display_order: number;
+};
+
+SOSTITUISCI CON:
+export type QuizWordDefinition = {
+  part_of_speech: string;
+  definition: string;
+  example: string;
+  display_order: number;
+  /** Frase con ____ al posto della parola. Gradino 2. Non tutte le definizioni ce l'hanno. */
+  context_stem?: string;
+};
+
+──────────────────────────────────────── EDIT 2 — tipo QuizWord
+TROVA:
+  etymology?: string;
+  allDefinitions: QuizWordDefinition[];
+};
+
+SOSTITUISCI CON:
+  etymology?: string;
+  allDefinitions: QuizWordDefinition[];
+  /** Gradino 2 — Recall in context. Frase con ____ presa dalla definizione primaria. */
+  contextStem?: string;
+  /** Gradino 2 — tre distrattori pensati per la frase, diversi da `distractors`. */
+  contextDistractors: string[];
+};
+
+──────────────────────────────────────── EDIT 3 — tipo DbWordRow
+TROVA:
+  distractors: string[] | null;
+  word_definitions:
+    | {
+        part_of_speech: string | null;
+        definition: string | null;
+        example: string | null;
+        display_order: number | null;
+      }[]
+    | null;
+};
+
+SOSTITUISCI CON:
+  distractors: string[] | null;
+  context_distractors: string[] | null;
+  word_definitions:
+    | {
+        part_of_speech: string | null;
+        definition: string | null;
+        example: string | null;
+        display_order: number | null;
+        context_stem: string | null;
+      }[]
+    | null;
+};
+
+──────────────────────────────────────── EDIT 4 — select di fetchWordsByIds
+NOTA: context_stem sta su word_definitions, NON su words. Va dentro le parentesi
+della sotto-select annidata. Se finisce nella lista di primo livello, Supabase
+non dà errore: restituisce semplicemente il campo vuoto.
+
+TROVA (le due righe insieme, è ciò che lo distingue dall'altra select):
+    .select("id, word, italian_translation, italian_definition, etymology, synonyms, antonyms, distractors, word_definitions(part_of_speech, definition, example, display_order)")
+    .in("id", ids);
+
+SOSTITUISCI CON:
+    .select("id, word, italian_translation, italian_definition, etymology, synonyms, antonyms, distractors, context_distractors, word_definitions(part_of_speech, definition, example, display_order, context_stem)")
+    .in("id", ids);
+
+──────────────────────────────────────── EDIT 5 — select di fetchQuizWords
+TROVA (le due righe insieme):
+    .select("id, word, italian_translation, italian_definition, etymology, synonyms, antonyms, distractors, word_definitions(part_of_speech, definition, example, display_order)")
+    .eq("deck_slug", deckSlug)
+
+SOSTITUISCI CON:
+    .select("id, word, italian_translation, italian_definition, etymology, synonyms, antonyms, distractors, context_distractors, word_definitions(part_of_speech, definition, example, display_order, context_stem)")
+    .eq("deck_slug", deckSlug)
+
+──────────────────────────────────────── EDIT 6a — mapping in fetchWordsByIds
+TROVA:
+      const defs: QuizWordDefinition[] = (row.word_definitions ?? [])
+        .map((d) => ({
+          part_of_speech: d.part_of_speech ?? "",
+          definition: d.definition ?? "",
+          example: d.example ?? "",
+          display_order: d.display_order ?? 0,
+        }))
+        .sort((a, b) => a.display_order - b.display_order);
+      const primary = defs[0];
+      return {
+        id: row.id,
+        word: row.word,
+        correctDefinition: primary?.definition ?? "",
+        distractors: row.distractors ?? [],
+
+SOSTITUISCI CON:
+      const defs: QuizWordDefinition[] = (row.word_definitions ?? [])
+        .map((d) => ({
+          part_of_speech: d.part_of_speech ?? "",
+          definition: d.definition ?? "",
+          example: d.example ?? "",
+          display_order: d.display_order ?? 0,
+          context_stem: d.context_stem ?? undefined,
+        }))
+        .sort((a, b) => a.display_order - b.display_order);
+      const primary = defs[0];
+      return {
+        id: row.id,
+        word: row.word,
+        correctDefinition: primary?.definition ?? "",
+        distractors: row.distractors ?? [],
+        contextStem: primary?.context_stem,
+        contextDistractors: row.context_distractors ?? [],
+
+──────────────────────────────────────── EDIT 6b — mapping in fetchQuizWords
+TROVA:
+    const defs: QuizWordDefinition[] = (row.word_definitions ?? [])
+      .map((d) => ({
+        part_of_speech: d.part_of_speech ?? "",
+        definition: d.definition ?? "",
+        example: d.example ?? "",
+        display_order: d.display_order ?? 0,
+      }))
+      .sort((a, b) => a.display_order - b.display_order);
+
+SOSTITUISCI CON:
+    const defs: QuizWordDefinition[] = (row.word_definitions ?? [])
+      .map((d) => ({
+        part_of_speech: d.part_of_speech ?? "",
+        definition: d.definition ?? "",
+        example: d.example ?? "",
+        display_order: d.display_order ?? 0,
+        context_stem: d.context_stem ?? undefined,
+      }))
+      .sort((a, b) => a.display_order - b.display_order);
+
+E POI, sempre in fetchQuizWords, TROVA:
+      correctDefinition,
+      distractors: row.distractors ?? [],
+      italianTranslation,
+
+SOSTITUISCI CON:
+      correctDefinition,
+      distractors: row.distractors ?? [],
+      contextStem: primary?.context_stem,
+      contextDistractors: row.context_distractors ?? [],
+      italianTranslation,
+
+──────────────────────────────────────── EDIT 7 — sonda temporanea
+In fondo alla funzione fetchQuizWords, subito PRIMA della riga `return sampled.map<QuizWord>((row) => {`,
+inserisci:
+
+  // [CTX-PROBE] temporaneo: verifica che i dati del gradino 2 arrivino davvero.
+  // DA RIMUOVERE nel prompt successivo.
+  console.warn("[CTX-PROBE]", sampled.length, "parole ·",
+    sampled.filter((r) => (r.word_definitions ?? []).some((d) => d.context_stem)).length,
+    "con stem ·",
+    sampled.filter((r) => (r.context_distractors ?? []).length === 3).length,
+    "con 3 distrattori");
+
+──────────────────────────────────────── VERIFICA E RIPORTA
+· Quali edit applicati, quali saltati e perché
+· Typecheck: sì/no + errori per intero
+· Conferma che le DUE stringhe select ora contengono context_distractors e context_stem
+· Qualunque file che costruisce un QuizWord a mano e ora non compila per via del
+  campo obbligatorio contextDistractors — segnalalo, NON aggiustarlo da solo
+
+NON FARE
+· Nessuna modifica ad altri file. Nessun refactor, nessuna riformattazione.
+· NON avviare il dev server, NON testare.
