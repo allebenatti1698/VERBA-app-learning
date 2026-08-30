@@ -11,8 +11,13 @@ export interface QuestionProps {
   word: QuizWord;
   isAnswered: boolean;
   selectedOption: string | null;
-  /** correct è deciso dal componente, che conosce la verità del suo formato. */
-  onSelect: (option: string, correct: boolean) => void;
+  /**
+   * correct è deciso dal componente, che conosce la verità del suo formato.
+   * revealDelayMs: quanto l'orchestratore deve attendere prima di mostrare la
+   * scheda e il Next. Serve ai formati con un'animazione di risposta lunga:
+   * rivelare troppo presto copre il momento in cui si impara. Se omesso, 400.
+   */
+  onSelect: (option: string, correct: boolean, revealDelayMs?: number) => void;
   /** Cambia a ogni nuova parola: chiave delle transizioni di entrata/uscita. */
   animKey: number;
 }

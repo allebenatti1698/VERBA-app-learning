@@ -162,14 +162,6 @@ export async function fetchQuizWords(
   const rows = data as DbWordRow[];
   const sampled = shuffleArray(rows).slice(0, count);
 
-  // [CTX-PROBE] temporaneo: verifica che i dati del gradino 2 arrivino davvero.
-  // DA RIMUOVERE nel prompt successivo.
-  console.warn("[CTX-PROBE]", sampled.length, "parole ·",
-    sampled.filter((r) => (r.word_definitions ?? []).some((d) => d.context_stem)).length,
-    "con stem ·",
-    sampled.filter((r) => (r.context_distractors ?? []).length === 3).length,
-    "con 3 distrattori");
-
   return sampled.map<QuizWord>((row) => {
     const defs: QuizWordDefinition[] = (row.word_definitions ?? [])
       .map((d) => ({

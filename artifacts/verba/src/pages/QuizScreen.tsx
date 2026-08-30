@@ -11,6 +11,7 @@ import { recordAnswer, getWordStat, formatForWord, type AnswerFormat } from "@/l
 import { undismissTrouble } from "@/lib/troubleDismiss";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 import RecognizeQuestion from "@/components/quiz/RecognizeQuestion";
+import ContextQuestion from "@/components/quiz/ContextQuestion";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,9 @@ export default function QuizScreen() {
   const [isAnswered, setIsAnswered] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  // Il Next non appare a risposta data, ma a rivelazione avvenuta: nel gradino 2
+  // la parola giusta impiega più di un secondo a comporsi, ed è lì che si impara.
+  const [revealReady, setRevealReady] = useState(false);
 
   const [quizWords, setQuizWords] = useState<QuizWord[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -123,6 +127,7 @@ export default function QuizScreen() {
         setIsAnswered(false);
         setIsCorrect(false);
         setShowFeedback(false);
+        setRevealReady(false);
         setWordKey((k) => k + 1);
         startTimeRef.current = Date.now();
         wrongAnswersRef.current = new Map();
@@ -147,14 +152,20 @@ export default function QuizScreen() {
    * ricalcolarlo dopo la risposta darebbe un valore diverso da quello con cui
    * l'utente ha effettivamente risposto.
    */
-  const currentFormat: AnswerFormat = useMemo(
-    () => (currentWord ? formatForWord(currentWord.id) : 1),
-    [currentWord],
-  );
+  const currentFormat: AnswerFormat = useMemo(() => {
+    if (!currentWord) return 1;
+    const f = formatForWord(currentWord.id);
+    // Ripiego: se la parola non ha i dati del gradino 2, si interroga con quello
+    // che c'è. Un formato senza dati deve degradare a una domanda che funziona,
+    // mai a una schermata vuota. Il gradino registrato è quello EFFETTIVO.
+    if (f === 2 && !currentWord.contextStem) return 1;
+    if (f === 2 && (currentWord.contextDistractors ?? []).length < 3) return 1;
+    return f;
+  }, [currentWord]);
 
   // ── Risposta ─────────────────────────────────────────────────────────────
   // Unico punto dell'app in cui una risposta del quiz entra nell'SRS.
-  function handleSelect(option: string, correct: boolean) {
+  function handleSelect(option: string, correct: boolean, revealDelayMs = 400) {
     if (isAnswered || !currentWord) return;
     setSelectedOption(option);
     setIsAnswered(true);
@@ -166,7 +177,10 @@ export default function QuizScreen() {
       wrongAnswersRef.current.set(currentIndex, option);
       undismissTrouble(currentWord.id);
     }
-    setTimeout(() => setShowFeedback(true), 400);
+    setTimeout(() => {
+      setRevealReady(true);
+      setShowFeedback(true);
+    }, revealDelayMs);
   }
 
   function handleNext() {
@@ -218,6 +232,7 @@ export default function QuizScreen() {
       setIsAnswered(false);
       setIsCorrect(false);
       setShowFeedback(false);
+      setRevealReady(false);
       setWordKey((k) => k + 1);
     }, 300);
   }
@@ -297,17 +312,27 @@ export default function QuizScreen() {
           Il default resta Recognize: un formato non ancora costruito deve
           degradare a una domanda che funziona, mai a una schermata vuota.
         */}
-        <RecognizeQuestion
-          word={currentWord}
-          isAnswered={isAnswered}
-          selectedOption={selectedOption}
-          onSelect={handleSelect}
-          animKey={wordKey}
-        />
+        {currentFormat === 2 ? (
+          <ContextQuestion
+            word={currentWord}
+            isAnswered={isAnswered}
+            selectedOption={selectedOption}
+            onSelect={handleSelect}
+            animKey={wordKey}
+          />
+        ) : (
+          <RecognizeQuestion
+            word={currentWord}
+            isAnswered={isAnswered}
+            selectedOption={selectedOption}
+            onSelect={handleSelect}
+            animKey={wordKey}
+          />
+        )}
 
         {/* Floating Next button */}
         <AnimatePresence>
-          {isAnswered && !showFeedback && (
+          {revealReady && !showFeedback && (
             <motion.button
               data-testid="button-next-floating"
               onClick={handleNext}
