@@ -1,0 +1,71 @@
+VERBA — Ricava il buco dallo stem in quizQueries.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.25–0.50.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Applica OGNI edit in modo indipendente: salta e segnala i mismatch senza fermarti.
+
+FILE UNICO: src/lib/quizQueries.ts
+
+CONTESTO (non agire su questo, serve a capire): in Supabase context_stem NON
+contiene il segnaposto "____". Contiene la frase con la parola già inserita,
+perché la pipeline di generazione la inseriva meccanicamente al posto del
+segnaposto prima di salvare. Il segnaposto va quindi ricavato togliendo la
+parola dalla frase.
+
+──────────────────────────────────────── EDIT 1 — helper
+TROVA:
+const CANDIDATE_POOL_SIZE = 200;
+
+SOSTITUISCI CON:
+const CANDIDATE_POOL_SIZE = 200;
+
+/**
+ * Ricava la frase col buco a partire dallo stem salvato.
+ *
+ * In Supabase context_stem contiene la frase COMPLETA, con la parola dentro:
+ * la pipeline generava "____" e poi inseriva la parola meccanicamente per
+ * impedire al modello di sostituirla con un sinonimo. Qui rifacciamo il buco
+ * al contrario. La parola è sempre nella forma base — l'ha messa il codice,
+ * non il modello — quindi la ricerca è affidabile.
+ *
+ * Restituisce undefined se la parola non si trova: in quel caso l'orchestratore
+ * ripiega sul gradino 1 invece di mostrare una frase senza buco.
+ */
+function stemWithGap(stem: string | null | undefined, word: string): string | undefined {
+  if (!stem || !word) return undefined;
+  const safe = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // \b su entrambi i lati: senza, "arch" bucherebbe "architecture".
+  const re = new RegExp(`\\b${safe}\\b`, "i");
+  if (!re.test(stem)) return undefined;
+  // Solo la PRIMA occorrenza: se la parola compare due volte, il secondo
+  // passaggio resta leggibile e aiuta a capire, invece di lasciare due buchi.
+  return stem.replace(re, "____");
+}
+
+──────────────────────────────────────── EDIT 2 — mapping in fetchWordsByIds
+TROVA:
+        contextStem: primary?.context_stem,
+        contextDistractors: row.context_distractors ?? [],
+
+SOSTITUISCI CON:
+        contextStem: stemWithGap(primary?.context_stem, row.word),
+        contextDistractors: row.context_distractors ?? [],
+
+──────────────────────────────────────── EDIT 3 — mapping in fetchQuizWords
+TROVA:
+      contextStem: primary?.context_stem,
+      contextDistractors: row.context_distractors ?? [],
+
+SOSTITUISCI CON:
+      contextStem: stemWithGap(primary?.context_stem, row.word),
+      contextDistractors: row.context_distractors ?? [],
+
+──────────────────────────────────────── VERIFICA E RIPORTA
+· Edit applicati e saltati
+· Typecheck: sì/no + errori per intero
+· Conferma che stemWithGap è chiamata in DUE punti
+
+NON FARE
+· Nessun altro file. NON toccare ContextQuestion né QuizScreen.
+· NON avviare il dev server, NON testare.

@@ -51,6 +51,29 @@ type DbWordRow = {
 
 const CANDIDATE_POOL_SIZE = 200;
 
+/**
+ * Ricava la frase col buco a partire dallo stem salvato.
+ *
+ * In Supabase context_stem contiene la frase COMPLETA, con la parola dentro:
+ * la pipeline generava "____" e poi inseriva la parola meccanicamente per
+ * impedire al modello di sostituirla con un sinonimo. Qui rifacciamo il buco
+ * al contrario. La parola è sempre nella forma base — l'ha messa il codice,
+ * non il modello — quindi la ricerca è affidabile.
+ *
+ * Restituisce undefined se la parola non si trova: in quel caso l'orchestratore
+ * ripiega sul gradino 1 invece di mostrare una frase senza buco.
+ */
+function stemWithGap(stem: string | null | undefined, word: string): string | undefined {
+  if (!stem || !word) return undefined;
+  const safe = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // \b su entrambi i lati: senza, "arch" bucherebbe "architecture".
+  const re = new RegExp(`\\b${safe}\\b`, "i");
+  if (!re.test(stem)) return undefined;
+  // Solo la PRIMA occorrenza: se la parola compare due volte, il secondo
+  // passaggio resta leggibile e aiuta a capire, invece di lasciare due buchi.
+  return stem.replace(re, "____");
+}
+
 export async function getReverseDistractors(
   correctWord: string,
   deckSlug: string,
@@ -122,7 +145,7 @@ export async function fetchWordsByIds(ids: string[]): Promise<QuizWord[]> {
         word: row.word,
         correctDefinition: primary?.definition ?? "",
         distractors: row.distractors ?? [],
-        contextStem: primary?.context_stem,
+        contextStem: stemWithGap(primary?.context_stem, row.word),
         contextDistractors: row.context_distractors ?? [],
         italianTranslation: row.italian_translation ?? "",
         italianDefinition: row.italian_definition ?? undefined,
@@ -183,7 +206,7 @@ export async function fetchQuizWords(
       word: row.word,
       correctDefinition,
       distractors: row.distractors ?? [],
-      contextStem: primary?.context_stem,
+      contextStem: stemWithGap(primary?.context_stem, row.word),
       contextDistractors: row.context_distractors ?? [],
       italianTranslation,
       italianDefinition: row.italian_definition ?? undefined,

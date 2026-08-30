@@ -17,7 +17,11 @@ const WORD_STATS_KEY = "verba_word_stats";
 /* ─────────────── COSTANTI REGOLABILI ─────────────── */
 
 /** Risposte corrette richieste da ciascun gradino. */
-export const LEVEL_THRESHOLD: Record<MasteryLevel, number> = { 1: 2, 2: 1, 3: 2 };
+export const LEVEL_THRESHOLD: Record<MasteryLevel, number> = {
+  1: 2,
+  2: 1,
+  3: 2,
+};
 
 /** Intervalli fino alla padronanza. Percorso: giorno 0 → 1 → 3 → 7 → 14. */
 const TO_MASTERY = [1, 2, 4, 7];
@@ -36,12 +40,12 @@ const LAPSE_DAYS = 1;
 
 /**
  * Gradino più alto che l'app sa davvero interrogare.
- * ⚠️ OGGI VALE 1: esiste solo il quiz a scelta multipla.
- * Portare a 2 quando il componente del gradino 2 è pronto, a 3 con il gradino 3.
+ * ⚠️ OGGI VALE 2: esistono Recognize e Recall in context.
+ * Portare a 3 con il gradino 3.
  * Una parola che satura il tetto resta ferma con il contatore pieno e un
  * intervallo di attesa, invece di salire in un gradino che non esiste.
  */
-export const MAX_AVAILABLE_LEVEL: MasteryLevel = 1;
+export const MAX_AVAILABLE_LEVEL: MasteryLevel = 2;
 
 /** Intervallo di parcheggio per una parola che ha saturato il tetto. */
 const SATURATED_HOLD_DAYS = 7;
@@ -59,20 +63,20 @@ export type AnswerFormat = 1 | 2 | 3;
 export type WordStatus = "learning" | "reviewing" | "mastered";
 
 export type EventKind =
-  | "correct"    // corretta che ha fatto avanzare il contatore
-  | "wrong"      // sbagliata, gradino invariato
-  | "up"         // promozione di gradino
-  | "down"       // retrocessione di gradino
-  | "mastered"   // padronanza raggiunta
+  | "correct" // corretta che ha fatto avanzare il contatore
+  | "wrong" // sbagliata, gradino invariato
+  | "up" // promozione di gradino
+  | "down" // retrocessione di gradino
+  | "mastered" // padronanza raggiunta
   | "unmastered" // uscita dalla padronanza
-  | "practice";  // risposta che non ha mosso la scala
+  | "practice"; // risposta che non ha mosso la scala
 
 export interface WordEvent {
-  at: string;            // ISO
+  at: string; // ISO
   kind: EventKind;
-  level: MasteryLevel;   // gradino DOPO l'evento
+  level: MasteryLevel; // gradino DOPO l'evento
   format?: AnswerFormat; // formato con cui è stata data la risposta
-  note?: string;         // perché non ha contato, quando kind === "practice"
+  note?: string; // perché non ha contato, quando kind === "practice"
 }
 
 export interface WordStat {
@@ -81,15 +85,15 @@ export interface WordStat {
   totalCorrect: number;
   totalSeen: number;
   status: WordStatus;
-  lastSeenAt: string | null;   // ISO
+  lastSeenAt: string | null; // ISO
   nextReviewAt: string | null; // ISO
-  updatedAt: string;           // ISO
+  updatedAt: string; // ISO
   // scala
   level: MasteryLevel;
-  levelCorrect: number;        // corrette accumulate SUL gradino corrente
-  levelWrong: number;          // errori consecutivi sul gradino corrente
+  levelCorrect: number; // corrette accumulate SUL gradino corrente
+  levelWrong: number; // errori consecutivi sul gradino corrente
   mastered: boolean;
-  maintStep: number;           // indice in MAINTENANCE_DAYS, -1 se non mastered
+  maintStep: number; // indice in MAINTENANCE_DAYS, -1 se non mastered
   masteredAt: string | null;
   history: WordEvent[];
 }
@@ -109,9 +113,13 @@ type StatsMap = Record<string, WordStat>;
 function upgrade(raw: unknown): WordStat {
   const s = raw as Partial<WordStat> & Record<string, unknown>;
   if (typeof s.level === "number") {
-    return { ...(s as WordStat), history: Array.isArray(s.history) ? s.history : [] };
+    return {
+      ...(s as WordStat),
+      history: Array.isArray(s.history) ? s.history : [],
+    };
   }
-  const cc = typeof s.consecutiveCorrect === "number" ? s.consecutiveCorrect : 0;
+  const cc =
+    typeof s.consecutiveCorrect === "number" ? s.consecutiveCorrect : 0;
   return {
     consecutiveCorrect: cc,
     totalCorrect: typeof s.totalCorrect === "number" ? s.totalCorrect : 0,
@@ -173,25 +181,49 @@ function statusOf(s: WordStat): WordStatus {
  */
 function nextIntervalDays(s: WordStat): number {
   if (s.mastered) {
-    return MAINTENANCE_DAYS[Math.min(s.maintStep + 1, MAINTENANCE_DAYS.length - 1)];
+    return MAINTENANCE_DAYS[
+      Math.min(s.maintStep + 1, MAINTENANCE_DAYS.length - 1)
+    ];
   }
-  if (s.level === 1) return s.levelCorrect === 0 ? TO_MASTERY[0] : TO_MASTERY[1];
+  if (s.level === 1)
+    return s.levelCorrect === 0 ? TO_MASTERY[0] : TO_MASTERY[1];
   if (s.level === 2) return TO_MASTERY[2];
   return s.levelCorrect === 0 ? TO_MASTERY[3] : MAINTENANCE_DAYS[0];
 }
 
-function push(s: WordStat, kind: EventKind, format?: AnswerFormat, note?: string): void {
-  s.history.push({ at: new Date().toISOString(), kind, level: s.level, format, note });
+function push(
+  s: WordStat,
+  kind: EventKind,
+  format?: AnswerFormat,
+  note?: string,
+): void {
+  s.history.push({
+    at: new Date().toISOString(),
+    kind,
+    level: s.level,
+    format,
+    note,
+  });
   if (s.history.length > MAX_HISTORY) s.history = s.history.slice(-MAX_HISTORY);
 }
 
 function emptyStat(): WordStat {
   const now = new Date().toISOString();
   return {
-    consecutiveCorrect: 0, totalCorrect: 0, totalSeen: 0,
-    status: "learning", lastSeenAt: null, nextReviewAt: null, updatedAt: now,
-    level: 1, levelCorrect: 0, levelWrong: 0,
-    mastered: false, maintStep: -1, masteredAt: null, history: [],
+    consecutiveCorrect: 0,
+    totalCorrect: 0,
+    totalSeen: 0,
+    status: "learning",
+    lastSeenAt: null,
+    nextReviewAt: null,
+    updatedAt: now,
+    level: 1,
+    levelCorrect: 0,
+    levelWrong: 0,
+    mastered: false,
+    maintStep: -1,
+    masteredAt: null,
+    history: [],
   };
 }
 
@@ -216,9 +248,12 @@ export function recordAnswer(
   const map = read();
   const prev = map[wordId];
   const now = Date.now();
-  const wasDue = !prev || !prev.nextReviewAt || new Date(prev.nextReviewAt).getTime() <= now;
+  const wasDue =
+    !prev || !prev.nextReviewAt || new Date(prev.nextReviewAt).getTime() <= now;
 
-  const s: WordStat = prev ? { ...prev, history: [...prev.history] } : emptyStat();
+  const s: WordStat = prev
+    ? { ...prev, history: [...prev.history] }
+    : emptyStat();
   const nowISO = new Date().toISOString();
   s.totalSeen += 1;
   s.lastSeenAt = nowISO;
@@ -264,7 +299,12 @@ export function recordAnswer(
           // La parola resta qui col contatore pieno e va in attesa.
           s.levelCorrect = need;
           s.nextReviewAt = isoInDays(SATURATED_HOLD_DAYS);
-          push(s, "practice", format, "gradino successivo non ancora disponibile");
+          push(
+            s,
+            "practice",
+            format,
+            "gradino successivo non ancora disponibile",
+          );
         }
       }
     }
@@ -330,8 +370,16 @@ export function getDueWordIds(limit?: number): string[] {
   const map = read();
   const now = Date.now();
   const due = Object.entries(map)
-    .filter(([, s]) => s.nextReviewAt != null && new Date(s.nextReviewAt as string).getTime() <= now)
-    .sort((a, b) => new Date(a[1].nextReviewAt as string).getTime() - new Date(b[1].nextReviewAt as string).getTime())
+    .filter(
+      ([, s]) =>
+        s.nextReviewAt != null &&
+        new Date(s.nextReviewAt as string).getTime() <= now,
+    )
+    .sort(
+      (a, b) =>
+        new Date(a[1].nextReviewAt as string).getTime() -
+        new Date(b[1].nextReviewAt as string).getTime(),
+    )
     .map(([id]) => id);
   return typeof limit === "number" ? due.slice(0, limit) : due;
 }
@@ -341,7 +389,12 @@ export function getDueCount(): number {
 }
 
 /** Conteggio parole per gradino, per le superfici di Progress. */
-export function getLevelCounts(): { level1: number; level2: number; level3: number; mastered: number } {
+export function getLevelCounts(): {
+  level1: number;
+  level2: number;
+  level3: number;
+  mastered: number;
+} {
   const map = read();
   const out = { level1: 0, level2: 0, level3: 0, mastered: 0 };
   for (const s of Object.values(map)) {
