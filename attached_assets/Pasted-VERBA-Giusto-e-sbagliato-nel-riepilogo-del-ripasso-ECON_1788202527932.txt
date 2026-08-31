@@ -1,0 +1,104 @@
+VERBA — Giusto e sbagliato nel riepilogo del ripasso.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.30–0.60.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Applica OGNI edit in modo indipendente: salta e segnala i mismatch senza fermarti.
+
+Due file.
+
+════════════════════════════════════════════════════════════
+1 · src/pages/QuizScreen.tsx — un edit
+════════════════════════════════════════════════════════════
+Il riepilogo del ripasso oggi salva solo lo stato SRS della parola. L'esito
+della risposta lo conosce solo l'orchestratore, in wrongAnswersRef, ed è
+indicizzato per posizione: quizWords e wrongAnswersRef hanno lo stesso ordine.
+
+TROVA:
+          const summary = quizWords.map((w) => ({
+            id: w.id,
+            word: w.word,
+            status: getWordStat(w.id)?.status ?? "learning",
+          }));
+
+SOSTITUISCI CON:
+          const summary = quizWords.map((w, idx) => ({
+            id: w.id,
+            word: w.word,
+            status: getWordStat(w.id)?.status ?? "learning",
+            // wrongAnswersRef è indicizzato per posizione nella sessione e
+            // quizWords ha lo stesso ordine: chi non è nella mappa ha risposto
+            // giusto. Solo il primo tentativo di ogni parola finisce lì dentro.
+            correct: !wrongAnswersRef.current.has(idx),
+          }));
+
+════════════════════════════════════════════════════════════
+2 · src/pages/ReviewSummaryScreen.tsx — tre edit
+════════════════════════════════════════════════════════════
+EDIT 2a — il tipo
+TROVA:
+type ReviewedWord = { id: string; word: string; status: "mastered" | "reviewing" | "learning" };
+
+SOSTITUISCI CON:
+type ReviewedWord = {
+  id: string;
+  word: string;
+  status: "mastered" | "reviewing" | "learning";
+  /** Assente nei riepiloghi salvati prima di questa versione: in quel caso
+   *  non si mostra nessun segno, invece di inventare un esito. */
+  correct?: boolean;
+};
+
+EDIT 2b — il conteggio in testa
+TROVA:
+  const masteredCount = words.filter((w) => w.status === "mastered").length;
+
+SOSTITUISCI CON:
+  const masteredCount = words.filter((w) => w.status === "mastered").length;
+  const rightCount = words.filter((w) => w.correct === true).length;
+  const hasOutcome = words.some((w) => typeof w.correct === "boolean");
+
+E POI TROVA:
+          {words.length} reviewed · {masteredCount} mastered
+
+SOSTITUISCI CON:
+          {words.length} reviewed
+          {hasOutcome && <> · <span style={{ color: "#34D399" }}>{rightCount} right</span></>}
+          {hasOutcome && words.length - rightCount > 0 &&
+            <> · <span style={{ color: "#EF4444" }}>{words.length - rightCount} wrong</span></>}
+          {" · "}{masteredCount} mastered
+
+EDIT 2c — il segno accanto a ogni parola
+Stessi glifi e stessi colori della scheda del quiz: ✓ su #34D399, ✗ su #EF4444.
+
+TROVA:
+                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, color: "#C7B8E8", letterSpacing: "-0.2px", flex: 1 }}>
+                  {item.word}
+                </span>
+
+SOSTITUISCI CON:
+                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, color: "#C7B8E8", letterSpacing: "-0.2px", flex: 1 }}>
+                  {item.word}
+                </span>
+                {typeof item.correct === "boolean" && (
+                  <span
+                    aria-label={item.correct ? "Answered correctly" : "Answered wrong"}
+                    style={{
+                      fontFamily: "'Inter', sans-serif", fontSize: 13, lineHeight: 1,
+                      color: item.correct ? "#34D399" : "#EF4444",
+                      width: 14, textAlign: "center", flexShrink: 0,
+                    }}
+                  >
+                    {item.correct ? "✓" : "✗"}
+                  </span>
+                )}
+
+════════════════════════════════════════════════════════════
+VERIFICA E RIPORTA
+════════════════════════════════════════════════════════════
+· Edit applicati e saltati
+· Typecheck: sì/no + errori per intero
+
+NON FARE
+· Nessun altro file. NON toccare ProgressScreen, progressStats, wordStats.
+· NON avviare il dev server, NON testare.

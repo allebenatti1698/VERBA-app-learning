@@ -7,7 +7,14 @@ import { SCREEN_MAX } from "@/components/ScreenColumn";
 
 // Contratto dati (scritto dal QuizScreen a fine review source=due, step 3c):
 // sessionStorage "verba_review_summary" = [{ id, word, status }]
-type ReviewedWord = { id: string; word: string; status: "mastered" | "reviewing" | "learning" };
+type ReviewedWord = {
+  id: string;
+  word: string;
+  status: "mastered" | "reviewing" | "learning";
+  /** Assente nei riepiloghi salvati prima di questa versione: in quel caso
+   *  non si mostra nessun segno, invece di inventare un esito. */
+  correct?: boolean;
+};
 
 function loadMyWords(): Set<string> {
   try { return new Set(JSON.parse(localStorage.getItem("verba_my_words") ?? "[]") as string[]); }
@@ -44,6 +51,8 @@ export default function ReviewSummaryScreen() {
   }
 
   const masteredCount = words.filter((w) => w.status === "mastered").length;
+  const rightCount = words.filter((w) => w.correct === true).length;
+  const hasOutcome = words.some((w) => typeof w.correct === "boolean");
 
   return (
     <div style={{ minHeight: "100dvh", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
@@ -66,7 +75,11 @@ export default function ReviewSummaryScreen() {
           Review complete
         </p>
         <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: 13, color: "rgba(255,255,255,0.55)", margin: 0, textAlign: "center" }}>
-          {words.length} reviewed · {masteredCount} mastered
+          {words.length} reviewed
+          {hasOutcome && <> · <span style={{ color: "#34D399" }}>{rightCount} right</span></>}
+          {hasOutcome && words.length - rightCount > 0 &&
+            <> · <span style={{ color: "#EF4444" }}>{words.length - rightCount} wrong</span></>}
+          {" · "}{masteredCount} mastered
         </p>
 
         <div style={{ width: "100%", marginTop: 28, display: "flex", flexDirection: "column", gap: 14 }}>
@@ -89,6 +102,18 @@ export default function ReviewSummaryScreen() {
                 <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, color: "#C7B8E8", letterSpacing: "-0.2px", flex: 1 }}>
                   {item.word}
                 </span>
+                {typeof item.correct === "boolean" && (
+                  <span
+                    aria-label={item.correct ? "Answered correctly" : "Answered wrong"}
+                    style={{
+                      fontFamily: "'Inter', sans-serif", fontSize: 13, lineHeight: 1,
+                      color: item.correct ? "#34D399" : "#EF4444",
+                      width: 14, textAlign: "center", flexShrink: 0,
+                    }}
+                  >
+                    {item.correct ? "✓" : "✗"}
+                  </span>
+                )}
                 <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 8, color: chipColor, border: `0.5px solid ${chipBorder}`, borderRadius: 9999, padding: "2px 8px", letterSpacing: "0.04em", flexShrink: 0 }}>
                   {item.status}
                 </span>

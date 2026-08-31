@@ -192,10 +192,14 @@ export default function QuizScreen() {
         const elapsedMs = Date.now() - startTimeRef.current;
 
         if (sourceParam === "due") {
-          const summary = quizWords.map((w) => ({
+          const summary = quizWords.map((w, idx) => ({
             id: w.id,
             word: w.word,
             status: getWordStat(w.id)?.status ?? "learning",
+            // wrongAnswersRef è indicizzato per posizione nella sessione e
+            // quizWords ha lo stesso ordine: chi non è nella mappa ha risposto
+            // giusto. Solo il primo tentativo di ogni parola finisce lì dentro.
+            correct: !wrongAnswersRef.current.has(idx),
           }));
           sessionStorage.setItem("verba_review_summary", JSON.stringify(summary));
           setLocation("/review-summary");
