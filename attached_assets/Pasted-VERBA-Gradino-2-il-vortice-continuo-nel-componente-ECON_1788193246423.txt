@@ -1,3 +1,17 @@
+VERBA — Gradino 2: il vortice continuo nel componente.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$1.00–1.80.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Applica OGNI intervento in modo indipendente: salta e segnala i mismatch senza fermarti.
+
+Un file sostituito INTEGRALMENTE, uno con due edit.
+
+════════════════════════════════════════════════════════════
+1 · SOSTITUZIONE INTEGRALE — src/components/quiz/ContextQuestion.tsx
+════════════════════════════════════════════════════════════
+Sostituisci TUTTO il contenuto del file con quanto segue.
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SCREEN_MAX } from "@/components/ScreenColumn";
@@ -518,3 +532,29 @@ export default function ContextQuestion({
     </div>
   );
 }
+
+════════════════════════════════════════════════════════════
+2 · MODIFICA — src/pages/QuizScreen.tsx (due edit)
+════════════════════════════════════════════════════════════
+EDIT 2a — import
+TROVA:
+import ContextQuestion from "@/components/quiz/ContextQuestion";
+
+SOSTITUISCI CON:
+import ContextQuestion from "@/components/quiz/ContextQuestion";
+// I ritardi di rivelazione appartengono al formato, non all'orchestratore:
+// se cambia la durata del vortice devono cambiare da soli.
+
+EDIT 2b — nessun altro edit. Il resto di QuizScreen resta com'è: il ritardo
+arriva già dal terzo parametro di onSelect, che ContextQuestion calcola da sé.
+
+════════════════════════════════════════════════════════════
+VERIFICA E RIPORTA
+════════════════════════════════════════════════════════════
+· Typecheck: sì/no + errori per intero
+· Righe di ContextQuestion.tsx
+· Conferma che RecognizeQuestion.tsx NON è stato toccato
+
+NON FARE
+· Nessun altro file. NON toccare wordStats, quizQueries, FeedbackCard.
+· NON avviare il dev server, NON testare.

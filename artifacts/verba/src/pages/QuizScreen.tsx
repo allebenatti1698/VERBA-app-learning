@@ -12,6 +12,8 @@ import { undismissTrouble } from "@/lib/troubleDismiss";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 import RecognizeQuestion from "@/components/quiz/RecognizeQuestion";
 import ContextQuestion from "@/components/quiz/ContextQuestion";
+// I ritardi di rivelazione appartengono al formato, non all'orchestratore:
+// se cambia la durata del vortice devono cambiare da soli.
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
