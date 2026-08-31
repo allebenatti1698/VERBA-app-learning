@@ -23,6 +23,15 @@ const TURNS = 1.9;       // giri del vortice
 const RAD = 64;          // raggio dell'anello, px
 const SPIN = 1.3;        // rotazione propria di ogni lettera
 const SWEEP = 4;         // forza con cui le lettere in eccesso vengono scagliate
+/**
+ * Quanto dura il giro fallito rispetto a quello riuscito.
+ * Il giro giusto è il momento in cui impari e vale per intero; quello fallito
+ * comunica solo "no", e a quel punto l'hai già capito. Un fallimento breve e
+ * brusco dice la stessa cosa in metà tempo.
+ */
+const FAIL_SCALE = 0.55;
+/** Pausa fra il rientro delle lettere sbagliate e il giro della parola giusta. */
+const FAIL_GAP = 180;
 const PA = 0.30;         // fine della salita
 const PB = 0.72;         // fine del vortice, inizio della posa
 const ORBIT_Y = 0.12;    // quota del centro dentro l'altezza del buco
@@ -35,7 +44,8 @@ const FREQ = "eeeeeetttttaaaaooooiiiinnnnsssrrrhhllddccuummffggppywwbvkxjqz";
 /* ritardi di rivelazione, ricavati dalla durata: la scheda non deve salire
    mentre la parola si sta ancora componendo */
 export const REVEAL_OK = Math.round(DUR * 1.06) + 120;
-export const REVEAL_KO = Math.round(DUR * 1.06) + 260 + Math.round(DUR * 1.06) + 120;
+export const REVEAL_KO =
+  Math.round(DUR * FAIL_SCALE * 1.06) + FAIL_GAP + Math.round(DUR * 1.06) + 120;
 
 type Role = "field" | "orbit" | "seq" | "swept" | "landed" | "held";
 type Target = { ch: string; x: number; y: number; size: number };
@@ -278,7 +288,7 @@ export default function ContextQuestion({
 
     let P = 0;
     if (anim) {
-      P = (now - anim.t0) / DUR;
+      P = (now - anim.t0) / (anim.ok ? DUR : DUR * FAIL_SCALE);
       if (P >= 1.06) {
         if (!anim.ok) {
           anim.chosen.forEach((L) => {
@@ -295,7 +305,7 @@ export default function ContextQuestion({
         animRef.current = null;
         if (!wasOk) window.setTimeout(() => {
           start(answer, options.indexOf(answer), true);
-        }, 260);
+        }, FAIL_GAP);
       }
     }
 

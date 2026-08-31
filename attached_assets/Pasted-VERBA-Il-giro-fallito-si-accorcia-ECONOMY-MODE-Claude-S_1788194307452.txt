@@ -1,0 +1,63 @@
+VERBA — Il giro fallito si accorcia.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.20–0.40.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Applica OGNI edit in modo indipendente: salta e segnala i mismatch senza fermarti.
+
+FILE UNICO: src/components/quiz/ContextQuestion.tsx
+
+──────────────────────────────────────── EDIT 1 — la costante
+TROVA:
+const SWEEP = 4;         // forza con cui le lettere in eccesso vengono scagliate
+
+SOSTITUISCI CON:
+const SWEEP = 4;         // forza con cui le lettere in eccesso vengono scagliate
+/**
+ * Quanto dura il giro fallito rispetto a quello riuscito.
+ * Il giro giusto è il momento in cui impari e vale per intero; quello fallito
+ * comunica solo "no", e a quel punto l'hai già capito. Un fallimento breve e
+ * brusco dice la stessa cosa in metà tempo.
+ */
+const FAIL_SCALE = 0.55;
+/** Pausa fra il rientro delle lettere sbagliate e il giro della parola giusta. */
+const FAIL_GAP = 180;
+
+──────────────────────────────────────── EDIT 2 — i ritardi di rivelazione
+TROVA:
+export const REVEAL_OK = Math.round(DUR * 1.06) + 120;
+export const REVEAL_KO = Math.round(DUR * 1.06) + 260 + Math.round(DUR * 1.06) + 120;
+
+SOSTITUISCI CON:
+export const REVEAL_OK = Math.round(DUR * 1.06) + 120;
+export const REVEAL_KO =
+  Math.round(DUR * FAIL_SCALE * 1.06) + FAIL_GAP + Math.round(DUR * 1.06) + 120;
+
+──────────────────────────────────────── EDIT 3 — l'orologio scorre più in fretta quando fallisce
+TROVA:
+    if (anim) {
+      P = (now - anim.t0) / DUR;
+
+SOSTITUISCI CON:
+    if (anim) {
+      P = (now - anim.t0) / (anim.ok ? DUR : DUR * FAIL_SCALE);
+
+──────────────────────────────────────── EDIT 4 — la pausa prima del giro giusto
+TROVA:
+        if (!wasOk) window.setTimeout(() => {
+          start(answer, options.indexOf(answer), true);
+        }, 260);
+
+SOSTITUISCI CON:
+        if (!wasOk) window.setTimeout(() => {
+          start(answer, options.indexOf(answer), true);
+        }, FAIL_GAP);
+
+──────────────────────────────────────── VERIFICA E RIPORTA
+· Edit applicati e saltati
+· Typecheck: sì/no + errori per intero
+· Il valore che REVEAL_KO assume ora (calcolalo: dovrebbe essere circa 2930)
+
+NON FARE
+· Nessun altro file. NON toccare QuizScreen, RecognizeQuestion, wordStats.
+· NON avviare il dev server, NON testare.
