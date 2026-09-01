@@ -17,7 +17,52 @@ const LAVENDER = "#C7B8E8";
 const RED = "#EF4444";
 const REVIEW_DUE_KEY = "verba_review_due";
 
-type TroubleEntry = { id: string; word: string; wrong: number };
+type TroubleEntry = {
+  id: string; word: string; wrong: number;
+  attempts: Array<"c" | "e">; lastWrongAt: string | null;
+};
+
+/** Quante righe prima di "mostra altre". */
+const TROUBLE_PAGE = 6;
+
+type TroubleFilter = "today" | "yest" | "week" | "all";
+
+/** Giorni interi trascorsi dall'ultimo errore, a mezzanotte locale. */
+function daysAgo(iso: string | null): number | null {
+  if (!iso) return null;
+  const d = new Date(iso); if (Number.isNaN(d.getTime())) return null;
+  const a = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const n = new Date();
+  const b = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  return Math.round((b.getTime() - a.getTime()) / 86400000);
+}
+
+function matchesFilter(e: TroubleEntry, f: TroubleFilter): boolean {
+  if (f === "all") return true;
+  const d = daysAgo(e.lastWrongAt);
+  if (d === null) return false;          // senza storia non entra nei filtri temporali
+  if (f === "today") return d === 0;
+  if (f === "yest") return d <= 1;
+  return d <= 7;
+}
+
+/** La striscia: sei caselle dal più vecchio al più recente, vuote se mancano. */
+function AttemptStrip({ attempts }: { attempts: Array<"c" | "e"> }) {
+  const pad = Math.max(0, 6 - attempts.length);
+  const cells: Array<"c" | "e" | null> = [
+    ...Array.from({ length: pad }, () => null), ...attempts,
+  ];
+  return (
+    <span aria-label="Ultimi tentativi" style={{ display: "flex", gap: 3, alignItems: "center" }}>
+      {cells.map((c, i) => (
+        <i key={i} style={{
+          width: 7, height: 7, borderRadius: 2, display: "block",
+          background: c === "c" ? GREEN : c === "e" ? RED : "rgba(255,255,255,0.11)",
+        }} />
+      ))}
+    </span>
+  );
+}
 
   const MY_WORDS_KEY = "verba_my_words";
   function loadMyWords(): Set<string> {
@@ -41,9 +86,10 @@ type TroubleEntry = { id: string; word: string; wrong: number };
           onDragEnd={(_, info) => { if (info.offset.x < -64) onDismiss(entry.id); }}
           style={{ position: "relative", background: "#0B0B0D", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", touchAction: "pan-y", cursor: "grab" }}
         >
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, color: LAVENDER }}>{entry.word}</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: RED }}>✗ {entry.wrong} wrong</span>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, color: LAVENDER, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.word}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 11, flexShrink: 0 }}>
+            <AttemptStrip attempts={entry.attempts} />
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: RED }}>✗ {entry.wrong}</span>
             <button onClick={(e) => { e.stopPropagation(); onToggleStar(entry.id); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }} aria-label={starred ? "Remove from My Verba" : "Add to My Verba"}>
               <Star size={15} fill={starred ? AMBER : "none"} stroke={starred ? AMBER : "rgba(255,255,255,0.26)"} />
             </button>
@@ -134,6 +180,8 @@ export default function ProgressScreen() {
   const [myWords, setMyWords] = useState<Set<string>>(new Set());
   const [swipeHintDone, setSwipeHintDone] = useState(true);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [troubleFilter, setTroubleFilter] = useState<TroubleFilter>("all");
+  const [troubleExpanded, setTroubleExpanded] = useState(false);
 
   useEffect(() => {
     try {
@@ -159,7 +207,10 @@ export default function ProgressScreen() {
             const byId = new Map(words.map((w) => [w.id, w.word]));
             setTrouble(
               s.trouble
-                .map((t) => ({ id: t.id, word: byId.get(t.id) ?? "", wrong: t.wrong }))
+                .map((t) => ({
+                  id: t.id, word: byId.get(t.id) ?? "", wrong: t.wrong,
+                  attempts: t.attempts ?? [], lastWrongAt: t.lastWrongAt ?? null,
+                }))
                 .filter((t) => t.word),
             );
           } catch { /* trouble resta vuoto */ }
@@ -307,10 +358,39 @@ export default function ProgressScreen() {
               ))}
             </div>
 
-            {trouble.length > 0 && (
+            {trouble.length > 0 && (() => {
+              const counts = {
+                today: trouble.filter((t) => matchesFilter(t, "today")).length,
+                yest: trouble.filter((t) => matchesFilter(t, "yest")).length,
+                week: trouble.filter((t) => matchesFilter(t, "week")).length,
+                all: trouble.length,
+              };
+              const rows = trouble.filter((t) => matchesFilter(t, troubleFilter));
+              const shown = troubleExpanded ? rows : rows.slice(0, TROUBLE_PAGE);
+              const chips: Array<[TroubleFilter, string, number]> = [
+                ["today", "today", counts.today], ["yest", "yesterday", counts.yest],
+                ["week", "7 days", counts.week], ["all", "all", counts.all],
+              ];
+              return (
               <>
                 <div style={{ marginBottom: 8 }}>
                   <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Trouble words</span>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                  {chips.map(([k, label, n]) => (
+                    <button key={k}
+                      onClick={() => { setTroubleFilter(k); setTroubleExpanded(false); }}
+                      style={{
+                        padding: "5px 11px", borderRadius: 9999, cursor: "pointer",
+                        fontFamily: "'Inter', sans-serif", fontSize: 11,
+                        background: troubleFilter === k ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.03)",
+                        border: `0.5px solid ${troubleFilter === k ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.1)"}`,
+                        color: troubleFilter === k ? "#FCA5A5" : "rgba(255,255,255,0.55)",
+                        outline: "none",
+                      }}>
+                      {label}<span style={{ opacity: 0.55, marginLeft: 4 }}>{n}</span>
+                    </button>
+                  ))}
                 </div>
                 {/* Il rosso CLASSIFICA l'intero elenco: bordo su tutti i lati,
                     stessa grammatica dei bordi deck su Practice. Niente filo di
@@ -322,16 +402,41 @@ export default function ProgressScreen() {
                   background: "rgba(239,68,68,0.035)",
                   marginBottom: 8,
                 }}>
-                  {trouble.map((t, i) => (
-                    <TroubleRow
-                      key={t.id}
-                      entry={t}
-                      last={i === trouble.length - 1}
-                      starred={myWords.has(t.id)}
-                      onToggleStar={toggleStar}
-                      onDismiss={dismissOne}
-                    />
-                  ))}
+                  {shown.length === 0 ? (
+                    /* Il vuoto è una buona notizia e va detta: far sparire la
+                       sezione farebbe sembrare che qualcosa si sia rotto. */
+                    <div style={{ background: "#0B0B0D", padding: "22px 14px", textAlign: "center", fontFamily: "'Inter', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
+                      No wrong answers {troubleFilter === "today" ? "today" : troubleFilter === "yest" ? "since yesterday" : "in the last 7 days"}.
+                      <div style={{ color: "rgba(255,255,255,0.28)", marginTop: 3 }}>Good sign.</div>
+                    </div>
+                  ) : (
+                    <>
+                      {shown.map((t, i) => (
+                        <TroubleRow
+                          key={t.id}
+                          entry={t}
+                          last={i === shown.length - 1 && rows.length <= shown.length}
+                          starred={myWords.has(t.id)}
+                          onToggleStar={toggleStar}
+                          onDismiss={dismissOne}
+                        />
+                      ))}
+                      {rows.length > shown.length && (
+                        /* La lista si allunga: niente scorrimento dentro
+                           scorrimento, che su mobile è sgradevole. */
+                        <button onClick={() => setTroubleExpanded(true)}
+                          style={{ width: "100%", padding: 10, background: "rgba(255,255,255,0.02)", border: "none", borderTop: "0.5px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter', sans-serif", fontSize: 11.5, cursor: "pointer", outline: "none" }}>
+                          show {rows.length - shown.length} more ↓
+                        </button>
+                      )}
+                      {troubleExpanded && rows.length > TROUBLE_PAGE && (
+                        <button onClick={() => setTroubleExpanded(false)}
+                          style={{ width: "100%", padding: 10, background: "rgba(255,255,255,0.02)", border: "none", borderTop: "0.5px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter', sans-serif", fontSize: 11.5, cursor: "pointer", outline: "none" }}>
+                          show less ↑
+                        </button>
+                      )}
+                    </>
+                  )}
                 </div>
                 {!swipeHintDone ? (
                   <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(255,255,255,0.35)", margin: "0 0 28px", paddingLeft: 2 }}>
@@ -341,7 +446,8 @@ export default function ProgressScreen() {
                   <div style={{ height: 28 }} />
                 )}
               </>
-            )}
+              );
+            })()}
 
             <div style={{ height: 24 }} />
           </>

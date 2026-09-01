@@ -1,0 +1,300 @@
+VERBA — Trouble words: striscia dei tentativi, filtri per data, lista che si allunga.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.60–1.10.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Applica OGNI edit in modo indipendente: salta e segnala i mismatch senza fermarti.
+
+Due file.
+
+════════════════════════════════════════════════════════════
+1 · src/lib/progressStats.ts — tre edit
+════════════════════════════════════════════════════════════
+EDIT 1a — il tipo
+TROVA:
+export interface TroubleWord {
+  id: string;
+  wrong: number; // totalSeen - totalCorrect
+  seen: number;
+}
+
+SOSTITUISCI CON:
+export interface TroubleWord {
+  id: string;
+  wrong: number; // totalSeen - totalCorrect
+  seen: number;
+  /**
+   * Ultimi tentativi dal più vecchio al più recente, ricavati da history[].
+   * "c" giusto, "e" sbagliato. Serve a distinguere una parola che ti sta
+   * resistendo adesso da una che hai già ripreso: il conteggio `wrong` è un
+   * totale storico che non scende mai, e da solo le fa sembrare uguali.
+   */
+  attempts: Array<"c" | "e">;
+  /** ISO dell'ultimo errore, per i filtri temporali. null se history è vuota. */
+  lastWrongAt: string | null;
+}
+
+EDIT 1b — l'helper
+TROVA:
+const TIER_DIFFICULTIES = ["easy", "medium", "hard"] as const;
+
+SOSTITUISCI CON:
+const TIER_DIFFICULTIES = ["easy", "medium", "hard"] as const;
+
+/** Quanti tentativi mostra la striscia. history[] ne conserva 12. */
+const STRIP_LEN = 6;
+
+/**
+ * Traduce history[] in esiti. "practice" viene pushato solo dentro il ramo
+ * corretto di recordAnswer, quindi conta come giusto; "down" e "unmastered"
+ * sono conseguenze di un errore.
+ */
+function attemptsFrom(history: { kind: string; at: string }[]): {
+  attempts: Array<"c" | "e">;
+  lastWrongAt: string | null;
+} {
+  const RIGHT = new Set(["correct", "up", "mastered", "practice"]);
+  const WRONG = new Set(["wrong", "down", "unmastered"]);
+  const rows = (history ?? []).filter((e) => RIGHT.has(e.kind) || WRONG.has(e.kind));
+  const attempts = rows.slice(-STRIP_LEN).map((e) => (WRONG.has(e.kind) ? "e" : "c") as "c" | "e");
+  let lastWrongAt: string | null = null;
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (WRONG.has(rows[i].kind)) { lastWrongAt = rows[i].at; break; }
+  }
+  return { attempts, lastWrongAt };
+}
+
+EDIT 1c — il limite e il popolamento
+TROVA:
+export async function computeProgress(deckSlug: string, troubleLimit = 5): Promise<ProgressSnapshot> {
+
+SOSTITUISCI CON:
+// Il limite non è più 5: la UI filtra e impagina da sé, e con cinque non si
+// vedeva mai ciò che si stava sbagliando adesso.
+export async function computeProgress(deckSlug: string, troubleLimit = 60): Promise<ProgressSnapshot> {
+
+E POI TROVA:
+    if (wrong > 0 && s.status !== "mastered" && !isTroubleDismissed(id)) trouble.push({ id, wrong, seen: s.totalSeen });
+
+SOSTITUISCI CON:
+    if (wrong > 0 && s.status !== "mastered" && !isTroubleDismissed(id)) {
+      const { attempts, lastWrongAt } = attemptsFrom(s.history ?? []);
+      trouble.push({ id, wrong, seen: s.totalSeen, attempts, lastWrongAt });
+    }
+
+════════════════════════════════════════════════════════════
+2 · src/pages/ProgressScreen.tsx — quattro edit
+════════════════════════════════════════════════════════════
+EDIT 2a — il tipo locale
+TROVA:
+type TroubleEntry = { id: string; word: string; wrong: number };
+
+SOSTITUISCI CON:
+type TroubleEntry = {
+  id: string; word: string; wrong: number;
+  attempts: Array<"c" | "e">; lastWrongAt: string | null;
+};
+
+/** Quante righe prima di "mostra altre". */
+const TROUBLE_PAGE = 6;
+
+type TroubleFilter = "today" | "yest" | "week" | "all";
+
+/** Giorni interi trascorsi dall'ultimo errore, a mezzanotte locale. */
+function daysAgo(iso: string | null): number | null {
+  if (!iso) return null;
+  const d = new Date(iso); if (Number.isNaN(d.getTime())) return null;
+  const a = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const n = new Date();
+  const b = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  return Math.round((b.getTime() - a.getTime()) / 86400000);
+}
+
+function matchesFilter(e: TroubleEntry, f: TroubleFilter): boolean {
+  if (f === "all") return true;
+  const d = daysAgo(e.lastWrongAt);
+  if (d === null) return false;          // senza storia non entra nei filtri temporali
+  if (f === "today") return d === 0;
+  if (f === "yest") return d <= 1;
+  return d <= 7;
+}
+
+/** La striscia: sei caselle dal più vecchio al più recente, vuote se mancano. */
+function AttemptStrip({ attempts }: { attempts: Array<"c" | "e"> }) {
+  const pad = Math.max(0, 6 - attempts.length);
+  const cells: Array<"c" | "e" | null> = [
+    ...Array.from({ length: pad }, () => null), ...attempts,
+  ];
+  return (
+    <span aria-label="Ultimi tentativi" style={{ display: "flex", gap: 3, alignItems: "center" }}>
+      {cells.map((c, i) => (
+        <i key={i} style={{
+          width: 7, height: 7, borderRadius: 2, display: "block",
+          background: c === "c" ? GREEN : c === "e" ? RED : "rgba(255,255,255,0.11)",
+        }} />
+      ))}
+    </span>
+  );
+}
+
+EDIT 2b — la riga con la striscia
+TROVA:
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, color: LAVENDER }}>{entry.word}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: RED }}>✗ {entry.wrong} wrong</span>
+
+SOSTITUISCI CON:
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, color: LAVENDER, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.word}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 11, flexShrink: 0 }}>
+            <AttemptStrip attempts={entry.attempts} />
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: RED }}>✗ {entry.wrong}</span>
+
+EDIT 2c — lo stato
+TROVA:
+  const [infoOpen, setInfoOpen] = useState(false);
+
+SOSTITUISCI CON:
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [troubleFilter, setTroubleFilter] = useState<TroubleFilter>("all");
+  const [troubleExpanded, setTroubleExpanded] = useState(false);
+
+EDIT 2d — il popolamento conserva i campi nuovi
+TROVA:
+            setTrouble(
+              s.trouble
+                .map((t) => ({ id: t.id, word: byId.get(t.id) ?? "", wrong: t.wrong }))
+                .filter((t) => t.word),
+            );
+
+SOSTITUISCI CON:
+            setTrouble(
+              s.trouble
+                .map((t) => ({
+                  id: t.id, word: byId.get(t.id) ?? "", wrong: t.wrong,
+                  attempts: t.attempts ?? [], lastWrongAt: t.lastWrongAt ?? null,
+                }))
+                .filter((t) => t.word),
+            );
+
+EDIT 2e — il blocco della sezione, sostituito per intero
+TROVA (dall'apertura alla chiusura della sezione trouble):
+            {trouble.length > 0 && (
+              <>
+                <div style={{ marginBottom: 8 }}>
+                  <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Trouble words</span>
+                </div>
+
+SOSTITUISCI CON:
+            {trouble.length > 0 && (() => {
+              const counts = {
+                today: trouble.filter((t) => matchesFilter(t, "today")).length,
+                yest: trouble.filter((t) => matchesFilter(t, "yest")).length,
+                week: trouble.filter((t) => matchesFilter(t, "week")).length,
+                all: trouble.length,
+              };
+              const rows = trouble.filter((t) => matchesFilter(t, troubleFilter));
+              const shown = troubleExpanded ? rows : rows.slice(0, TROUBLE_PAGE);
+              const chips: Array<[TroubleFilter, string, number]> = [
+                ["today", "today", counts.today], ["yest", "yesterday", counts.yest],
+                ["week", "7 days", counts.week], ["all", "all", counts.all],
+              ];
+              return (
+              <>
+                <div style={{ marginBottom: 8 }}>
+                  <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Trouble words</span>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                  {chips.map(([k, label, n]) => (
+                    <button key={k}
+                      onClick={() => { setTroubleFilter(k); setTroubleExpanded(false); }}
+                      style={{
+                        padding: "5px 11px", borderRadius: 9999, cursor: "pointer",
+                        fontFamily: "'Inter', sans-serif", fontSize: 11,
+                        background: troubleFilter === k ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.03)",
+                        border: `0.5px solid ${troubleFilter === k ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.1)"}`,
+                        color: troubleFilter === k ? "#FCA5A5" : "rgba(255,255,255,0.55)",
+                        outline: "none",
+                      }}>
+                      {label}<span style={{ opacity: 0.55, marginLeft: 4 }}>{n}</span>
+                    </button>
+                  ))}
+                </div>
+
+E POI TROVA:
+                  {trouble.map((t, i) => (
+                    <TroubleRow
+                      key={t.id}
+                      entry={t}
+                      last={i === trouble.length - 1}
+                      starred={myWords.has(t.id)}
+                      onToggleStar={toggleStar}
+                      onDismiss={dismissOne}
+                    />
+                  ))}
+                </div>
+
+SOSTITUISCI CON:
+                  {shown.length === 0 ? (
+                    /* Il vuoto è una buona notizia e va detta: far sparire la
+                       sezione farebbe sembrare che qualcosa si sia rotto. */
+                    <div style={{ background: "#0B0B0D", padding: "22px 14px", textAlign: "center", fontFamily: "'Inter', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
+                      No wrong answers {troubleFilter === "today" ? "today" : troubleFilter === "yest" ? "since yesterday" : "in the last 7 days"}.
+                      <div style={{ color: "rgba(255,255,255,0.28)", marginTop: 3 }}>Good sign.</div>
+                    </div>
+                  ) : (
+                    <>
+                      {shown.map((t, i) => (
+                        <TroubleRow
+                          key={t.id}
+                          entry={t}
+                          last={i === shown.length - 1 && rows.length <= shown.length}
+                          starred={myWords.has(t.id)}
+                          onToggleStar={toggleStar}
+                          onDismiss={dismissOne}
+                        />
+                      ))}
+                      {rows.length > shown.length && (
+                        /* La lista si allunga: niente scorrimento dentro
+                           scorrimento, che su mobile è sgradevole. */
+                        <button onClick={() => setTroubleExpanded(true)}
+                          style={{ width: "100%", padding: 10, background: "rgba(255,255,255,0.02)", border: "none", borderTop: "0.5px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter', sans-serif", fontSize: 11.5, cursor: "pointer", outline: "none" }}>
+                          show {rows.length - shown.length} more ↓
+                        </button>
+                      )}
+                      {troubleExpanded && rows.length > TROUBLE_PAGE && (
+                        <button onClick={() => setTroubleExpanded(false)}
+                          style={{ width: "100%", padding: 10, background: "rgba(255,255,255,0.02)", border: "none", borderTop: "0.5px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter', sans-serif", fontSize: 11.5, cursor: "pointer", outline: "none" }}>
+                          show less ↑
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+
+E INFINE TROVA la chiusura della sezione:
+                ) : (
+                  <div style={{ height: 28 }} />
+                )}
+              </>
+            )}
+
+SOSTITUISCI CON:
+                ) : (
+                  <div style={{ height: 28 }} />
+                )}
+              </>
+              );
+            })()}
+
+════════════════════════════════════════════════════════════
+VERIFICA E RIPORTA
+════════════════════════════════════════════════════════════
+· Edit applicati e saltati
+· Typecheck: sì/no + errori per intero
+· Conferma che l'ultimo edit chiude correttamente la funzione anonima: il
+  blocco deve terminare con `)}` preceduto da `})()`. Se le parentesi non
+  tornano, FERMATI e riporta il codice attorno invece di indovinare.
+
+NON FARE
+· Nessun altro file. NON toccare wordStats.ts, troubleDismiss.ts, QuizScreen.
+· NON avviare il dev server, NON testare.
