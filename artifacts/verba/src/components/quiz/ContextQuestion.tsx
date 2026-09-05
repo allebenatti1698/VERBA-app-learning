@@ -100,6 +100,8 @@ export default function ContextQuestion({
   const sizeRef = useRef({ w: 0, h: 0 });
   const gcRef = useRef({ x: 0, y: 0 });
   const slowRef = useRef(0.55);
+  /** Vero quando la composizione è finita e la parola è tornata testo vero. */
+  const settledRef = useRef(false);
 
   const [reduced] = useState(
     () => typeof window !== "undefined" &&
@@ -343,7 +345,21 @@ export default function ContextQuestion({
             L.rot = ang * SPIN * (1 - e);
             L.size = L.size + (L.tgt.size - L.size) * 0.12;
             L.a = 1;
-            if (q >= 1) { L.role = "landed"; L.x = L.tgt.x; L.y = L.tgt.y; L.rot = 0; }
+            if (q >= 1) {
+              L.role = "landed"; L.x = L.tgt.x; L.y = L.tgt.y; L.rot = 0;
+              if (!settledRef.current &&
+                  lettersRef.current.every((o) => o.role !== "seq")) {
+                settledRef.current = true;
+                // il canvas ha finito: da qui in poi è testo, allineato come il resto
+                const sz = sizerRef.current;
+                if (sz) {
+                  sz.style.visibility = "visible";
+                  sz.style.color = "#34D399";
+                  sz.textContent = answer;
+                }
+                lettersRef.current = lettersRef.current.filter((o) => o.role !== "landed");
+              }
+            }
           } else {
             const flare = 1 + e * 1.5;
             const fx = gc.x + Math.cos(ang) * rr * flare;
@@ -422,10 +438,16 @@ export default function ContextQuestion({
     };
     resize();
     window.addEventListener("resize", resize);
+    // L'host cambia altezza dopo il primo render: il canvas deve seguirlo,
+    // altrimenti il sistema di coordinate si sfasa e il vortice finisce
+    // sotto la riga invece che dentro il buco.
+    const ro = new ResizeObserver(() => resize());
+    ro.observe(host);
     const loop = (now: number) => { draw(now); rafRef.current = requestAnimationFrame(loop); };
     rafRef.current = requestAnimationFrame(loop);
     return () => {
       window.removeEventListener("resize", resize);
+      ro.disconnect();
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
   }, [reduced]);
@@ -434,6 +456,11 @@ export default function ContextQuestion({
   useEffect(() => {
     animRef.current = null;
     slowRef.current = 0.55;
+    settledRef.current = false;
+    if (sizerRef.current) {
+      sizerRef.current.style.visibility = "hidden";
+      sizerRef.current.style.color = "";
+    }
     if (gapRef.current) gapRef.current.style.width = GAP_MIN + "px";
     if (glyphsRef.current) glyphsRef.current.innerHTML = "";
     if (sizerRef.current) sizerRef.current.textContent = "";
@@ -456,7 +483,9 @@ export default function ContextQuestion({
       if (sizerRef.current) {
         sizerRef.current.textContent = answer;
         sizerRef.current.style.visibility = "visible";
+        sizerRef.current.style.color = "#34D399";
       }
+      settledRef.current = true;
       return;
     }
     measureGap();

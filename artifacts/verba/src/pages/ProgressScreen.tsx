@@ -18,7 +18,7 @@ const RED = "#EF4444";
 const REVIEW_DUE_KEY = "verba_review_due";
 
 type TroubleEntry = {
-  id: string; word: string; wrong: number;
+  id: string; word: string; wrong: number; seen: number;
   attempts: Array<"c" | "e">; lastWrongAt: string | null;
 };
 
@@ -47,13 +47,25 @@ function matchesFilter(e: TroubleEntry, f: TroubleFilter): boolean {
 }
 
 /** La striscia: sei caselle dal più vecchio al più recente, vuote se mancano. */
-function AttemptStrip({ attempts }: { attempts: Array<"c" | "e"> }) {
-  const pad = Math.max(0, 6 - attempts.length);
+/**
+ * La striscia degli ultimi tentativi.
+ * Se la parola è stata incontrata più volte di quante ne risultino nella
+ * cronologia, prima delle caselle compare un "⋯": non è che mancano tentativi,
+ * è che di quelli non c'è memoria. Le caselle vuote restano solo per le parole
+ * incontrate davvero poche volte.
+ */
+function AttemptStrip({ attempts, seen }: { attempts: Array<"c" | "e">; seen: number }) {
+  const truncated = seen > attempts.length;
+  const pad = truncated ? 0 : Math.max(0, 6 - attempts.length);
   const cells: Array<"c" | "e" | null> = [
     ...Array.from({ length: pad }, () => null), ...attempts,
   ];
   return (
-    <span aria-label="Ultimi tentativi" style={{ display: "flex", gap: 3, alignItems: "center" }}>
+    <span aria-label={`Ultimi tentativi${truncated ? ", parziali" : ""}`}
+      style={{ display: "flex", gap: 3, alignItems: "center" }}>
+      {truncated && (
+        <span style={{ fontSize: 11, lineHeight: 1, color: "rgba(255,255,255,0.24)", marginRight: 1 }}>⋯</span>
+      )}
       {cells.map((c, i) => (
         <i key={i} style={{
           width: 7, height: 7, borderRadius: 2, display: "block",
@@ -88,7 +100,7 @@ function AttemptStrip({ attempts }: { attempts: Array<"c" | "e"> }) {
         >
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, color: LAVENDER, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.word}</span>
           <div style={{ display: "flex", alignItems: "center", gap: 11, flexShrink: 0 }}>
-            <AttemptStrip attempts={entry.attempts} />
+            <AttemptStrip attempts={entry.attempts} seen={entry.seen} />
             <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: RED }}>✗ {entry.wrong}</span>
             <button onClick={(e) => { e.stopPropagation(); onToggleStar(entry.id); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }} aria-label={starred ? "Remove from My Verba" : "Add to My Verba"}>
               <Star size={15} fill={starred ? AMBER : "none"} stroke={starred ? AMBER : "rgba(255,255,255,0.26)"} />
@@ -209,6 +221,7 @@ export default function ProgressScreen() {
               s.trouble
                 .map((t) => ({
                   id: t.id, word: byId.get(t.id) ?? "", wrong: t.wrong,
+                  seen: t.seen ?? 0,
                   attempts: t.attempts ?? [], lastWrongAt: t.lastWrongAt ?? null,
                 }))
                 .filter((t) => t.word),

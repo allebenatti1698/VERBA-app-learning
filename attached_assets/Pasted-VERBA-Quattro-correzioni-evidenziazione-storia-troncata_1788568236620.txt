@@ -1,0 +1,266 @@
+VERBA — Quattro correzioni: evidenziazione, storia troncata, canvas disallineato,
+        parola che resta canvas.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.70–1.30.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Applica OGNI edit in modo indipendente: salta e segnala i mismatch senza fermarti.
+
+Quattro file.
+
+════════════════════════════════════════════════════════════
+1 · src/lib/formatText.ts — highlightWord riconosce le desinenze
+════════════════════════════════════════════════════════════
+SOSTITUISCI la funzione highlightWord e il suo commento, cioè dal commento
+"/**\n * Evidenzia la parola-chiave..." fino alla graffa che chiude la
+funzione, CON:
+
+/** Desinenze inglesi reali. L'elenco è chiuso di proposito: contare lettere
+ *  ("al massimo tre") rompe su shamming — la m raddoppiata più -ing fa quattro. */
+const INFLECTIONS =
+  "(?:s|es|ed|d|ing|ings|ly|er|ers|est|ness|ment|ments|ion|ions|al|ally|able)?";
+
+/** Le forme che la radice può assumere prima della desinenza. */
+function stemVariants(word: string): string[] {
+  const w = word.toLowerCase();
+  const out = [escapeRegExp(w)];
+  const last = w.slice(-1);
+  // raddoppio della consonante: sham → shamm(ing), run → runn(ing)
+  if (/[bdgklmnprt]$/.test(w)) out.push(escapeRegExp(w + last));
+  // caduta della -e: prime → prim(ing), cite → cit(ed)
+  if (w.endsWith("e")) out.push(escapeRegExp(w.slice(0, -1)));
+  // y → i: happy → happi(ly), weary → weari(er)
+  if (w.endsWith("y")) out.push(escapeRegExp(w.slice(0, -1)) + "i");
+  return out;
+}
+
+/**
+ * Evidenzia la parola-chiave dentro un testo.
+ * Stile volutamente DISCRETO: cambia solo la tinta in lavanda, mantiene peso
+ * e corsivo del contesto. Niente grassetto, che spezzerebbe il corsivo.
+ *
+ * Il match copre la parola flessa INTERA. Non si conta quante lettere può
+ * avere la coda — si riconoscono le desinenze, e il confine di parola in fondo
+ * impedisce che "arch" peschi "architecture".
+ */
+export function highlightWord(text: string, word: string): ReactNode {
+  if (!text || !word) return text;
+  const alts = stemVariants(word).join("|");
+  const body = `(?:${alts})${INFLECTIONS}`;
+  const splitRe = new RegExp(`(\\b${body}\\b)`, "gi");
+  const matchRe = new RegExp(`^${body}$`, "i");
+  return text.split(splitRe).map((p, i) =>
+    matchRe.test(p)
+      ? createElement("span", { key: i, style: { color: "#C7B8E8" } }, p)
+      : createElement("span", { key: i }, p),
+  );
+}
+
+════════════════════════════════════════════════════════════
+2 · src/pages/ProgressScreen.tsx — la storia troncata si vede
+════════════════════════════════════════════════════════════
+CONTESTO (non agire su questo): le parole praticate prima della riscrittura di
+wordStats hanno history vuota, perché upgrade() la inizializza a []. Il totale
+degli errori è più alto degli eventi registrati, e le caselle grigie sembrano
+dire "mai incontrata" invece di "qui non c'è memoria".
+
+EDIT 2a — il tipo locale conserva anche seen
+TROVA:
+type TroubleEntry = {
+  id: string; word: string; wrong: number;
+  attempts: Array<"c" | "e">; lastWrongAt: string | null;
+};
+
+SOSTITUISCI CON:
+type TroubleEntry = {
+  id: string; word: string; wrong: number; seen: number;
+  attempts: Array<"c" | "e">; lastWrongAt: string | null;
+};
+
+EDIT 2b — la striscia distingue "vuoto" da "troncato"
+TROVA:
+function AttemptStrip({ attempts }: { attempts: Array<"c" | "e"> }) {
+  const pad = Math.max(0, 6 - attempts.length);
+  const cells: Array<"c" | "e" | null> = [
+    ...Array.from({ length: pad }, () => null), ...attempts,
+  ];
+  return (
+    <span aria-label="Ultimi tentativi" style={{ display: "flex", gap: 3, alignItems: "center" }}>
+      {cells.map((c, i) => (
+        <i key={i} style={{
+          width: 7, height: 7, borderRadius: 2, display: "block",
+          background: c === "c" ? GREEN : c === "e" ? RED : "rgba(255,255,255,0.11)",
+        }} />
+      ))}
+    </span>
+  );
+}
+
+SOSTITUISCI CON:
+/**
+ * La striscia degli ultimi tentativi.
+ * Se la parola è stata incontrata più volte di quante ne risultino nella
+ * cronologia, prima delle caselle compare un "⋯": non è che mancano tentativi,
+ * è che di quelli non c'è memoria. Le caselle vuote restano solo per le parole
+ * incontrate davvero poche volte.
+ */
+function AttemptStrip({ attempts, seen }: { attempts: Array<"c" | "e">; seen: number }) {
+  const truncated = seen > attempts.length;
+  const pad = truncated ? 0 : Math.max(0, 6 - attempts.length);
+  const cells: Array<"c" | "e" | null> = [
+    ...Array.from({ length: pad }, () => null), ...attempts,
+  ];
+  return (
+    <span aria-label={`Ultimi tentativi${truncated ? ", parziali" : ""}`}
+      style={{ display: "flex", gap: 3, alignItems: "center" }}>
+      {truncated && (
+        <span style={{ fontSize: 11, lineHeight: 1, color: "rgba(255,255,255,0.24)", marginRight: 1 }}>⋯</span>
+      )}
+      {cells.map((c, i) => (
+        <i key={i} style={{
+          width: 7, height: 7, borderRadius: 2, display: "block",
+          background: c === "c" ? GREEN : c === "e" ? RED : "rgba(255,255,255,0.11)",
+        }} />
+      ))}
+    </span>
+  );
+}
+
+EDIT 2c — passaggio del dato
+TROVA:
+            <AttemptStrip attempts={entry.attempts} />
+
+SOSTITUISCI CON:
+            <AttemptStrip attempts={entry.attempts} seen={entry.seen} />
+
+EDIT 2d — popolamento
+TROVA:
+                .map((t) => ({
+                  id: t.id, word: byId.get(t.id) ?? "", wrong: t.wrong,
+                  attempts: t.attempts ?? [], lastWrongAt: t.lastWrongAt ?? null,
+                }))
+
+SOSTITUISCI CON:
+                .map((t) => ({
+                  id: t.id, word: byId.get(t.id) ?? "", wrong: t.wrong,
+                  seen: t.seen ?? 0,
+                  attempts: t.attempts ?? [], lastWrongAt: t.lastWrongAt ?? null,
+                }))
+
+════════════════════════════════════════════════════════════
+3 · src/components/quiz/ContextQuestion.tsx — canvas allineato
+════════════════════════════════════════════════════════════
+CONTESTO: il canvas viene dimensionato al montaggio e sul resize della
+finestra. Ma l'altezza dell'host cambia dopo — quando i font finiscono di
+caricare, quando la frase passa a due righe, quando entrano le opzioni. Il
+canvas CSS si adatta perché è inset:0, ma canvas.width/height e sizeRef no:
+il disegno viene stirato e le lettere scivolano rispetto al buco.
+
+TROVA:
+    resize();
+    window.addEventListener("resize", resize);
+
+SOSTITUISCI CON:
+    resize();
+    window.addEventListener("resize", resize);
+    // L'host cambia altezza dopo il primo render: il canvas deve seguirlo,
+    // altrimenti il sistema di coordinate si sfasa e il vortice finisce
+    // sotto la riga invece che dentro il buco.
+    const ro = new ResizeObserver(() => resize());
+    ro.observe(host);
+
+E POI TROVA:
+    return () => {
+      window.removeEventListener("resize", resize);
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+
+SOSTITUISCI CON:
+    return () => {
+      window.removeEventListener("resize", resize);
+      ro.disconnect();
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+
+════════════════════════════════════════════════════════════
+4 · src/components/quiz/ContextQuestion.tsx — la parola torna testo
+════════════════════════════════════════════════════════════
+CONTESTO: a composizione finita la parola resta disegnata sul canvas, con peso
+500 e colore verde. Non sarà mai identica al testo intorno, perché non è testo.
+Quando l'ultima lettera si posa, il canvas cede il posto al DOM: il `sizer`
+contiene già la parola nel font esatto della frase.
+
+EDIT 4a — lo stato
+TROVA:
+  const slowRef = useRef(0.55);
+
+SOSTITUISCI CON:
+  const slowRef = useRef(0.55);
+  /** Vero quando la composizione è finita e la parola è tornata testo vero. */
+  const settledRef = useRef(false);
+
+EDIT 4b — il passaggio di consegne
+TROVA:
+            L.a = 1;
+            if (q >= 1) { L.role = "landed"; L.x = L.tgt.x; L.y = L.tgt.y; L.rot = 0; }
+
+SOSTITUISCI CON:
+            L.a = 1;
+            if (q >= 1) {
+              L.role = "landed"; L.x = L.tgt.x; L.y = L.tgt.y; L.rot = 0;
+              if (!settledRef.current &&
+                  lettersRef.current.every((o) => o.role !== "seq")) {
+                settledRef.current = true;
+                // il canvas ha finito: da qui in poi è testo, allineato come il resto
+                const sz = sizerRef.current;
+                if (sz) {
+                  sz.style.visibility = "visible";
+                  sz.style.color = "#34D399";
+                  sz.textContent = answer;
+                }
+                lettersRef.current = lettersRef.current.filter((o) => o.role !== "landed");
+              }
+            }
+
+EDIT 4c — azzeramento sulla parola nuova
+TROVA:
+    animRef.current = null;
+    slowRef.current = 0.55;
+    if (gapRef.current) gapRef.current.style.width = GAP_MIN + "px";
+
+SOSTITUISCI CON:
+    animRef.current = null;
+    slowRef.current = 0.55;
+    settledRef.current = false;
+    if (sizerRef.current) {
+      sizerRef.current.style.visibility = "hidden";
+      sizerRef.current.style.color = "";
+    }
+    if (gapRef.current) gapRef.current.style.width = GAP_MIN + "px";
+
+EDIT 4d — anche il ripiego senza animazioni resta coerente
+TROVA:
+      if (sizerRef.current) {
+        sizerRef.current.textContent = answer;
+        sizerRef.current.style.visibility = "visible";
+      }
+
+SOSTITUISCI CON:
+      if (sizerRef.current) {
+        sizerRef.current.textContent = answer;
+        sizerRef.current.style.visibility = "visible";
+        sizerRef.current.style.color = "#34D399";
+      }
+      settledRef.current = true;
+
+════════════════════════════════════════════════════════════
+VERIFICA E RIPORTA
+════════════════════════════════════════════════════════════
+· Edit applicati e saltati
+· Typecheck: sì/no + errori per intero
+· Conferma che ResizeObserver è disponibile senza import (è un'API del browser)
+· Conferma che `answer` è visibile dentro la funzione draw (stessa closure)
+
+NON FARE
+· Nessun altro file. NON toccare wordStats.ts, QuizScreen, FeedbackCard.
+· NON avviare il dev server, NON testare.
