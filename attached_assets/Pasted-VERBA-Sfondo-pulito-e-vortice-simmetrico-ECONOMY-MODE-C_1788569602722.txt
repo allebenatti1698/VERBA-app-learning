@@ -1,0 +1,147 @@
+VERBA — Sfondo pulito e vortice simmetrico.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.30–0.55.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Applica OGNI edit in modo indipendente: salta e segnala i mismatch senza fermarti.
+
+FILE UNICO: src/components/quiz/ContextQuestion.tsx
+
+──────────────────────────────────────── EDIT 1 — le costanti dell'orbita
+TROVA:
+const ORBIT_Y = 0.12;    // quota del centro dentro l'altezza del buco
+const ORBIT_RY = 9;      // ampiezza verticale dell'orbita a riposo
+
+SOSTITUISCI CON:
+/**
+ * Il vortice è centrato sul buco e simmetrico: quanto salgono sopra, tanto
+ * scendono sotto. L'ampiezza NON è un numero fisso — è una frazione
+ * dell'altezza del buco, così resta simmetrica anche se cambia il corpo
+ * del testo o la larghezza dello schermo.
+ */
+const ORBIT_Y = 0.5;      // centro esatto del buco
+const ORBIT_RY_FRAC = 0.34;
+const ORBIT_RY_MIN = 6;
+const ORBIT_RY_MAX = 14;
+
+──────────────────────────────────────── EDIT 2 — l'ampiezza si misura
+TROVA:
+  const gcRef = useRef({ x: 0, y: 0 });
+
+SOSTITUISCI CON:
+  const gcRef = useRef({ x: 0, y: 0 });
+  /** Semiasse verticale dell'orbita, ricavato dall'altezza reale del buco. */
+  const ryRef = useRef(9);
+
+E POI TROVA:
+    gcRef.current = {
+      x: r.left - s.left + r.width / 2,
+      y: r.top - s.top + r.height * ORBIT_Y,
+    };
+
+SOSTITUISCI CON:
+    gcRef.current = {
+      x: r.left - s.left + r.width / 2,
+      y: r.top - s.top + r.height * ORBIT_Y,
+    };
+    ryRef.current = Math.max(ORBIT_RY_MIN,
+      Math.min(ORBIT_RY_MAX, r.height * ORBIT_RY_FRAC));
+
+──────────────────────────────────────── EDIT 3 — l'orbita usa l'ampiezza misurata
+TROVA:
+      } else if (L.role === "orbit") {
+        const a = t * L.spin + L.phase;
+        L.x = gc.x + Math.cos(a) * L.wob + Math.cos(a * 2.3) * 3;
+        L.y = gc.y + Math.sin(a) * ORBIT_RY + Math.sin(a * 1.7) * 1.8;
+        L.a = L.base * (0.5 + 0.5 * Math.abs(Math.sin(a * 0.8)));
+        L.rot = 0;
+
+SOSTITUISCI CON:
+      } else if (L.role === "orbit") {
+        const a = t * L.spin + L.phase;
+        const ry = ryRef.current;
+        L.x = gc.x + Math.cos(a) * L.wob + Math.cos(a * 2.3) * 3;
+        // niente termine additivo fuori dal seno: spezzerebbe la simmetria
+        L.y = gc.y + Math.sin(a) * ry * (1 + 0.18 * Math.sin(a * 1.7));
+        L.a = L.base * (0.5 + 0.5 * Math.abs(Math.sin(a * 0.8)));
+        L.rot = 0;
+
+E POI TROVA (dentro il ramo "swept", la parte prima dello sweep):
+        } else {
+          const a = t * L.spin + L.phase;
+          L.x = gc.x + Math.cos(a) * L.wob; L.y = gc.y + Math.sin(a) * ORBIT_RY;
+          L.a = L.base;
+        }
+
+SOSTITUISCI CON:
+        } else {
+          const a = t * L.spin + L.phase;
+          L.x = gc.x + Math.cos(a) * L.wob;
+          L.y = gc.y + Math.sin(a) * ryRef.current;
+          L.a = L.base;
+        }
+
+E POI TROVA (dentro il ramo "seq", la posizione sull'anello):
+        const ox = gc.x + Math.cos(ang) * rr;
+        const oy = gc.y + Math.sin(ang) * rr * 0.42;
+
+SOSTITUISCI CON:
+        const ox = gc.x + Math.cos(ang) * rr;
+        const oy = gc.y + Math.sin(ang) * rr * 0.42;   // anello schiacciato: sta nella riga
+
+──────────────────────────────────────── EDIT 4 — sfondo pulito: niente campo
+TROVA:
+    const out: Letter[] = [];
+    const n = Math.max(8, Math.round((w * h) / DENSITY_PX2));
+    for (let i = 0; i < n; i++) {
+      out.push(mkLetter({
+        ch: FREQ[(Math.random() * FREQ.length) | 0], x: rnd(0, w), y: rnd(0, h),
+        vx: rnd(-0.34, 0.34), vy: rnd(-0.24, 0.24), size: rnd(9, 17),
+        lav: Math.random() < 0.3, base: rnd(0.06, 0.12), role: "field",
+        spin: rnd(0.5, 1.1), phase: Math.random() * 6.283,
+      }));
+    }
+
+SOSTITUISCI CON:
+    const out: Letter[] = [];
+    // Niente campo di lettere dietro l'esercizio: lo sfondo resta pulito.
+    // La materia della risposta è il vortice sul buco più le lettere del
+    // bottone giusto, che si svuota. Una lettera che non serve a nessuno
+    // è decorazione, e la decorazione durante la lettura disturba.
+
+──────────────────────────────────────── EDIT 5 — le spazzate spariscono, non tornano a vagare
+TROVA:
+          if (L.a <= 0.02) {
+            L.role = "field"; L.base = rnd(0.05, 0.1); L.a = L.base; L.rot = 0;
+            L.x = rnd(0, w); L.y = rnd(0, h); L.vx = rnd(-0.3, 0.3); L.vy = rnd(-0.2, 0.2);
+          }
+
+SOSTITUISCI CON:
+          // si esaurisce e basta: rimetterla a vagare ricostruirebbe il campo
+          if (L.a <= 0.02) L.dead = true;
+
+──────────────────────────────────────── EDIT 6 — anche il rientro dopo l'errore
+TROVA:
+            else {
+              L.role = L.origRole || "field"; L.a = L.base;
+              L.x = L.ox; L.y = L.oy; L.vx = rnd(-0.3, 0.3); L.vy = rnd(-0.2, 0.2);
+            }
+
+SOSTITUISCI CON:
+            else if (L.origRole === "orbit") {
+              L.role = "orbit"; L.a = L.base; L.vx = 0; L.vy = 0;
+            } else {
+              L.dead = true;   // nata dal bordo per l'occasione: non resta
+            }
+
+──────────────────────────────────────── VERIFICA E RIPORTA
+· Edit applicati e saltati
+· Typecheck: sì/no + errori per intero
+· Cerca eventuali usi residui di ORBIT_RY o DENSITY_PX2 rimasti nel file e
+  SEGNALALI senza correggerli
+· Conferma che `w` e `h` non usati in buildField non causino errore di lint;
+  se sì, riportalo
+
+NON FARE
+· Nessun altro file. NON toccare AppBackground, QuizScreen, RecognizeQuestion.
+· NON avviare il dev server, NON testare.

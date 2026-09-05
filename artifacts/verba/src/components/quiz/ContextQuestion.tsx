@@ -34,8 +34,16 @@ const FAIL_SCALE = 0.55;
 const FAIL_GAP = 180;
 const PA = 0.30;         // fine della salita
 const PB = 0.72;         // fine del vortice, inizio della posa
-const ORBIT_Y = 0.12;    // quota del centro dentro l'altezza del buco
-const ORBIT_RY = 9;      // ampiezza verticale dell'orbita a riposo
+/**
+ * Il vortice è centrato sul buco e simmetrico: quanto salgono sopra, tanto
+ * scendono sotto. L'ampiezza NON è un numero fisso — è una frazione
+ * dell'altezza del buco, così resta simmetrica anche se cambia il corpo
+ * del testo o la larghezza dello schermo.
+ */
+const ORBIT_Y = 0.5;      // centro esatto del buco
+const ORBIT_RY_FRAC = 0.34;
+const ORBIT_RY_MIN = 6;
+const ORBIT_RY_MAX = 14;
 const GAP_MIN = 52;      // larghezza fissa: un buco largo quanto la risposta la regala
 const ORBIT_N = 6;
 const DENSITY_PX2 = 9000;
@@ -99,6 +107,8 @@ export default function ContextQuestion({
   const rafRef = useRef<number | null>(null);
   const sizeRef = useRef({ w: 0, h: 0 });
   const gcRef = useRef({ x: 0, y: 0 });
+  /** Semiasse verticale dell'orbita, ricavato dall'altezza reale del buco. */
+  const ryRef = useRef(9);
   const slowRef = useRef(0.55);
   /** Vero quando la composizione è finita e la parola è tornata testo vero. */
   const settledRef = useRef(false);
@@ -134,15 +144,10 @@ export default function ContextQuestion({
     const { w, h } = sizeRef.current;
     if (!w || !h) return;
     const out: Letter[] = [];
-    const n = Math.max(8, Math.round((w * h) / DENSITY_PX2));
-    for (let i = 0; i < n; i++) {
-      out.push(mkLetter({
-        ch: FREQ[(Math.random() * FREQ.length) | 0], x: rnd(0, w), y: rnd(0, h),
-        vx: rnd(-0.34, 0.34), vy: rnd(-0.24, 0.24), size: rnd(9, 17),
-        lav: Math.random() < 0.3, base: rnd(0.06, 0.12), role: "field",
-        spin: rnd(0.5, 1.1), phase: Math.random() * 6.283,
-      }));
-    }
+    // Niente campo di lettere dietro l'esercizio: lo sfondo resta pulito.
+    // La materia della risposta è il vortice sul buco più le lettere del
+    // bottone giusto, che si svuota. Una lettera che non serve a nessuno
+    // è decorazione, e la decorazione durante la lettura disturba.
     // Il vortice: lettere CASUALI, ripescate a ogni parola. Non sono la
     // risposta — sarebbe un indizio regalato — ma sono materia disponibile.
     for (let i = 0; i < ORBIT_N; i++) {
@@ -163,6 +168,8 @@ export default function ContextQuestion({
       x: r.left - s.left + r.width / 2,
       y: r.top - s.top + r.height * ORBIT_Y,
     };
+    ryRef.current = Math.max(ORBIT_RY_MIN,
+      Math.min(ORBIT_RY_MAX, r.height * ORBIT_RY_FRAC));
   }
 
   function targetsFor(w: string, open: boolean): Target[] {
@@ -303,9 +310,10 @@ export default function ContextQuestion({
         if (!anim.ok) {
           anim.chosen.forEach((L) => {
             if (L.dom) { L.dom.style.opacity = "1"; L.dead = true; }
-            else {
-              L.role = L.origRole || "field"; L.a = L.base;
-              L.x = L.ox; L.y = L.oy; L.vx = rnd(-0.3, 0.3); L.vy = rnd(-0.2, 0.2);
+            else if (L.origRole === "orbit") {
+              L.role = "orbit"; L.a = L.base; L.vx = 0; L.vy = 0;
+            } else {
+              L.dead = true;   // nata dal bordo per l'occasione: non resta
             }
           });
           const wrap = optsRef.current;
@@ -335,7 +343,7 @@ export default function ContextQuestion({
         const ang = L.a0 + (easeIn(spinP) * 0.55 + spinP * 0.45) * TURNS * 6.283;
         const rr = RAD * (1 - 0.42 * easeInOut(spinP));
         const ox = gc.x + Math.cos(ang) * rr;
-        const oy = gc.y + Math.sin(ang) * rr * 0.42;
+        const oy = gc.y + Math.sin(ang) * rr * 0.42;   // anello schiacciato: sta nella riga
 
         if (p < PA) {                                  // salita, con arco
           const q = easeOut(p / PA);
@@ -391,21 +399,22 @@ export default function ContextQuestion({
         if (L.swept) {
           L.x += L.vx; L.y += L.vy; L.vx *= 0.965; L.vy *= 0.965;
           L.rot += 0.06; L.a = Math.max(0, L.a - 0.012);
-          if (L.a <= 0.02) {
-            L.role = "field"; L.base = rnd(0.05, 0.1); L.a = L.base; L.rot = 0;
-            L.x = rnd(0, w); L.y = rnd(0, h); L.vx = rnd(-0.3, 0.3); L.vy = rnd(-0.2, 0.2);
-          }
+          // si esaurisce e basta: rimetterla a vagare ricostruirebbe il campo
+          if (L.a <= 0.02) L.dead = true;
         } else {
           const a = t * L.spin + L.phase;
-          L.x = gc.x + Math.cos(a) * L.wob; L.y = gc.y + Math.sin(a) * ORBIT_RY;
+          L.x = gc.x + Math.cos(a) * L.wob;
+          L.y = gc.y + Math.sin(a) * ryRef.current;
           L.a = L.base;
         }
       } else if (L.role === "landed") { L.a = 1; }
       else if (L.role === "held") { L.a = 0; }
       else if (L.role === "orbit") {
         const a = t * L.spin + L.phase;
+        const ry = ryRef.current;
         L.x = gc.x + Math.cos(a) * L.wob + Math.cos(a * 2.3) * 3;
-        L.y = gc.y + Math.sin(a) * ORBIT_RY + Math.sin(a * 1.7) * 1.8;
+        // niente termine additivo fuori dal seno: spezzerebbe la simmetria
+        L.y = gc.y + Math.sin(a) * ry * (1 + 0.18 * Math.sin(a * 1.7));
         L.a = L.base * (0.5 + 0.5 * Math.abs(Math.sin(a * 0.8)));
         L.rot = 0;
       } else {
