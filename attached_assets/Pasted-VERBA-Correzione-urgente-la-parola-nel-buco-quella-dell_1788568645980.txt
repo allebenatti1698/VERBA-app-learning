@@ -1,0 +1,88 @@
+VERBA — Correzione urgente: la parola nel buco è quella della prima domanda.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.20–0.40.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Applica OGNI edit in modo indipendente: salta e segnala i mismatch senza fermarti.
+
+FILE UNICO: src/components/quiz/ContextQuestion.tsx
+
+CAUSA: il loop di disegno è creato in un useEffect con dipendenza [reduced],
+quindi la funzione draw è quella del PRIMO render e ne cattura le variabili.
+`answer` e `options` lette dentro draw restano ferme alla prima parola della
+sessione. Servono ref, che sono sempre aggiornati.
+
+──────────────────────────────────────── EDIT 1 — i due ref
+TROVA:
+  const slowRef = useRef(0.55);
+  /** Vero quando la composizione è finita e la parola è tornata testo vero. */
+  const settledRef = useRef(false);
+
+SOSTITUISCI CON:
+  const slowRef = useRef(0.55);
+  /** Vero quando la composizione è finita e la parola è tornata testo vero. */
+  const settledRef = useRef(false);
+  /**
+   * Il loop di disegno nasce una volta sola e cattura le variabili del primo
+   * render: qualunque cosa draw legga dal corpo del componente resta ferma
+   * alla prima parola della sessione. Questi ref sono la via d'uscita.
+   */
+  const answerRef = useRef(answer);
+  const optionsRef = useRef(options);
+
+──────────────────────────────────────── EDIT 2 — si aggiornano a ogni parola
+TROVA:
+  useEffect(() => {
+    animRef.current = null;
+    slowRef.current = 0.55;
+    settledRef.current = false;
+
+SOSTITUISCI CON:
+  useEffect(() => {
+    answerRef.current = answer;
+    optionsRef.current = options;
+    animRef.current = null;
+    slowRef.current = 0.55;
+    settledRef.current = false;
+
+──────────────────────────────────────── EDIT 3 — il passaggio al testo legge il ref
+TROVA:
+                const sz = sizerRef.current;
+                if (sz) {
+                  sz.style.visibility = "visible";
+                  sz.style.color = "#34D399";
+                  sz.textContent = answer;
+                }
+
+SOSTITUISCI CON:
+                const sz = sizerRef.current;
+                if (sz) {
+                  sz.style.visibility = "visible";
+                  sz.style.color = "#34D399";
+                  sz.textContent = answerRef.current;
+                }
+
+──────────────────────────────────────── EDIT 4 — il giro della parola giusta dopo un errore
+TROVA:
+        if (!wasOk) window.setTimeout(() => {
+          start(answer, options.indexOf(answer), true);
+        }, FAIL_GAP);
+
+SOSTITUISCI CON:
+        if (!wasOk) window.setTimeout(() => {
+          const a = answerRef.current;
+          // con `answer` vecchia indexOf tornava -1: nessun bottone veniva
+          // svuotato e le lettere non rientravano mai
+          start(a, optionsRef.current.indexOf(a), true);
+        }, FAIL_GAP);
+
+──────────────────────────────────────── VERIFICA E RIPORTA
+· Edit applicati e saltati
+· Typecheck: sì/no + errori per intero
+· Cerca in TUTTO il file altre letture di `answer` o `options` che avvengano
+  DENTRO la funzione draw o dentro callback lanciate da draw, e SEGNALALE
+  senza correggerle: le correggo io dopo averle viste.
+
+NON FARE
+· Nessun altro file. NON toccare QuizScreen, wordStats, formatText.
+· NON avviare il dev server, NON testare.

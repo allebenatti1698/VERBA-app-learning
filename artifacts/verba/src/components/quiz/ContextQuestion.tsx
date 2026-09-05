@@ -121,6 +121,14 @@ export default function ContextQuestion({
     [word.id],
   );
 
+  /**
+   * Il loop di disegno nasce una volta sola e cattura le variabili del primo
+   * render: qualunque cosa draw legga dal corpo del componente resta ferma
+   * alla prima parola della sessione. Questi ref sono la via d'uscita.
+   */
+  const answerRef = useRef(answer);
+  const optionsRef = useRef(options);
+
   /* ── campo e vortice ─────────────────────────────────────────────────── */
   function buildField() {
     const { w, h } = sizeRef.current;
@@ -306,7 +314,10 @@ export default function ContextQuestion({
         const wasOk = anim.ok;
         animRef.current = null;
         if (!wasOk) window.setTimeout(() => {
-          start(answer, options.indexOf(answer), true);
+          const a = answerRef.current;
+          // con `answer` vecchia indexOf tornava -1: nessun bottone veniva
+          // svuotato e le lettere non rientravano mai
+          start(a, optionsRef.current.indexOf(a), true);
         }, FAIL_GAP);
       }
     }
@@ -355,7 +366,7 @@ export default function ContextQuestion({
                 if (sz) {
                   sz.style.visibility = "visible";
                   sz.style.color = "#34D399";
-                  sz.textContent = answer;
+                  sz.textContent = answerRef.current;
                 }
                 lettersRef.current = lettersRef.current.filter((o) => o.role !== "landed");
               }
@@ -454,6 +465,8 @@ export default function ContextQuestion({
 
   // nuova parola: campo rifatto, buco richiuso, orologio azzerato
   useEffect(() => {
+    answerRef.current = answer;
+    optionsRef.current = options;
     animRef.current = null;
     slowRef.current = 0.55;
     settledRef.current = false;
