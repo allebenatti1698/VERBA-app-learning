@@ -379,18 +379,38 @@ export default function ContextQuestion({
     return { background: "rgba(10,10,10,0.5)", border: "1px solid rgba(199,184,232,0.16)", color: "#C7B8E8", opacity: 0.14 };
   };
 
-  /** Ogni carattere della frase è un nodo suo: serve a misurarlo e a staccarlo. */
-  const chars = (s: string, side: "pre" | "post") =>
-    s.split("").map((c, k) => (
-      <i key={`${side}-${k}`}
-        data-ch={c}
-        data-side={side}
-        data-d={side === "pre" ? s.length - 1 - k : k}
-        style={{ fontStyle: "normal", display: "inline-block", whiteSpace: "pre",
-                 transition: "opacity 0.28s ease" }}>
-        {c}
-      </i>
-    ));
+  /**
+   * Ogni carattere è un nodo suo — serve a misurarlo — ma i caratteri di una
+   * parola stanno dentro un contenitore che NON si spezza. Senza, il browser
+   * tratta ogni lettera come un box a sé e manda a capo in mezzo alle parole.
+   */
+  const chars = (s: string, side: "pre" | "post") => {
+    // spezza in parole tenendo gli spazi come token propri
+    const tokens = s.split(/(\s+)/).filter((t) => t.length > 0);
+    let idx = 0;                      // posizione assoluta, per il respiro
+    return tokens.map((tok, ti) => {
+      if (/^\s+$/.test(tok)) {
+        const start = idx; idx += tok.length;
+        return <span key={`${side}-s${ti}`} style={{ whiteSpace: "pre" }}>{tok}</span>;
+      }
+      const start = idx; idx += tok.length;
+      return (
+        <span key={`${side}-w${ti}`}
+          style={{ display: "inline-block", whiteSpace: "nowrap" }}>
+          {tok.split("").map((c, k) => (
+            <i key={k}
+              data-ch={c}
+              data-side={side}
+              data-d={side === "pre" ? s.length - 1 - (start + k) : start + k}
+              style={{ fontStyle: "normal", display: "inline-block",
+                       transition: "opacity 0.28s ease" }}>
+              {c}
+            </i>
+          ))}
+        </span>
+      );
+    });
+  };
 
   return (
     <div ref={hostRef}

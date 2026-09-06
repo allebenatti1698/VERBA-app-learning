@@ -54,18 +54,16 @@ function matchesFilter(e: TroubleEntry, f: TroubleFilter): boolean {
  * è che di quelli non c'è memoria. Le caselle vuote restano solo per le parole
  * incontrate davvero poche volte.
  */
-function AttemptStrip({ attempts, seen }: { attempts: Array<"c" | "e">; seen: number }) {
-  const truncated = seen > attempts.length;
-  const pad = truncated ? 0 : Math.max(0, 6 - attempts.length);
+function AttemptStrip({ attempts }: { attempts: Array<"c" | "e">; seen?: number }) {
+  // Sempre sei caselle: quelle senza dato restano vuote. Un segno in più per
+  // dire "qui non c'è memoria" sembra una riga rimasta a metà.
+  const pad = Math.max(0, 6 - attempts.length);
   const cells: Array<"c" | "e" | null> = [
     ...Array.from({ length: pad }, () => null), ...attempts,
   ];
   return (
-    <span aria-label={`Ultimi tentativi${truncated ? ", parziali" : ""}`}
+    <span aria-label="Ultimi tentativi"
       style={{ display: "flex", gap: 3, alignItems: "center" }}>
-      {truncated && (
-        <span style={{ fontSize: 11, lineHeight: 1, color: "rgba(255,255,255,0.24)", marginRight: 1 }}>⋯</span>
-      )}
       {cells.map((c, i) => (
         <i key={i} style={{
           width: 7, height: 7, borderRadius: 2, display: "block",

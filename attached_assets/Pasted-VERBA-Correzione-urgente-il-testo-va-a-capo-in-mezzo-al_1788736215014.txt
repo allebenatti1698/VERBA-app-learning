@@ -1,0 +1,111 @@
+VERBA — Correzione urgente: il testo va a capo in mezzo alle parole.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.25–0.50.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Applica OGNI edit in modo indipendente: salta e segnala i mismatch senza fermarti.
+
+──────────────────────────────────────────────────────────
+1 · src/components/quiz/ContextQuestion.tsx
+──────────────────────────────────────────────────────────
+CAUSA: ogni carattere è un <i display:inline-block>, cioè un box atomico. Il
+browser non riconosce più le parole e manda a capo fra due lettere qualsiasi
+("stru / ggled"). I caratteri servono per misurarli, ma vanno raggruppati in
+contenitori-parola che non si spezzano.
+
+TROVA:
+  /** Ogni carattere della frase è un nodo suo: serve a misurarlo e a staccarlo. */
+  const chars = (s: string, side: "pre" | "post") =>
+    s.split("").map((c, k) => (
+      <i key={`${side}-${k}`}
+        data-ch={c}
+        data-side={side}
+        data-d={side === "pre" ? s.length - 1 - k : k}
+        style={{ fontStyle: "normal", display: "inline-block", whiteSpace: "pre",
+                 transition: "opacity 0.28s ease" }}>
+        {c}
+      </i>
+    ));
+
+SOSTITUISCI CON:
+  /**
+   * Ogni carattere è un nodo suo — serve a misurarlo — ma i caratteri di una
+   * parola stanno dentro un contenitore che NON si spezza. Senza, il browser
+   * tratta ogni lettera come un box a sé e manda a capo in mezzo alle parole.
+   */
+  const chars = (s: string, side: "pre" | "post") => {
+    // spezza in parole tenendo gli spazi come token propri
+    const tokens = s.split(/(\s+)/).filter((t) => t.length > 0);
+    let idx = 0;                      // posizione assoluta, per il respiro
+    return tokens.map((tok, ti) => {
+      if (/^\s+$/.test(tok)) {
+        const start = idx; idx += tok.length;
+        return <span key={`${side}-s${ti}`} style={{ whiteSpace: "pre" }}>{tok}</span>;
+      }
+      const start = idx; idx += tok.length;
+      return (
+        <span key={`${side}-w${ti}`}
+          style={{ display: "inline-block", whiteSpace: "nowrap" }}>
+          {tok.split("").map((c, k) => (
+            <i key={k}
+              data-ch={c}
+              data-side={side}
+              data-d={side === "pre" ? s.length - 1 - (start + k) : start + k}
+              style={{ fontStyle: "normal", display: "inline-block",
+                       transition: "opacity 0.28s ease" }}>
+              {c}
+            </i>
+          ))}
+        </span>
+      );
+    });
+  };
+
+NOTA: il respiro ora muove i singoli caratteri dentro parole che restano
+intere. Se il movimento risultasse sgradevole, la variante è spostare
+data-d e la trasformazione sul contenitore-parola invece che sui caratteri —
+ma NON farlo adesso, lo valuto guardando.
+
+──────────────────────────────────────────────────────────
+2 · src/pages/ProgressScreen.tsx — via i puntini
+──────────────────────────────────────────────────────────
+Il "⋯" segnalava che la cronologia è più corta del numero di incontri, ma
+sembra una riga incompleta. La striscia torna sempre a sei caselle: quelle
+senza dato restano vuote, come per una parola incontrata poche volte.
+
+TROVA:
+function AttemptStrip({ attempts, seen }: { attempts: Array<"c" | "e">; seen: number }) {
+  const truncated = seen > attempts.length;
+  const pad = truncated ? 0 : Math.max(0, 6 - attempts.length);
+  const cells: Array<"c" | "e" | null> = [
+    ...Array.from({ length: pad }, () => null), ...attempts,
+  ];
+  return (
+    <span aria-label={`Ultimi tentativi${truncated ? ", parziali" : ""}`}
+      style={{ display: "flex", gap: 3, alignItems: "center" }}>
+      {truncated && (
+        <span style={{ fontSize: 11, lineHeight: 1, color: "rgba(255,255,255,0.24)", marginRight: 1 }}>⋯</span>
+      )}
+      {cells.map((c, i) => (
+
+SOSTITUISCI CON:
+function AttemptStrip({ attempts }: { attempts: Array<"c" | "e">; seen?: number }) {
+  // Sempre sei caselle: quelle senza dato restano vuote. Un segno in più per
+  // dire "qui non c'è memoria" sembra una riga rimasta a metà.
+  const pad = Math.max(0, 6 - attempts.length);
+  const cells: Array<"c" | "e" | null> = [
+    ...Array.from({ length: pad }, () => null), ...attempts,
+  ];
+  return (
+    <span aria-label="Ultimi tentativi"
+      style={{ display: "flex", gap: 3, alignItems: "center" }}>
+      {cells.map((c, i) => (
+
+──────────────────────────────────────── VERIFICA E RIPORTA
+· Edit applicati e saltati
+· Typecheck: sì/no + errori per intero
+· Conferma che il testo della frase non contiene più <i> figli diretti del <p>
+
+NON FARE
+· Nessun altro file. NON toccare QuizScreen, wordStats, progressStats.
+· NON avviare il dev server, NON testare.
