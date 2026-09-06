@@ -1,3 +1,14 @@
+VERBA — Gradino 2: composizione dalla frase, respiro sul buco, niente vortice.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.90–1.60.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+
+UN SOLO FILE, SOSTITUZIONE INTEGRALE:
+src/components/quiz/ContextQuestion.tsx
+
+Sostituisci TUTTO il contenuto con quanto segue. Copia verbatim.
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SCREEN_MAX } from "@/components/ScreenColumn";
@@ -455,3 +466,17 @@ export default function ContextQuestion({
     </div>
   );
 }
+
+════════════════════════════════════════════════════════════
+VERIFICA E RIPORTA
+════════════════════════════════════════════════════════════
+· Typecheck: sì/no + errori per intero
+· Righe del file prima e dopo
+· IMPORTANTE: cerca in TUTTO il progetto chi importa `REVEAL_OK` o `REVEAL_KO`
+  da ContextQuestion — non esistono più. Se qualcuno li importa, FERMATI e
+  segnalalo senza correggere.
+· Conferma che QuizScreen.tsx non è stato toccato
+
+NON FARE
+· Nessun altro file. NON toccare QuizScreen, wordStats, FeedbackCard.
+· NON avviare il dev server, NON testare.
