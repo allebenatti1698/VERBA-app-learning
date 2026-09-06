@@ -32,13 +32,18 @@ const SHAKE_MS = 340;      // lo scossone sull'errore
 const FAIL_GAP = 180;      // pausa fra lo scossone e la composizione
 const REVEAL_PAD = 180;    // margine prima che salga la scheda
 const BREATH_AMP = 1.9;    // ampiezza del respiro, px
-const BREATH_REACH = 5;    // quante lettere per lato ne risentono
+const BREATH_REACH = 2;    // quante PAROLE per lato ne risentono
 const RESTORE_MS = 900;    // quando la lettera sbiadita nella frase si riaccende
 
 type Target = { ch: string; x: number; y: number; size: number };
 type Fly = {
   ch: string; sx: number; sy: number; tgt: Target;
   size: number; t0: number; dur: number; arc: number; landed: boolean;
+};
+/** Un carattere del bottone che non serve alla parola: si stacca e si disperde. */
+type Stray = {
+  ch: string; x: number; y: number; vx: number; vy: number;
+  size: number; rot: number; spin: number; a: number; t0: number;
 };
 
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
@@ -71,6 +76,7 @@ export default function ContextQuestion({
   const optsRef = useRef<HTMLDivElement | null>(null);
 
   const flyRef = useRef<Fly[]>([]);
+  const strayRef = useRef<Stray[]>([]);
   const rafRef = useRef<number | null>(null);
   const sizeRef = useRef({ w: 0, h: 0 });
   const settledRef = useRef(false);
@@ -134,21 +140,6 @@ export default function ContextQuestion({
     return out;
   }
 
-  /** I caratteri della frase, con la loro posizione a schermo. */
-  function stemGlyphs() {
-    const host = hostRef.current, stem = stemRef.current;
-    if (!host || !stem) return [];
-    const s = host.getBoundingClientRect();
-    return [...stem.querySelectorAll<HTMLElement>("i[data-ch]")].map((el) => {
-      const r = el.getBoundingClientRect();
-      return {
-        el, ch: (el.dataset.ch || "").toLowerCase(),
-        x: r.left - s.left + r.width / 2, y: r.top - s.top + r.height / 2,
-        size: parseFloat(getComputedStyle(el).fontSize), used: false,
-      };
-    }).filter((g) => g.ch && g.ch !== " ");
-  }
-
   /** Le lettere scritte dentro un bottone. */
   function optGlyphs(idx: number) {
     const wrap = optsRef.current, host = hostRef.current;
@@ -167,43 +158,35 @@ export default function ContextQuestion({
   }
 
   /* ── la composizione ─────────────────────────────────────────────────── */
+  /**
+   * La parola si TRASFERISCE dal bottone giusto: quello si svuota per intero
+   * e le sue lettere volano nel buco. I caratteri in eccesso — le doppie che
+   * la parola non usa — si staccano e si disperdono, così resta un guscio
+   * vuoto e non una parola bucata.
+   *
+   * La frase non viene toccata: il testo che stai leggendo resta intero.
+   */
   function compose() {
     const tgs = targetsFor(answerRef.current);
-    const glyphs = stemGlyphs();
     const rightIdx = optionsRef.current.indexOf(answerRef.current);
     const pool = optGlyphs(rightIdx);
     const now = performance.now();
     const out: Fly[] = [];
 
     tgs.forEach((tg, i) => {
-      // 1. la gemella più vicina dentro la frase
-      let src: (typeof glyphs)[number] | null = null, bd = Infinity;
-      for (const g of glyphs) {
-        if (g.used || g.ch !== tg.ch) continue;
-        const d = Math.hypot(g.x - tg.x, g.y - tg.y);
-        if (d < bd) { bd = d; src = g; }
-      }
+      const src = pool.find((o) => !o.taken && o.ch === tg.ch);
       let sx: number, sy: number, size: number;
       if (src) {
-        src.used = true;
-        // ciò che resta sbiadisce un istante e si richiude
-        src.el.style.opacity = "0.18";
-        window.setTimeout(() => { if (src) src.el.style.opacity = ""; }, RESTORE_MS);
+        src.taken = true;
+        src.node.style.opacity = "0";
         sx = src.x; sy = src.y; size = src.size;
       } else {
-        // 2. altrimenti dal bottone giusto, che si svuota
-        const alt = pool.find((o) => !o.taken && o.ch === tg.ch);
-        if (alt) {
-          alt.taken = true;
-          alt.node.style.opacity = "0";
-          sx = alt.x; sy = alt.y; size = alt.size;
-        } else {
-          // 3. e se proprio non c'è, nasce dal bordo
-          const { w, h } = sizeRef.current;
-          sx = tg.x < w / 2 ? -22 : w + 22;
-          sy = rnd(h * 0.3, h * 0.6);
-          size = 14;
-        }
+        // non dovrebbe capitare — il bottone È la parola — ma se il testo
+        // differisce per accenti o maiuscole, la lettera nasce dal bordo
+        const { w, h } = sizeRef.current;
+        sx = tg.x < w / 2 ? -22 : w + 22;
+        sy = rnd(h * 0.3, h * 0.6);
+        size = 14;
       }
       const dist = Math.hypot(sx - tg.x, sy - tg.y);
       out.push({
@@ -212,6 +195,17 @@ export default function ContextQuestion({
         dur: FLY_BASE + dist * FLY_DIST_K,
         arc: rnd(ARC_MIN, ARC_MAX), landed: false,
       });
+    });
+
+    // ciò che avanza nel bottone si stacca comunque: il guscio resta vuoto
+    strayRef.current = pool.filter((o) => !o.taken).map((o, i) => {
+      o.node.style.opacity = "0";
+      return {
+        ch: o.ch, x: o.x, y: o.y, size: o.size,
+        vx: rnd(-0.6, 0.6), vy: rnd(-0.9, -0.2),
+        rot: 0, spin: rnd(-0.04, 0.04), a: 0.7,
+        t0: now + i * 40,
+      };
     });
     flyRef.current = out;
   }
@@ -237,7 +231,7 @@ export default function ContextQuestion({
       const d = Math.sin(b * 0.9) * BREATH_AMP + Math.sin(b * 0.37) * (BREATH_AMP * 0.42);
       const stem = stemRef.current;
       if (stem) {
-        stem.querySelectorAll<HTMLElement>("i[data-d]").forEach((el) => {
+        stem.querySelectorAll<HTMLElement>("span[data-d]").forEach((el) => {
           const dist = Number(el.dataset.d);
           if (dist > BREATH_REACH) return;
           const k = 1 - dist / (BREATH_REACH + 0.5);
@@ -266,6 +260,22 @@ export default function ContextQuestion({
       ctx.fillStyle = `rgba(${q > 0.7 ? "52,211,153" : "199,184,232"},${(0.35 + 0.65 * e).toFixed(3)})`;
       ctx.fillText(f.ch, x, y);
     }
+
+    for (const s of strayRef.current) {
+      if (now < s.t0) continue;
+      s.x += s.vx; s.y += s.vy; s.vy += 0.03;
+      s.rot += s.spin; s.a = Math.max(0, s.a - 0.014);
+      if (s.a <= 0.02) continue;
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.rotate(s.rot);
+      ctx.font = `400 ${s.size.toFixed(1)}px 'Space Grotesk', sans-serif`;
+      ctx.fillStyle = `rgba(199,184,232,${s.a.toFixed(3)})`;
+      ctx.fillText(s.ch, 0, 0);
+      ctx.restore();
+    }
+    if (strayRef.current.length && strayRef.current.every((s) => s.a <= 0.02))
+      strayRef.current = [];
 
     // finita la composizione, il canvas cede il posto al DOM: da lì è testo
     // vero, allineato come il resto della frase
@@ -315,6 +325,7 @@ export default function ContextQuestion({
     answerRef.current = answer;
     optionsRef.current = options;
     flyRef.current = [];
+    strayRef.current = [];
     settledRef.current = false;
     answeredRef.current = false;
     setShakeIdx(null);
@@ -326,7 +337,7 @@ export default function ContextQuestion({
     if (gapRef.current) gapRef.current.style.width = GAP_MIN + "px";
     if (glyphsRef.current) glyphsRef.current.innerHTML = "";
     const stem = stemRef.current;
-    if (stem) stem.querySelectorAll<HTMLElement>("i[data-ch]")
+    if (stem) stem.querySelectorAll<HTMLElement>("span[data-d]")
       .forEach((el) => { el.style.opacity = ""; el.style.transform = ""; });
     const wrap = optsRef.current;
     if (wrap) [...wrap.children].forEach((el) => {
@@ -341,7 +352,7 @@ export default function ContextQuestion({
     answeredRef.current = true;
     // il respiro si ferma e la frase torna dritta
     const stem = stemRef.current;
-    if (stem) stem.querySelectorAll<HTMLElement>("i[data-d]")
+    if (stem) stem.querySelectorAll<HTMLElement>("span[data-d]")
       .forEach((el) => (el.style.transform = ""));
 
     const ms = composeMs(answer.length);
@@ -380,33 +391,28 @@ export default function ContextQuestion({
   };
 
   /**
-   * Ogni carattere è un nodo suo — serve a misurarlo — ma i caratteri di una
-   * parola stanno dentro un contenitore che NON si spezza. Senza, il browser
-   * tratta ogni lettera come un box a sé e manda a capo in mezzo alle parole.
+   * Le PAROLE della frase, non i caratteri. Ogni parola è un contenitore che
+   * non si spezza — con i caratteri singoli il browser andava a capo in mezzo
+   * alle parole. Il respiro adesso muove le parole intere, il che è anche più
+   * quieto: due pixel su una parola si leggono come spazio che si allarga,
+   * due pixel su una lettera si leggono come un tremolio.
    */
   const chars = (s: string, side: "pre" | "post") => {
-    // spezza in parole tenendo gli spazi come token propri
     const tokens = s.split(/(\s+)/).filter((t) => t.length > 0);
-    let idx = 0;                      // posizione assoluta, per il respiro
+    const words = tokens.filter((t) => !/^\s+$/.test(t)).length;
+    let wi = 0;
     return tokens.map((tok, ti) => {
-      if (/^\s+$/.test(tok)) {
-        const start = idx; idx += tok.length;
+      if (/^\s+$/.test(tok))
         return <span key={`${side}-s${ti}`} style={{ whiteSpace: "pre" }}>{tok}</span>;
-      }
-      const start = idx; idx += tok.length;
+      const d = side === "pre" ? words - 1 - wi : wi;
+      wi += 1;
       return (
         <span key={`${side}-w${ti}`}
-          style={{ display: "inline-block", whiteSpace: "nowrap" }}>
-          {tok.split("").map((c, k) => (
-            <i key={k}
-              data-ch={c}
-              data-side={side}
-              data-d={side === "pre" ? s.length - 1 - (start + k) : start + k}
-              style={{ fontStyle: "normal", display: "inline-block",
-                       transition: "opacity 0.28s ease" }}>
-              {c}
-            </i>
-          ))}
+          data-side={side}
+          data-d={d}
+          style={{ display: "inline-block", whiteSpace: "nowrap",
+                   transition: "opacity 0.28s ease" }}>
+          {tok}
         </span>
       );
     });

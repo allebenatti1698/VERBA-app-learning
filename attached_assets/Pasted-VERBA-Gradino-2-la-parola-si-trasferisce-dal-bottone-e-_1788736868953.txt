@@ -1,0 +1,275 @@
+VERBA — Gradino 2: la parola si trasferisce dal bottone, e la frase resta intera.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.50–0.90.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Applica OGNI edit in modo indipendente: salta e segnala i mismatch senza fermarti.
+
+Due file.
+
+════════════════════════════════════════════════════════════
+1 · src/components/quiz/ContextQuestion.tsx — quattro edit
+════════════════════════════════════════════════════════════
+
+──────────────────────────────── EDIT 1a — il tipo delle lettere in volo
+TROVA:
+type Target = { ch: string; x: number; y: number; size: number };
+type Fly = {
+  ch: string; sx: number; sy: number; tgt: Target;
+  size: number; t0: number; dur: number; arc: number; landed: boolean;
+};
+
+SOSTITUISCI CON:
+type Target = { ch: string; x: number; y: number; size: number };
+type Fly = {
+  ch: string; sx: number; sy: number; tgt: Target;
+  size: number; t0: number; dur: number; arc: number; landed: boolean;
+};
+/** Un carattere del bottone che non serve alla parola: si stacca e si disperde. */
+type Stray = {
+  ch: string; x: number; y: number; vx: number; vy: number;
+  size: number; rot: number; spin: number; a: number; t0: number;
+};
+
+──────────────────────────────── EDIT 1b — il ref delle disperse
+TROVA:
+  const flyRef = useRef<Fly[]>([]);
+
+SOSTITUISCI CON:
+  const flyRef = useRef<Fly[]>([]);
+  const strayRef = useRef<Stray[]>([]);
+
+──────────────────────────────── EDIT 1c — la composizione: sorgente unica
+La frase non si tocca più. Il bottone giusto si svuota PER INTERO: i caratteri
+che servono volano nel buco, quelli in eccesso si disperdono. Mai una parola
+bucata — era il difetto del "r ne" di agosto, tornato da un'altra porta.
+
+TROVA l'intera funzione compose(), cioè dal commento
+"  /* ── la composizione ──" fino alla riga "  }" che la chiude
+(subito prima del commento "  /* ── il disegno ──"), e SOSTITUISCILA CON:
+
+  /* ── la composizione ─────────────────────────────────────────────────── */
+  /**
+   * La parola si TRASFERISCE dal bottone giusto: quello si svuota per intero
+   * e le sue lettere volano nel buco. I caratteri in eccesso — le doppie che
+   * la parola non usa — si staccano e si disperdono, così resta un guscio
+   * vuoto e non una parola bucata.
+   *
+   * La frase non viene toccata: il testo che stai leggendo resta intero.
+   */
+  function compose() {
+    const tgs = targetsFor(answerRef.current);
+    const rightIdx = optionsRef.current.indexOf(answerRef.current);
+    const pool = optGlyphs(rightIdx);
+    const now = performance.now();
+    const out: Fly[] = [];
+
+    tgs.forEach((tg, i) => {
+      const src = pool.find((o) => !o.taken && o.ch === tg.ch);
+      let sx: number, sy: number, size: number;
+      if (src) {
+        src.taken = true;
+        src.node.style.opacity = "0";
+        sx = src.x; sy = src.y; size = src.size;
+      } else {
+        // non dovrebbe capitare — il bottone È la parola — ma se il testo
+        // differisce per accenti o maiuscole, la lettera nasce dal bordo
+        const { w, h } = sizeRef.current;
+        sx = tg.x < w / 2 ? -22 : w + 22;
+        sy = rnd(h * 0.3, h * 0.6);
+        size = 14;
+      }
+      const dist = Math.hypot(sx - tg.x, sy - tg.y);
+      out.push({
+        ch: tg.ch, sx, sy, tgt: tg, size,
+        t0: now + i * FLY_STAGGER,
+        dur: FLY_BASE + dist * FLY_DIST_K,
+        arc: rnd(ARC_MIN, ARC_MAX), landed: false,
+      });
+    });
+
+    // ciò che avanza nel bottone si stacca comunque: il guscio resta vuoto
+    strayRef.current = pool.filter((o) => !o.taken).map((o, i) => {
+      o.node.style.opacity = "0";
+      return {
+        ch: o.ch, x: o.x, y: o.y, size: o.size,
+        vx: rnd(-0.6, 0.6), vy: rnd(-0.9, -0.2),
+        rot: 0, spin: rnd(-0.04, 0.04), a: 0.7,
+        t0: now + i * 40,
+      };
+    });
+    flyRef.current = out;
+  }
+
+──────────────────────────────── EDIT 1d — disegno delle disperse
+TROVA:
+    // finita la composizione, il canvas cede il posto al DOM: da lì è testo
+    // vero, allineato come il resto della frase
+    if (!settledRef.current && flyRef.current.length > 0 && !pending) {
+
+SOSTITUISCI CON:
+    for (const s of strayRef.current) {
+      if (now < s.t0) continue;
+      s.x += s.vx; s.y += s.vy; s.vy += 0.03;
+      s.rot += s.spin; s.a = Math.max(0, s.a - 0.014);
+      if (s.a <= 0.02) continue;
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.rotate(s.rot);
+      ctx.font = `400 ${s.size.toFixed(1)}px 'Space Grotesk', sans-serif`;
+      ctx.fillStyle = `rgba(199,184,232,${s.a.toFixed(3)})`;
+      ctx.fillText(s.ch, 0, 0);
+      ctx.restore();
+    }
+    if (strayRef.current.length && strayRef.current.every((s) => s.a <= 0.02))
+      strayRef.current = [];
+
+    // finita la composizione, il canvas cede il posto al DOM: da lì è testo
+    // vero, allineato come il resto della frase
+    if (!settledRef.current && flyRef.current.length > 0 && !pending) {
+
+──────────────────────────────── EDIT 1e — azzeramento su parola nuova
+TROVA:
+    flyRef.current = [];
+    settledRef.current = false;
+    answeredRef.current = false;
+
+SOSTITUISCI CON:
+    flyRef.current = [];
+    strayRef.current = [];
+    settledRef.current = false;
+    answeredRef.current = false;
+
+──────────────────────────────── EDIT 1f — la frase non si spezza più a metà parola
+CAUSA: ogni carattere è un <i display:inline-block>, cioè un box atomico. Il
+browser non riconosce più le parole e va a capo fra due lettere ("stru/ggled").
+I caratteri servono ancora per il respiro, ma vanno chiusi in contenitori-parola.
+
+TROVA:
+  /** Ogni carattere della frase è un nodo suo: serve a misurarlo e a staccarlo. */
+  const chars = (s: string, side: "pre" | "post") =>
+    s.split("").map((c, k) => (
+      <i key={`${side}-${k}`}
+        data-ch={c}
+        data-side={side}
+        data-d={side === "pre" ? s.length - 1 - k : k}
+        style={{ fontStyle: "normal", display: "inline-block", whiteSpace: "pre",
+                 transition: "opacity 0.28s ease" }}>
+        {c}
+      </i>
+    ));
+
+SOSTITUISCI CON:
+  /**
+   * Le PAROLE della frase, non i caratteri. Ogni parola è un contenitore che
+   * non si spezza — con i caratteri singoli il browser andava a capo in mezzo
+   * alle parole. Il respiro adesso muove le parole intere, il che è anche più
+   * quieto: due pixel su una parola si leggono come spazio che si allarga,
+   * due pixel su una lettera si leggono come un tremolio.
+   */
+  const chars = (s: string, side: "pre" | "post") => {
+    const tokens = s.split(/(\s+)/).filter((t) => t.length > 0);
+    const words = tokens.filter((t) => !/^\s+$/.test(t)).length;
+    let wi = 0;
+    return tokens.map((tok, ti) => {
+      if (/^\s+$/.test(tok))
+        return <span key={`${side}-s${ti}`} style={{ whiteSpace: "pre" }}>{tok}</span>;
+      const d = side === "pre" ? words - 1 - wi : wi;
+      wi += 1;
+      return (
+        <span key={`${side}-w${ti}`}
+          data-side={side}
+          data-d={d}
+          style={{ display: "inline-block", whiteSpace: "nowrap",
+                   transition: "opacity 0.28s ease" }}>
+          {tok}
+        </span>
+      );
+    });
+  };
+
+──────────────────────────────── EDIT 1g — il respiro segue le parole
+TROVA:
+      const stem = stemRef.current;
+      if (stem) {
+        stem.querySelectorAll<HTMLElement>("i[data-d]").forEach((el) => {
+
+SOSTITUISCI CON:
+      const stem = stemRef.current;
+      if (stem) {
+        stem.querySelectorAll<HTMLElement>("span[data-d]").forEach((el) => {
+
+E POI TROVA:
+    if (stem) stem.querySelectorAll<HTMLElement>("i[data-d]")
+      .forEach((el) => (el.style.transform = ""));
+
+SOSTITUISCI CON:
+    if (stem) stem.querySelectorAll<HTMLElement>("span[data-d]")
+      .forEach((el) => (el.style.transform = ""));
+
+E POI TROVA:
+    if (stem) stem.querySelectorAll<HTMLElement>("i[data-ch]")
+      .forEach((el) => { el.style.opacity = ""; el.style.transform = ""; });
+
+SOSTITUISCI CON:
+    if (stem) stem.querySelectorAll<HTMLElement>("span[data-d]")
+      .forEach((el) => { el.style.opacity = ""; el.style.transform = ""; });
+
+──────────────────────────────── EDIT 1h — il respiro più corto
+Ora agisce su parole, non su caratteri: cinque parole per lato sarebbero
+metà frase.
+
+TROVA:
+const BREATH_REACH = 5;    // quante lettere per lato ne risentono
+
+SOSTITUISCI CON:
+const BREATH_REACH = 2;    // quante PAROLE per lato ne risentono
+
+──────────────────────────────── EDIT 1i — via la funzione ormai inutile
+TROVA e CANCELLA per intero la funzione stemGlyphs(), dal commento
+"  /** I caratteri della frase, con la loro posizione a schermo. */"
+fino alla riga che la chiude con "  }".
+La frase non è più una sorgente di lettere: nessuno la chiama.
+
+════════════════════════════════════════════════════════════
+2 · src/pages/ProgressScreen.tsx — via i puntini
+════════════════════════════════════════════════════════════
+TROVA:
+function AttemptStrip({ attempts, seen }: { attempts: Array<"c" | "e">; seen: number }) {
+  const truncated = seen > attempts.length;
+  const pad = truncated ? 0 : Math.max(0, 6 - attempts.length);
+  const cells: Array<"c" | "e" | null> = [
+    ...Array.from({ length: pad }, () => null), ...attempts,
+  ];
+  return (
+    <span aria-label={`Ultimi tentativi${truncated ? ", parziali" : ""}`}
+      style={{ display: "flex", gap: 3, alignItems: "center" }}>
+      {truncated && (
+        <span style={{ fontSize: 11, lineHeight: 1, color: "rgba(255,255,255,0.24)", marginRight: 1 }}>⋯</span>
+      )}
+      {cells.map((c, i) => (
+
+SOSTITUISCI CON:
+function AttemptStrip({ attempts }: { attempts: Array<"c" | "e">; seen?: number }) {
+  // Sempre sei caselle: quelle senza dato restano vuote. Il segno che diceva
+  // "qui non c'è memoria" sembrava una riga rimasta a metà.
+  const pad = Math.max(0, 6 - attempts.length);
+  const cells: Array<"c" | "e" | null> = [
+    ...Array.from({ length: pad }, () => null), ...attempts,
+  ];
+  return (
+    <span aria-label="Ultimi tentativi"
+      style={{ display: "flex", gap: 3, alignItems: "center" }}>
+      {cells.map((c, i) => (
+
+════════════════════════════════════════════════════════════
+VERIFICA E RIPORTA
+════════════════════════════════════════════════════════════
+· Edit applicati e saltati
+· Typecheck: sì/no + errori per intero
+· Conferma che stemGlyphs non è più chiamata da nessuna parte
+· Conferma che nel JSX della frase non esistono più elementi <i>
+
+NON FARE
+· Nessun altro file. NON toccare QuizScreen, wordStats, progressStats.
+· NON avviare il dev server, NON testare.
