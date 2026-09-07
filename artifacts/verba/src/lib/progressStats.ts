@@ -10,8 +10,8 @@ import { isTroubleDismissed } from "@/lib/troubleDismiss";
 
 const TIER_DIFFICULTIES = ["easy", "medium", "hard"] as const;
 
-/** Quanti tentativi mostra la striscia. history[] ne conserva 12. */
-const STRIP_LEN = 6;
+/** Quanti tentativi mostra la striscia: gli ultimi cinque incontri. */
+const STRIP_LEN = 5;
 
 /**
  * Traduce history[] in esiti. "practice" viene pushato solo dentro il ramo

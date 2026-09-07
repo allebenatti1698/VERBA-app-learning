@@ -47,27 +47,45 @@ function matchesFilter(e: TroubleEntry, f: TroubleFilter): boolean {
 }
 
 /** La striscia: sei caselle dal più vecchio al più recente, vuote se mancano. */
+/** Le caselle della striscia: gli ultimi cinque incontri con la parola. */
+const STRIP = 5;
+
 /**
- * La striscia degli ultimi tentativi.
- * Se la parola è stata incontrata più volte di quante ne risultino nella
- * cronologia, prima delle caselle compare un "⋯": non è che mancano tentativi,
- * è che di quelli non c'è memoria. Le caselle vuote restano solo per le parole
- * incontrate davvero poche volte.
+ * Tre stati, non due.
+ *   verde  — hai risposto bene
+ *   rosso  — hai risposto male
+ *   grigio PIENO — l'incontro c'è stato, ma è precedente alla cronologia:
+ *                  l'app non sa com'è andata
+ *   grigio VUOTO — quell'incontro non è mai avvenuto
+ *
+ * Senza questa distinzione una parola vista dieci volte mostrava caselle
+ * vuote accanto a "✗ 6", e il vuoto sembrava dire "non è successo niente".
+ * I grigi pieni spariranno da soli: ogni risposta nuova riempie la storia.
+ *
+ * Il numero accanto è un'altra misura — gli errori di sempre. Cinque verdi
+ * accanto a un 10 vogliono dire che quella parola l'hai battuta.
  */
-function AttemptStrip({ attempts }: { attempts: Array<"c" | "e">; seen?: number }) {
-  // Sempre sei caselle: quelle senza dato restano vuote. Un segno in più per
-  // dire "qui non c'è memoria" sembra una riga rimasta a metà.
-  const pad = Math.max(0, 6 - attempts.length);
-  const cells: Array<"c" | "e" | null> = [
-    ...Array.from({ length: pad }, () => null), ...attempts,
+function AttemptStrip({ attempts, seen }: { attempts: Array<"c" | "e">; seen: number }) {
+  // quanti incontri ci sono stati davvero, dentro la finestra delle cinque
+  const real = Math.min(STRIP, Math.max(seen, attempts.length));
+  const unknown = Math.max(0, real - attempts.length);   // avvenuti, non registrati
+  const empty = Math.max(0, STRIP - real);               // mai avvenuti
+  const cells: Array<"c" | "e" | "unknown" | "empty"> = [
+    ...Array.from({ length: empty }, () => "empty" as const),
+    ...Array.from({ length: unknown }, () => "unknown" as const),
+    ...attempts,
   ];
   return (
-    <span aria-label="Ultimi tentativi"
+    <span aria-label={`Ultimi ${STRIP} incontri`}
       style={{ display: "flex", gap: 3, alignItems: "center" }}>
       {cells.map((c, i) => (
         <i key={i} style={{
-          width: 7, height: 7, borderRadius: 2, display: "block",
-          background: c === "c" ? GREEN : c === "e" ? RED : "rgba(255,255,255,0.11)",
+          width: 7, height: 7, borderRadius: 2, display: "block", boxSizing: "border-box",
+          background:
+            c === "c" ? GREEN :
+            c === "e" ? RED :
+            c === "unknown" ? "rgba(255,255,255,0.22)" : "transparent",
+          border: c === "empty" ? "1px solid rgba(255,255,255,0.13)" : "none",
         }} />
       ))}
     </span>
