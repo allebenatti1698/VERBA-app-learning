@@ -1,0 +1,266 @@
+VERBA — La scheda della parola: storico completo dalle trouble words.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.60–1.10.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Applica OGNI edit in modo indipendente: salta e segnala i mismatch senza fermarti.
+
+Un file NUOVO, uno modificato.
+
+════════════════════════════════════════════════════════════
+1 · FILE NUOVO — src/components/WordHistorySheet.tsx
+════════════════════════════════════════════════════════════
+import { motion, AnimatePresence } from "framer-motion";
+import { getWordStat } from "@/lib/wordStats";
+
+const GREEN = "#34D399";
+const RED = "#EF4444";
+const LAVENDER = "#C7B8E8";
+
+/** Gli eventi che rappresentano una risposta; gli altri sono conseguenze. */
+const RIGHT = new Set(["correct", "up", "mastered", "practice"]);
+const WRONG = new Set(["wrong", "down", "unmastered"]);
+
+const LEVEL_NAME: Record<number, string> = {
+  1: "Recognize",
+  2: "Recall in context",
+  3: "Produce",
+};
+
+function whenLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const a = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const n = new Date();
+  const b = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  const days = Math.round((b.getTime() - a.getTime()) / 86400000);
+  if (days <= 0) return "oggi";
+  if (days === 1) return "ieri";
+  if (days < 30) return `${days} giorni fa`;
+  return d.toLocaleDateString("it-IT", { day: "numeric", month: "short" });
+}
+
+function dueLabel(iso: string | null | undefined): string {
+  if (!iso) return "non ancora programmata";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "non ancora programmata";
+  const days = Math.ceil((t - Date.now()) / 86400000);
+  if (days <= 0) return "da ripassare adesso";
+  if (days === 1) return "torna domani";
+  return `torna fra ${days} giorni`;
+}
+
+export default function WordHistorySheet({
+  wordId, word, open, onClose,
+}: { wordId: string | null; word: string; open: boolean; onClose: () => void }) {
+  const stat = wordId ? getWordStat(wordId) : null;
+
+  const seen = stat?.totalSeen ?? 0;
+  const correct = stat?.totalCorrect ?? 0;
+  const wrong = Math.max(0, seen - correct);
+  const rate = seen > 0 ? Math.round((correct / seen) * 100) : 0;
+
+  const events = (stat?.history ?? [])
+    .filter((e) => RIGHT.has(e.kind) || WRONG.has(e.kind))
+    .slice()
+    .reverse();                                   // il più recente in cima
+  // Gli incontri precedenti alla cronologia: l'app ne conosce solo il totale.
+  const unknown = Math.max(0, seen - events.length);
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            key="wh-backdrop"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={onClose}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 60 }}
+          />
+          <motion.div
+            key="wh-sheet"
+            initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "110%" }}
+            transition={{ type: "spring", stiffness: 190, damping: 26, mass: 1.1 }}
+            style={{
+              position: "fixed", bottom: 0, left: 0, right: 0,
+              maxWidth: 640, marginLeft: "auto", marginRight: "auto",
+              maxHeight: "82vh", overflowY: "auto",
+              background: "#0D0C10", borderTop: "1px solid rgba(199,184,232,0.2)",
+              borderRadius: "20px 20px 0 0", padding: "22px 22px 32px", zIndex: 61,
+            }}
+          >
+            <button onClick={onClose} aria-label="Chiudi"
+              style={{ position: "absolute", top: 14, right: 16, width: 30, height: 30,
+                borderRadius: "50%", background: "rgba(255,255,255,0.05)", border: "none",
+                color: "rgba(255,255,255,0.45)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>
+              ✕
+            </button>
+
+            <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600,
+              fontSize: 24, color: LAVENDER, margin: "0 0 3px" }}>{word}</p>
+            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5,
+              color: "rgba(255,255,255,0.42)", margin: "0 0 18px" }}>
+              incontrata {seen} {seen === 1 ? "volta" : "volte"}
+              {stat ? ` · ${LEVEL_NAME[stat.level] ?? "Recognize"}` : ""}
+              {stat ? ` · ${dueLabel(stat.nextReviewAt)}` : ""}
+            </p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 20 }}>
+              {[
+                [correct, "corrette", GREEN],
+                [wrong, "sbagliate", RED],
+                [`${rate}%`, "successo", LAVENDER],
+              ].map(([v, label, col]) => (
+                <div key={String(label)} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "11px 12px" }}>
+                  <b style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif",
+                    fontSize: 20, lineHeight: 1.1, color: col as string }}>{v}</b>
+                  <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9.5,
+                    color: "rgba(255,255,255,0.4)", letterSpacing: "0.06em", textTransform: "uppercase" }}>{label}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 9,
+              color: "rgba(255,255,255,0.4)", letterSpacing: "0.14em",
+              textTransform: "uppercase", marginBottom: 12 }}>Storico</div>
+
+            {events.length === 0 && unknown === 0 && (
+              <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12,
+                color: "rgba(255,255,255,0.4)", margin: 0 }}>
+                Nessun incontro registrato.
+              </p>
+            )}
+
+            <div style={{ position: "relative", paddingLeft: 17 }}>
+              <div style={{ position: "absolute", left: 4, top: 6, bottom: 6, width: 1,
+                background: "rgba(255,255,255,0.09)" }} />
+              {events.map((e, i) => {
+                const ok = RIGHT.has(e.kind);
+                return (
+                  <div key={i} style={{ position: "relative", display: "flex",
+                    alignItems: "baseline", gap: 10, padding: "8px 0" }}>
+                    <span style={{ position: "absolute", left: -16, top: 13, width: 7, height: 7,
+                      borderRadius: 2, background: ok ? GREEN : RED }} />
+                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11,
+                      color: "rgba(255,255,255,0.42)", width: 84, flexShrink: 0 }}>
+                      {whenLabel(e.at)}
+                    </span>
+                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 12.5,
+                      color: "rgba(255,255,255,0.82)" }}>
+                      {ok ? "Risposta corretta" : "Risposta sbagliata"}
+                    </span>
+                    <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9.5,
+                      color: "rgba(199,184,232,0.55)", marginLeft: "auto", whiteSpace: "nowrap" }}>
+                      {LEVEL_NAME[e.level] ?? ""}
+                    </span>
+                  </div>
+                );
+              })}
+              {unknown > 0 && (
+                <div style={{ position: "relative", display: "flex", alignItems: "baseline",
+                  gap: 10, padding: "8px 0" }}>
+                  <span style={{ position: "absolute", left: -16, top: 13, width: 7, height: 7,
+                    borderRadius: 2, background: "rgba(255,255,255,0.2)" }} />
+                  <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11,
+                    color: "rgba(255,255,255,0.42)", width: 84, flexShrink: 0 }}>prima</span>
+                  <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 12.5,
+                    color: "rgba(255,255,255,0.45)" }}>
+                    {unknown} {unknown === 1 ? "incontro" : "incontri"} non registrati
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {unknown > 0 && (
+              <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 10.5,
+                color: "rgba(255,255,255,0.32)", lineHeight: 1.6, background: "rgba(255,255,255,0.02)",
+                borderRadius: 10, padding: "10px 12px", margin: "14px 0 0" }}>
+                Verba ha cominciato a tenere lo storico dopo i primi incontri con questa
+                parola: di quelli conosce solo il totale.
+              </p>
+            )}
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
+════════════════════════════════════════════════════════════
+2 · src/pages/ProgressScreen.tsx — tre edit
+════════════════════════════════════════════════════════════
+EDIT 2a — import
+TROVA:
+import { dismissTrouble } from "@/lib/troubleDismiss";
+
+SOSTITUISCI CON:
+import { dismissTrouble } from "@/lib/troubleDismiss";
+import WordHistorySheet from "@/components/WordHistorySheet";
+
+EDIT 2b — il tastino nella riga
+TROVA:
+            <button onClick={(e) => { e.stopPropagation(); onToggleStar(entry.id); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }} aria-label={starred ? "Remove from My Verba" : "Add to My Verba"}>
+
+SOSTITUISCI CON:
+            <button onClick={(e) => { e.stopPropagation(); onOpen(entry); }}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: "3px 1px", display: "flex", alignItems: "center", color: "rgba(255,255,255,0.3)" }}
+              aria-label={`Storico di ${entry.word}`}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M9 6l6 6-6 6" /></svg>
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); onToggleStar(entry.id); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }} aria-label={starred ? "Remove from My Verba" : "Add to My Verba"}>
+
+E POI, nella firma di TroubleRow, TROVA:
+  function TroubleRow({ entry, last, starred, onToggleStar, onDismiss }: { entry: TroubleEntry; last: boolean; starred: boolean; onToggleStar: (id: string) => void; onDismiss: (id: string) => void }) {
+
+SOSTITUISCI CON:
+  function TroubleRow({ entry, last, starred, onToggleStar, onDismiss, onOpen }: { entry: TroubleEntry; last: boolean; starred: boolean; onToggleStar: (id: string) => void; onDismiss: (id: string) => void; onOpen: (e: TroubleEntry) => void }) {
+
+EDIT 2c — lo stato e il montaggio della scheda
+TROVA:
+  const [troubleExpanded, setTroubleExpanded] = useState(false);
+
+SOSTITUISCI CON:
+  const [troubleExpanded, setTroubleExpanded] = useState(false);
+  const [openWord, setOpenWord] = useState<TroubleEntry | null>(null);
+
+E POI TROVA:
+                          onToggleStar={toggleStar}
+                          onDismiss={dismissOne}
+                        />
+
+SOSTITUISCI CON:
+                          onToggleStar={toggleStar}
+                          onDismiss={dismissOne}
+                          onOpen={setOpenWord}
+                        />
+
+E POI TROVA (la chiusura del contenitore principale, l'ultima riga prima di </div> finale):
+            <div style={{ height: 24 }} />
+          </>
+        )}
+      </div>
+
+SOSTITUISCI CON:
+            <div style={{ height: 24 }} />
+          </>
+        )}
+      </div>
+
+      <WordHistorySheet
+        wordId={openWord?.id ?? null}
+        word={openWord?.word ?? ""}
+        open={openWord !== null}
+        onClose={() => setOpenWord(null)}
+      />
+
+──────────────────────────────── VERIFICA E RIPORTA
+· File creato, edit applicati e saltati
+· Typecheck: sì/no + errori per intero
+· Conferma che WordStat esporta `history`, `level`, `nextReviewAt`, `totalSeen`,
+  `totalCorrect`. Se un nome è diverso, FERMATI e riporta i nomi veri.
+· Conferma che l'ultimo edit ha chiuso correttamente il JSX
+
+NON FARE
+· Nessun altro file. NON toccare wordStats, progressStats, QuizScreen.
+· NON avviare il dev server, NON testare.

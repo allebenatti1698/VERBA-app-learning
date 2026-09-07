@@ -7,6 +7,7 @@ import { getDueWordIds } from "@/lib/wordStats";
 import { fetchWordsByIds } from "@/lib/quizQueries";
 import { motion } from "framer-motion";
 import { dismissTrouble } from "@/lib/troubleDismiss";
+import WordHistorySheet from "@/components/WordHistorySheet";
 
 const DECK = "gre";
 const AMBER = "#F59E0B";
@@ -101,7 +102,7 @@ function AttemptStrip({ attempts, seen }: { attempts: Array<"c" | "e">; seen: nu
     try { localStorage.setItem(MY_WORDS_KEY, JSON.stringify([...set])); } catch { /* storage non disponibile */ }
   }
 
-  function TroubleRow({ entry, last, starred, onToggleStar, onDismiss }: { entry: TroubleEntry; last: boolean; starred: boolean; onToggleStar: (id: string) => void; onDismiss: (id: string) => void }) {
+  function TroubleRow({ entry, last, starred, onToggleStar, onDismiss, onOpen }: { entry: TroubleEntry; last: boolean; starred: boolean; onToggleStar: (id: string) => void; onDismiss: (id: string) => void; onOpen: (e: TroubleEntry) => void }) {
     return (
       <div style={{ position: "relative", overflow: "hidden", borderBottom: last ? "none" : "0.5px solid rgba(255,255,255,0.05)" }}>
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 18, background: "rgba(239,68,68,0.14)" }}>
@@ -118,6 +119,11 @@ function AttemptStrip({ attempts, seen }: { attempts: Array<"c" | "e">; seen: nu
           <div style={{ display: "flex", alignItems: "center", gap: 11, flexShrink: 0 }}>
             <AttemptStrip attempts={entry.attempts} seen={entry.seen} />
             <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: RED }}>✗ {entry.wrong}</span>
+            <button onClick={(e) => { e.stopPropagation(); onOpen(entry); }}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: "3px 1px", display: "flex", alignItems: "center", color: "rgba(255,255,255,0.3)" }}
+              aria-label={`Storico di ${entry.word}`}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M9 6l6 6-6 6" /></svg>
+            </button>
             <button onClick={(e) => { e.stopPropagation(); onToggleStar(entry.id); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }} aria-label={starred ? "Remove from My Verba" : "Add to My Verba"}>
               <Star size={15} fill={starred ? AMBER : "none"} stroke={starred ? AMBER : "rgba(255,255,255,0.26)"} />
             </button>
@@ -210,6 +216,7 @@ export default function ProgressScreen() {
   const [infoOpen, setInfoOpen] = useState(false);
   const [troubleFilter, setTroubleFilter] = useState<TroubleFilter>("all");
   const [troubleExpanded, setTroubleExpanded] = useState(false);
+  const [openWord, setOpenWord] = useState<TroubleEntry | null>(null);
 
   useEffect(() => {
     try {
@@ -448,6 +455,7 @@ export default function ProgressScreen() {
                           starred={myWords.has(t.id)}
                           onToggleStar={toggleStar}
                           onDismiss={dismissOne}
+                          onOpen={setOpenWord}
                         />
                       ))}
                       {rows.length > shown.length && (
@@ -481,6 +489,13 @@ export default function ProgressScreen() {
             <div style={{ height: 24 }} />
           </>
         )}
+
+      <WordHistorySheet
+        wordId={openWord?.id ?? null}
+        word={openWord?.word ?? ""}
+        open={openWord !== null}
+        onClose={() => setOpenWord(null)}
+      />
       </div>
     </div>
   );
