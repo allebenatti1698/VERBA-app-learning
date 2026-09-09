@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { lowercaseFirst } from "@/lib/formatText";
 import { tapScale } from "@/components/SpringTap";
 import type { QuestionProps } from "@/components/quiz/types";
+import { publishWordOrigin } from "@/lib/wordOrigin";
 
 // Gradino 1 — Recognize: vedi la parola, scegli la definizione.
 
@@ -42,6 +43,7 @@ export default function RecognizeQuestion({
   animKey,
 }: QuestionProps) {
   const [showTranslation, setShowTranslation] = useState(false);
+  const heroRef = useRef<HTMLHeadingElement | null>(null);
 
   // L'hint si richiude da solo alla parola successiva.
   useEffect(() => { setShowTranslation(false); }, [word.id]);
@@ -70,7 +72,7 @@ export default function RecognizeQuestion({
           transition={{ duration: 0.3, ease: "easeOut" }}
           style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 24, paddingBottom: 8, width: "100%", maxWidth: SCREEN_MAX }}
         >
-          <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: wordFontSize, lineHeight: 1.3, color: "#C7B8E8", margin: 0, textAlign: "center", width: "100%", maxWidth: "100%", padding: "20px 14px 32px 14px", boxSizing: "border-box", overflow: "visible", whiteSpace: "nowrap", wordBreak: "keep-all" }}>
+          <h2 ref={heroRef} style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: wordFontSize, lineHeight: 1.3, color: "#C7B8E8", margin: 0, textAlign: "center", width: "100%", maxWidth: "100%", padding: "20px 14px 32px 14px", boxSizing: "border-box", overflow: "visible", whiteSpace: "nowrap", wordBreak: "keep-all" }}>
             {word.word}
           </h2>
 
@@ -138,7 +140,12 @@ export default function RecognizeQuestion({
                 x: { duration: 0.34, ease: [0.36, 0.07, 0.19, 0.97], delay: 0 },
               }}
               whileTap={isAnswered ? undefined : tapScale("card")}
-              onClick={() => onSelect(option, option === correctAnswer)}
+              onClick={() => {
+                // qui la parola è già a schermo, grande e in alto: la scheda
+                // si aprirà da lì
+                publishWordOrigin(heroRef.current, option === correctAnswer);
+                onSelect(option, option === correctAnswer);
+              }}
               disabled={isAnswered}
               style={{
                 ...getOptionStyle(option, correctAnswer, selectedOption, isAnswered),

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { tapScale } from "@/components/SpringTap";
 import type { QuestionProps } from "@/components/quiz/types";
+import { publishWordOrigin } from "@/lib/wordOrigin";
 
 // Gradino 2 — Recall in context.
 //
@@ -110,6 +111,8 @@ export default function ContextQuestion({
    */
   const answerRef = useRef(answer);
   const optionsRef = useRef(options);
+  /** L'esito, leggibile da draw: là dentro le variabili sono stale. */
+  const correctRef = useRef(false);
 
   /* ── misure ──────────────────────────────────────────────────────────── */
   function targetsFor(w: string): Target[] {
@@ -286,6 +289,8 @@ export default function ContextQuestion({
         sz.style.visibility = "visible";
         sz.style.color = "#34D399";
         sz.textContent = answerRef.current;
+        // la parola composta è il punto da cui la scheda si aprirà
+        publishWordOrigin(sz, correctRef.current);
       }
       flyRef.current = [];
     }
@@ -349,6 +354,7 @@ export default function ContextQuestion({
   function handlePick(option: string, i: number) {
     if (isAnswered) return;
     const correct = option === answer;
+    correctRef.current = correct;
     answeredRef.current = true;
     // il respiro si ferma e la frase torna dritta
     const stem = stemRef.current;
@@ -365,6 +371,7 @@ export default function ContextQuestion({
         sizerRef.current.textContent = answer;
         sizerRef.current.style.visibility = "visible";
         sizerRef.current.style.color = "#34D399";
+        publishWordOrigin(sizerRef.current, correct);
       }
       settledRef.current = true;
       return;

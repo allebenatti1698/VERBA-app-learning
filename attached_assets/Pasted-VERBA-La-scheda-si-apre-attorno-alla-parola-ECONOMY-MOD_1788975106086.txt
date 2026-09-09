@@ -1,489 +1,191 @@
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronUp } from "lucide-react";
-import { SCREEN_MAX } from "@/components/ScreenColumn";
-import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
-import { lowercaseFirst, highlightWord } from "@/lib/formatText";
-import { tapScale, TAP_SPRING } from "@/components/SpringTap";
-import { getWordOrigin, setWordOrigin, type WordOrigin } from "@/lib/wordOrigin";
+VERBA — La scheda si apre attorno alla parola.
+ECONOMY MODE, Claude Sonnet 5, Effort Medium. Stima ~$1.20–2.20.
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Applica OGNI edit in modo indipendente: salta e segnala i mismatch senza fermarti.
 
-function IconX() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
+Un file nuovo, tre modificati. QuizScreen NON si tocca: la card monta da sé
+la barra del Next, quindi la firma dei props resta identica.
 
-function IconVolume() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-    </svg>
-  );
-}
+════════════════════════════════════════════════════════════
+1 · FILE NUOVO — src/lib/wordOrigin.ts
+════════════════════════════════════════════════════════════
+/**
+ * Da dove parte la parola.
+ *
+ * La scheda si apre ATTORNO alla parola appena risolta, e la parola stessa
+ * viaggia fino a diventare il titolo. Ma la parola di partenza vive nel
+ * componente-domanda e quella d'arrivo nella scheda: sono due sottoalberi
+ * diversi, e passare un rettangolo attraverso l'orchestratore vorrebbe dire
+ * cambiare la firma di onSelect per tutti i formati.
+ *
+ * Questo modulo è il canale: il formato deposita il rettangolo un istante
+ * prima di rispondere, la scheda lo legge quando si monta. Un solo valore
+ * alla volta, perché una sola domanda è attiva alla volta.
+ */
+export type WordOrigin = {
+  /** rettangolo in coordinate viewport */
+  x: number; y: number; w: number; h: number;
+  /** corpo del carattere alla partenza, in px */
+  fontSize: number;
+  /** peso tipografico alla partenza */
+  fontWeight: number;
+  /** true se la risposta era giusta: decide se si parte dal verde */
+  correct: boolean;
+};
 
-let _cachedVoice: SpeechSynthesisVoice | null = null;
+let current: WordOrigin | null = null;
 
-function getBestEnglishVoice(): SpeechSynthesisVoice | null {
-  if (_cachedVoice) return _cachedVoice;
-  const voices = window.speechSynthesis.getVoices();
-  if (voices.length === 0) return null;
+export function setWordOrigin(o: WordOrigin | null) { current = o; }
+export function getWordOrigin(): WordOrigin | null { return current; }
 
-  const preferred = [
-    (v: SpeechSynthesisVoice) => v.name === "Google US English",
-    (v: SpeechSynthesisVoice) => v.name.includes("Samantha"),
-    (v: SpeechSynthesisVoice) => v.name.includes("Aria") || v.name.includes("Jenny"),
-    (v: SpeechSynthesisVoice) => v.lang === "en-US",
-    (v: SpeechSynthesisVoice) => v.lang.startsWith("en"),
-  ];
-
-  for (const pred of preferred) {
-    const found = voices.find(pred);
-    if (found) { _cachedVoice = found; return found; }
-  }
-  return voices[0] ?? null;
-}
-
-function speakWord(word: string) {
-  try {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(word);
-    utterance.lang = "en-US";
-    utterance.rate = 0.85;
-    utterance.pitch = 1.0;
-    const voice = getBestEnglishVoice();
-    if (voice) utterance.voice = voice;
-    window.speechSynthesis.speak(utterance);
-  } catch {
-    // SpeechSynthesis not available
-  }
+/** Misura un elemento e lo deposita come origine. */
+export function publishWordOrigin(el: HTMLElement | null, correct: boolean) {
+  if (!el) { setWordOrigin(null); return; }
+  const r = el.getBoundingClientRect();
+  if (r.width < 1 || r.height < 1) { setWordOrigin(null); return; }
+  const cs = getComputedStyle(el);
+  setWordOrigin({
+    x: r.left, y: r.top, w: r.width, h: r.height,
+    fontSize: parseFloat(cs.fontSize) || 17,
+    fontWeight: Number(cs.fontWeight) || 500,
+    correct,
+  });
 }
 
-if (typeof window !== "undefined" && "speechSynthesis" in window) {
-  window.speechSynthesis.onvoiceschanged = () => { _cachedVoice = null; };
-}
+════════════════════════════════════════════════════════════
+2 · src/components/quiz/ContextQuestion.tsx — pubblica il buco
+════════════════════════════════════════════════════════════
+EDIT 2a — import
+TROVA:
+import type { QuestionProps } from "@/components/quiz/types";
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+SOSTITUISCI CON:
+import type { QuestionProps } from "@/components/quiz/types";
+import { publishWordOrigin } from "@/lib/wordOrigin";
 
-interface FeedbackStatusProps {
-  isCorrect: boolean;
-  visible?: boolean;
-}
-export function FeedbackStatus({ isCorrect, visible = true }: FeedbackStatusProps) {
-  if (!visible) return null;
-  return (
-    <p style={{
-      fontFamily: "'Inter', sans-serif",
-      fontWeight: 600,
-      fontSize: 13,
-      letterSpacing: "0.1em",
-      textTransform: "uppercase",
-      color: isCorrect ? "#10B981" : "#EF4444",
-      margin: "0 0 16px",
-    }}>
-      {isCorrect ? "✓ Correct" : "✗ Incorrect"}
-    </p>
-  );
-}
+EDIT 2b — a composizione finita, il buco è l'origine
+TROVA:
+      const sz = sizerRef.current;
+      if (sz) {
+        sz.style.visibility = "visible";
+        sz.style.color = "#34D399";
+        sz.textContent = answerRef.current;
+      }
+      flyRef.current = [];
 
-interface FeedbackWordProps {
-  word: string;
-  phonetic: string;
-  visible?: boolean;
-}
-export function FeedbackWord({ word, phonetic, visible = true }: FeedbackWordProps) {
-  const [speakerHover, setSpeakerHover] = useState(false);
-  if (!visible) return null;
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <span style={{
-          fontFamily: "'Space Grotesk', sans-serif",
-          fontWeight: 700,
-          fontSize: 32,
-          color: "#C7B8E8",
-          lineHeight: 1.2,
-        }}>
-          {word}
-        </span>
-        <button
-          onClick={() => speakWord(word)}
-          onMouseEnter={() => setSpeakerHover(true)}
-          onMouseLeave={() => setSpeakerHover(false)}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: speakerHover ? "#C7B8E8" : "rgba(199,184,232,0.55)",
-            padding: 4,
-            display: "flex",
-            alignItems: "center",
-            transition: "color 0.15s ease",
-            flexShrink: 0,
-          }}
-          aria-label="Pronounce"
-        >
-          <IconVolume />
-        </button>
-      </div>
-      <p style={{
-        fontFamily: "monospace",
-        fontSize: 13,
-        color: "rgba(255,255,255,0.4)",
-        margin: "6px 0 0",
-        letterSpacing: "0.02em",
-      }}>
-        {phonetic}
-      </p>
-    </div>
-  );
-}
+SOSTITUISCI CON:
+      const sz = sizerRef.current;
+      if (sz) {
+        sz.style.visibility = "visible";
+        sz.style.color = "#34D399";
+        sz.textContent = answerRef.current;
+        // la parola composta è il punto da cui la scheda si aprirà
+        publishWordOrigin(sz, correctRef.current);
+      }
+      flyRef.current = [];
 
-interface FeedbackDefinitionProps {
-  definition: string;
-  visible?: boolean;
-}
-export function FeedbackDefinition({ definition, visible = true }: FeedbackDefinitionProps) {
-  if (!visible) return null;
-  return (
-    <p style={{
-      fontFamily: "'Inter', sans-serif",
-      fontWeight: 400,
-      fontSize: 20,
-      color: "#FFFFFF",
-      margin: "16px 0 0",
-      lineHeight: 1.4,
-    }}>
-      {lowercaseFirst(definition)}
-    </p>
-  );
-}
+EDIT 2c — l'esito serve dentro draw, quindi va in un ref
+TROVA:
+  const answerRef = useRef(answer);
+  const optionsRef = useRef(options);
 
-interface FeedbackExampleProps {
-  sentence: string;
-  visible?: boolean;
-}
-export function FeedbackExample({ sentence, visible = true }: FeedbackExampleProps) {
-  if (!visible) return null;
-  return (
-    <p style={{
-      fontFamily: "'Inter', sans-serif",
-      fontWeight: 300,
-      fontSize: 16,
-      fontStyle: "italic",
-      color: "rgba(255,255,255,0.7)",
-      margin: "12px 0 0",
-      lineHeight: 1.5,
-    }}>
-      "{sentence}"
-    </p>
-  );
-}
+SOSTITUISCI CON:
+  const answerRef = useRef(answer);
+  const optionsRef = useRef(options);
+  /** L'esito, leggibile da draw: là dentro le variabili sono stale. */
+  const correctRef = useRef(false);
 
-interface FeedbackMultiDefinitionsProps {
-  definitions: { part_of_speech: string; definition: string; example: string; display_order: number }[];
-  /** parola-chiave da evidenziare dentro gli esempi */
-  word?: string;
-  visible?: boolean;
-}
-export function FeedbackMultiDefinitions({ definitions, word, visible = true }: FeedbackMultiDefinitionsProps) {
-  if (!visible || !definitions || definitions.length === 0) return null;
+EDIT 2d — si scrive quando si risponde
+TROVA:
+    const correct = option === answer;
+    answeredRef.current = true;
 
-  return (
-    <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 18 }}>
-      {definitions.map((def, idx) => (
-        <div key={idx}>
-          <p style={{
-            fontFamily: "'Inter', sans-serif",
-            fontWeight: 500,
-            fontSize: 11,
-            letterSpacing: "0.12em",
-            textTransform: "lowercase",
-            color: "rgba(199,184,232,0.5)",
-            margin: "0 0 6px",
-            fontStyle: "italic",
-          }}>
-            {definitions.length > 1 && (
-              <span style={{
-                fontFamily: "'Inter', sans-serif",
-                fontWeight: 500,
-                fontSize: 11,
-                letterSpacing: "0.12em",
-                color: "rgba(199,184,232,0.5)",
-                marginRight: 6,
-                fontStyle: "italic",
-              }}>
-                {idx + 1}.
-              </span>
-            )}
-            {def.part_of_speech}
-          </p>
-          <p style={{
-            fontFamily: "'Inter', sans-serif",
-            fontWeight: 400,
-            fontSize: 18,
-            color: "#FFFFFF",
-            margin: 0,
-            lineHeight: 1.4,
-          }}>
-            {lowercaseFirst(def.definition)}
-          </p>
-          {def.example && (
-            <p style={{
-              fontFamily: "'Inter', sans-serif",
-              fontWeight: 300,
-              fontSize: 15,
-              fontStyle: "italic",
-              color: "rgba(255,255,255,0.6)",
-              margin: "8px 0 0",
-              lineHeight: 1.5,
-            }}>
-              "{word ? highlightWord(def.example, word) : def.example}"
-            </p>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
+SOSTITUISCI CON:
+    const correct = option === answer;
+    correctRef.current = correct;
+    answeredRef.current = true;
 
-interface FeedbackSynonymsProps {
-  synonyms: string[];
-  visible?: boolean;
-}
-export function FeedbackSynonyms({ synonyms, visible = true }: FeedbackSynonymsProps) {
-  if (!visible) return null;
-  return (
-    <p style={{ margin: 0, fontFamily: "'Inter', sans-serif", lineHeight: 1.5 }}>
-      <span style={{ fontWeight: 600, fontSize: 13, letterSpacing: "0.05em", color: "#84A98C" }}>Synonyms: </span>
-      <span style={{ fontWeight: 400, fontSize: 15, color: "#84A98C" }}>{synonyms.join(", ")}</span>
-    </p>
-  );
-}
+EDIT 2e — anche il ripiego senza animazioni pubblica l'origine
+TROVA:
+      if (sizerRef.current) {
+        sizerRef.current.textContent = answer;
+        sizerRef.current.style.visibility = "visible";
+        sizerRef.current.style.color = "#34D399";
+      }
+      settledRef.current = true;
+      return;
 
-interface FeedbackAntonymsProps {
-  antonyms: string[];
-  visible?: boolean;
-}
-export function FeedbackAntonyms({ antonyms, visible = true }: FeedbackAntonymsProps) {
-  if (!visible) return null;
-  return (
-    <p style={{ margin: 0, fontFamily: "'Inter', sans-serif", lineHeight: 1.5 }}>
-      <span style={{ fontWeight: 600, fontSize: 13, letterSpacing: "0.05em", color: "rgba(248,113,113,0.85)" }}>Antonyms: </span>
-      <span style={{ fontWeight: 400, fontSize: 15, color: "rgba(248,113,113,0.85)" }}>{antonyms.join(", ")}</span>
-    </p>
-  );
-}
+SOSTITUISCI CON:
+      if (sizerRef.current) {
+        sizerRef.current.textContent = answer;
+        sizerRef.current.style.visibility = "visible";
+        sizerRef.current.style.color = "#34D399";
+        publishWordOrigin(sizerRef.current, correct);
+      }
+      settledRef.current = true;
+      return;
 
-interface FeedbackTranslationProps {
-  italianTranslation: string;
-  italianDefinition: string;
-  visible?: boolean;
-}
-export function FeedbackTranslation({ italianTranslation, italianDefinition, visible = true }: FeedbackTranslationProps) {
-  const [expanded, setExpanded] = useState(false);
-  if (!visible) return null;
-  return (
-    <div style={{ marginTop: 16 }}>
-      <AnimatePresence mode="wait">
-        {!expanded ? (
-          <motion.button
-            key="show-btn"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            onClick={() => setExpanded(true)}
-            style={{
-              background: "none",
-              border: "1px solid rgba(217,119,6,0.25)",
-              borderRadius: 9999,
-              padding: "4px 12px",
-              cursor: "pointer",
-              fontFamily: "'Inter', sans-serif",
-              fontWeight: 300,
-              fontSize: "0.72rem",
-              color: "rgba(217,119,6,0.5)",
-              letterSpacing: "0.03em",
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              opacity: 0.7,
-              transition: "color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.9)";
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.5)";
-              (e.currentTarget as HTMLButtonElement).style.opacity = "1";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.5)";
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.25)";
-              (e.currentTarget as HTMLButtonElement).style.opacity = "0.7";
-            }}
-          >
-            🌐 show italian translation
-          </motion.button>
-        ) : (
-          <motion.div
-            key="translation-card"
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            style={{
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(217,119,6,0.2)",
-              borderRadius: 10,
-              padding: "12px 14px",
-              position: "relative",
-            }}
-          >
-            {/* Hide button */}
-            <button
-              onClick={() => setExpanded(false)}
-              style={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "rgba(255,255,255,0.3)",
-                padding: 2,
-                display: "flex",
-                alignItems: "center",
-                transition: "color 0.15s ease",
+════════════════════════════════════════════════════════════
+3 · src/components/quiz/RecognizeQuestion.tsx — pubblica la parola-eroe
+════════════════════════════════════════════════════════════
+EDIT 3a — import e ref
+TROVA:
+import { useEffect, useMemo, useState } from "react";
+
+SOSTITUISCI CON:
+import { useEffect, useMemo, useRef, useState } from "react";
+
+E POI TROVA:
+import type { QuestionProps } from "@/components/quiz/types";
+
+SOSTITUISCI CON:
+import type { QuestionProps } from "@/components/quiz/types";
+import { publishWordOrigin } from "@/lib/wordOrigin";
+
+EDIT 3b — il ref sul titolo
+TROVA:
+  const [showTranslation, setShowTranslation] = useState(false);
+
+SOSTITUISCI CON:
+  const [showTranslation, setShowTranslation] = useState(false);
+  const heroRef = useRef<HTMLHeadingElement | null>(null);
+
+EDIT 3c — l'h2 lo porta
+TROVA:
+          <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: wordFontSize,
+
+SOSTITUISCI CON:
+          <h2 ref={heroRef} style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: wordFontSize,
+
+EDIT 3d — al momento della risposta, la parola-eroe è l'origine
+TROVA:
+              onClick={() => onSelect(option, option === correctAnswer)}
+
+SOSTITUISCI CON:
+              onClick={() => {
+                // qui la parola è già a schermo, grande e in alto: la scheda
+                // si aprirà da lì
+                publishWordOrigin(heroRef.current, option === correctAnswer);
+                onSelect(option, option === correctAnswer);
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.7)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.3)"; }}
-              aria-label="Hide translation"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                <line x1="1" y1="1" x2="23" y2="23" />
-              </svg>
-            </button>
-            <p style={{
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontWeight: 500,
-              fontSize: 18,
-              color: "#D97706",
-              margin: 0,
-            }}>
-              {italianTranslation}
-            </p>
-            <p style={{
-              fontFamily: "'Inter', sans-serif",
-              fontWeight: 300,
-              fontSize: 14,
-              color: "rgba(255,255,255,0.6)",
-              fontStyle: "italic",
-              margin: "6px 0 0",
-              lineHeight: 1.5,
-            }}>
-              {italianDefinition}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
 
-interface FeedbackEtymologyProps {
-  etymology: string;
-  visible?: boolean;
-}
-export function FeedbackEtymology({ etymology, visible = true }: FeedbackEtymologyProps) {
-  if (!visible) return null;
-  if (!etymology || etymology.trim() === "") return null;
-  return (
-    <div style={{ marginTop: 24 }}>
-      <p style={{
-        fontFamily: "'Inter', sans-serif",
-        fontWeight: 400,
-        fontSize: 11,
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        color: "rgba(255,255,255,0.3)",
-        margin: "0 0 4px",
-      }}>
-        Origin
-      </p>
-      <p style={{
-        fontFamily: "'Inter', sans-serif",
-        fontWeight: 300,
-        fontSize: 13,
-        fontStyle: "italic",
-        color: "rgba(255,255,255,0.5)",
-        margin: 0,
-        lineHeight: 1.5,
-      }}>
-        {etymology}
-      </p>
-    </div>
-  );
-}
+NOTA per l'agent: l'h2 ha `whiteSpace: nowrap` e padding laterale, quindi il
+suo rettangolo è più largo del testo. È accettabile: l'apertura parte da un
+riquadro un po' più ampio. NON cambiare il padding dell'h2.
 
-interface FeedbackNextButtonProps {
-  onClick: () => void;
-  isLast: boolean;
-  visible?: boolean;
-}
-export function FeedbackNextButton({ onClick, isLast, visible = true }: FeedbackNextButtonProps) {
-  if (!visible) return null;
-  return (
-    <motion.button
-      data-testid="button-next"
-      onClick={onClick}
-      whileTap={{ scale: 0.96 }}
-      style={{ ...primaryButtonStyle, display: "block", margin: "44px auto 0 auto" }}
-    >
-      {isLast ? "Finish" : "Next →"}
-    </motion.button>
-  );
-}
+════════════════════════════════════════════════════════════
+4 · src/components/FeedbackCard.tsx — SOSTITUZIONE della sola
+    parte finale: il componente FeedbackCard di default.
+════════════════════════════════════════════════════════════
+Tutti i sub-componenti esportati (FeedbackStatus, FeedbackWord, ecc.), le
+icone, speakWord e l'interfaccia QuizWord restano ESATTAMENTE come sono.
 
-// ─── Main FeedbackCard ────────────────────────────────────────────────────────
+TROVA la riga:
+export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss, onNext, allowMinimize = false }: FeedbackCardProps) {
 
-// TODO: Replace `visible={true}` with user preferences from settings (Step 8)
-// Future: each component's visibility will be controlled by user toggles in /settings
-
-export interface QuizWord {
-  word: string;
-  phonetic: string;
-  correctDefinition: string;
-  exampleSentence: string;
-  synonyms: string[];
-  antonyms: string[];
-  etymology: string;
-  italianTranslation: string;
-  italianDefinition: string;
-  allDefinitions?: {
-    part_of_speech: string;
-    definition: string;
-    example: string;
-    display_order: number;
-  }[];
-}
-
-interface FeedbackCardProps {
-  show: boolean;
-  word: QuizWord;
-  isCorrect: boolean;
-  isLast: boolean;
-  onDismiss: () => void;
-  onNext: () => void;
-  allowMinimize?: boolean;
-}
+e SOSTITUISCI da quella riga fino alla FINE DEL FILE con:
 
 export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss, onNext, allowMinimize = false }: FeedbackCardProps) {
   /**
@@ -828,3 +530,27 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onDismiss,
     </>
   );
 }
+
+EDIT 4b — gli import che servono in cima al file
+TROVA:
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+
+SOSTITUISCI CON:
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+import { getWordOrigin, setWordOrigin, type WordOrigin } from "@/lib/wordOrigin";
+
+════════════════════════════════════════════════════════════
+VERIFICA E RIPORTA
+════════════════════════════════════════════════════════════
+· File creato, edit applicati e saltati
+· Typecheck: sì/no + errori PER INTERO
+· Conferma che `onDismiss` e `allowMinimize` non sono più usati dentro
+  FeedbackCard: restano nei props per non toccare QuizScreen, ma se il
+  linter segnala variabili non usate RIPORTALO senza correggere
+· Conferma che FeedbackStatus, FeedbackWord, FeedbackDefinition e
+  FeedbackExample sono ancora esportati (potrebbero essere importati altrove)
+· Cerca in tutto il progetto chi importa quei quattro e RIPORTALO
+
+NON FARE
+· NON toccare QuizScreen.tsx, wordStats.ts, types.ts.
+· NON avviare il dev server, NON testare.
