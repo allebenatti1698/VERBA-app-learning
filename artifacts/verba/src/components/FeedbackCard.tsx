@@ -5,7 +5,9 @@ import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
 import { lowercaseFirst, highlightWord } from "@/lib/formatText";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
-import { getWordOrigin, setWordOrigin, type WordOrigin } from "@/lib/wordOrigin";
+import { getWordOrigin, setWordOrigin, type WordOrigin,
+         CARD_TOP_FRAC, TITLE_OFFSET, BOTTOM_BAR, CARD_MIN,
+         titleFontSize } from "@/lib/wordOrigin";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -504,11 +506,9 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
   const C = 21;             // smorzamento
   const MASS = 1.4;
   const G_SOFT = 0.72;      // quanto è più morbida la molla della crescita
-  const TITLE_FS = 32;      // corpo del titolo
-  const TITLE_X = 24;       // rientro del titolo dentro la scheda
-  const TITLE_Y = 74;       // quota del titolo dentro la scheda
-  const TOP_FRAC = 0.19;    // dove comincia il riquadro
-  const BOTTOM_BAR = 86;    // spazio riservato alla barra del Next
+  // il titolo È la parola-eroe: stesso corpo, stessa quota. Per questo i
+  // numeri stanno in wordOrigin.ts e non qui.
+  const TITLE_FS = titleFontSize(word.word);
 
   const [opened, setOpened] = useState(false);
   const [flying, setFlying] = useState(true);
@@ -518,7 +518,15 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
   const flyEl = useRef<HTMLDivElement | null>(null);
   const originRef = useRef<WordOrigin | null>(null);
   const rafRef = useRef<number | null>(null);
-  const dragRef = useRef<{ y0: number; from: boolean; moved: boolean } | null>(null);
+  const dragRef = useRef<{ y0: number; from: boolean; moved: boolean; h0?: number; v?: number } | null>(null);
+  /**
+   * Dove sta la maniglia: sul bordo inferiore VISIBILE, non sul fondo del
+   * riquadro. Chiusa, il ritaglio stringe la scheda attorno alla parola,
+   * quindi la maniglia sta lì sotto — in una zona vuota.
+   */
+  const handleY = opened
+    ? box.top + box.height + 6
+    : (originRef.current ? originRef.current.y + originRef.current.h + 10 : box.top + 60);
 
   const [reduced] = useState(
     () => typeof window !== "undefined" &&
@@ -552,16 +560,34 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
     card.style.clipPath = clipFor(e);
   };
 
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * L'altezza di partenza non è una frazione dello schermo: è quella che
+   * contiene ESATTAMENTE il contenuto, così una parola con una definizione
+   * non scorre. L'allungamento serve alle parole con più significati.
+   */
+  const naturalH = () => {
+    const sc = scrollRef.current;
+    if (!sc) return 320;
+    const prev = sc.style.height;
+    sc.style.height = "auto";
+    const nat = sc.scrollHeight + 2;
+    sc.style.height = prev;
+    return nat;
+  };
+
   useEffect(() => {
     const measure = () => {
       const h = window.innerHeight;
-      const top = Math.max(104, h * TOP_FRAC);
-      setBox({ top, height: Math.max(180, h - top - BOTTOM_BAR) });
+      const top = Math.max(20, h * CARD_TOP_FRAC);
+      const max = h - top - BOTTOM_BAR;
+      setBox({ top, height: Math.max(CARD_MIN, Math.min(max, naturalH() || max)) });
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, []);
+  }, [show, word.word]);
 
   /* il viaggio della parola */
   useEffect(() => {
@@ -573,16 +599,36 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
     }
     const o = getWordOrigin();
     originRef.current = o;
-    setOpened(!isCorrect);
+
+    /**
+     * Rispondi giusto e non succede niente: la parola resta dove il formato
+     * l'ha lasciata, compare solo la maniglia. Il viaggio e la scheda
+     * avvengono quando li chiedi — o da soli se hai sbagliato, perché lì hai
+     * motivo di leggere.
+     */
+    if (isCorrect) {
+      setOpened(false);
+      setFlying(false);
+      requestAnimationFrame(() => applyClip(0, false));
+      return;
+    }
+    setOpened(true);
     setFlying(!!o && !reduced);
 
     if (!o || reduced) {
-      requestAnimationFrame(() => applyClip(isCorrect ? 0 : 1, false));
+      requestAnimationFrame(() => applyClip(1, false));
       setFlying(false);
       return;
     }
 
-    const target = { x: 14 + TITLE_X, y: box.top + TITLE_Y, scale: TITLE_FS / o.fontSize };
+    // il titolo è centrato: il bersaglio è il bordo sinistro del testo, non
+    // della scheda, perciò si misura dal centro meno metà larghezza
+    const tw = word.word.length * TITLE_FS * 0.56;
+    const target = {
+      x: window.innerWidth / 2 - tw / 2,
+      y: box.top + TITLE_OFFSET,
+      scale: TITLE_FS / o.fontSize,
+    };
     const st = { p: 0, v: 0 }, gr = { p: 0, v: 0 };
     let stop = false;
 
@@ -652,12 +698,32 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
           boxShadow: "0 30px 90px rgba(0,0,0,0.72)",
           zIndex: 50, willChange: "clip-path",
         }}>
-        <div className="fb-scroll"
+        <div className="fb-scroll" ref={scrollRef}
           style={{
             position: "absolute", inset: 0, overflowY: "auto",
             overscrollBehavior: "contain", WebkitOverflowScrolling: "touch",
-            touchAction: "pan-y", padding: "118px 24px 26px",
+            touchAction: "pan-y", padding: "26px 24px 30px",
           }}>
+          {/* badge e titolo stanno DENTRO lo scorrimento: scorrono col resto,
+              come in una scheda vera. Niente più elementi fissi sopra. */}
+          <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 13,
+            letterSpacing: "0.1em", textTransform: "uppercase", textAlign: "center",
+            color: isCorrect ? "#10B981" : "#EF4444", margin: "0 0 10px" }}>
+            {isCorrect ? "✓ Correct" : "✗ Incorrect"}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 12, marginBottom: 22, opacity: flying ? 0 : 1 }}>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700,
+              fontSize: TITLE_FS, color: "#C7B8E8", lineHeight: 1.1, whiteSpace: "nowrap" }}>
+              {word.word}
+            </span>
+            <button onClick={() => speakWord(word.word)}
+              style={{ background: "none", border: "none", cursor: "pointer",
+                color: "rgba(199,184,232,0.55)", padding: 4, display: "flex", alignItems: "center" }}
+              aria-label="Pronounce">
+              <IconVolume />
+            </button>
+          </div>
           {multi ? (
             <FeedbackMultiDefinitions definitions={word.allDefinitions!} word={word.word} />
           ) : (
@@ -686,32 +752,6 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
         </div>
       </div>
 
-      {/* badge e titolo: fuori dallo scorrimento, sempre alla stessa quota */}
-      <p style={{
-        position: "fixed", left: 14 + TITLE_X, top: box.top + 30, zIndex: 52,
-        fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 13,
-        letterSpacing: "0.1em", textTransform: "uppercase",
-        color: isCorrect ? "#10B981" : "#EF4444", margin: 0, pointerEvents: "none",
-      }}>
-        {isCorrect ? "✓ Correct" : "✗ Incorrect"}
-      </p>
-
-      {!flying && (
-        <div style={{
-          position: "fixed", left: 14 + TITLE_X, top: box.top + TITLE_Y, zIndex: 53,
-          transform: "translateY(-50%)", display: "flex", alignItems: "center", gap: 10,
-        }}>
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: TITLE_FS, color: "#C7B8E8", lineHeight: 1.1 }}>
-            {word.word}
-          </span>
-          <button onClick={() => speakWord(word.word)}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(199,184,232,0.55)", padding: 4, display: "flex", alignItems: "center" }}
-            aria-label="Pronounce">
-            <IconVolume />
-          </button>
-        </div>
-      )}
-
       {/* la parola che viaggia: un solo nodo, dal formato al titolo */}
       {flying && originRef.current && (
         <div ref={flyEl} aria-hidden
@@ -735,7 +775,7 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
       <button
         onClick={() => { if (!dragRef.current?.moved) toggle(!opened); }}
         onPointerDown={(e) => {
-          dragRef.current = { y0: e.clientY, from: opened, moved: false };
+          dragRef.current = { y0: e.clientY, from: opened, moved: false, h0: box.height };
           (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
           if (cardRef.current) cardRef.current.style.transition = "";
         }}
@@ -743,36 +783,39 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
           const d = dragRef.current; if (!d) return;
           const dy = e.clientY - d.y0;
           if (Math.abs(dy) > 4) d.moved = true;
-          const span = Math.max(120, box.height * 0.6);
-          const v = clamp01((d.from ? 1 : 0) + dy / span);
-          applyClip(easeOut(v), false);
-          if (v > 0.15 && !opened) setOpened(true);
+          if (!d.from) {
+            // chiusa: il gesto la apre seguendo il dito
+            const span = Math.max(120, box.height * 0.6);
+            const v = clamp01(dy / span);
+            applyClip(easeOut(v), false);
+            d.v = v;
+            return;
+          }
+          // aperta: lo stesso gesto ne cambia l'altezza, tirando il bordo
+          const h = window.innerHeight;
+          const max = h - box.top - BOTTOM_BAR;
+          setBox((b) => ({ ...b, height: Math.max(CARD_MIN, Math.min(max, (d.h0 ?? b.height) + dy)) }));
+          d.v = 1;
         }}
-        onPointerUp={(e) => {
+        onPointerUp={() => {
           const d = dragRef.current; if (!d) return;
-          const dy = e.clientY - d.y0;
-          const span = Math.max(120, box.height * 0.6);
-          if (d.moved) toggle(clamp01((d.from ? 1 : 0) + dy / span) > 0.5);
+          if (d.moved && !d.from) toggle((d.v ?? 0) > 0.5);
           dragRef.current = null;
         }}
         aria-label={opened ? "Close definition" : "Show definition"}
         style={{
-          position: "fixed", right: 26, top: box.top + 22, zIndex: 54,
-          display: "flex", alignItems: "center", gap: opened ? 0 : 7,
-          padding: opened ? 7 : "6px 11px 6px 13px", borderRadius: 9999,
-          background: "rgba(199,184,232,0.06)", border: "1px solid rgba(199,184,232,0.22)",
-          color: "rgba(199,184,232,0.85)", cursor: "pointer",
-          fontFamily: "'Inter', sans-serif", fontSize: 11.5,
-          touchAction: "none", userSelect: "none",
-          transition: "padding 0.3s ease, gap 0.3s ease",
+          /* LA MANIGLIA. Non un pulsante che sta da qualche parte: è il
+             BORDO INFERIORE della scheda, quindi non può sovrapporsi a
+             niente. Chiusa sta appena sotto la parola; aperta è in fondo —
+             dove il pollice arriva comodo. */
+          position: "fixed", left: "50%", transform: "translateX(-50%)",
+          top: handleY, zIndex: 54,
+          width: 74, height: 26, padding: 0, border: "none", background: "none",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", touchAction: "none", userSelect: "none",
         }}>
-        <span style={{
-          opacity: opened ? 0 : 1, width: opened ? 0 : "auto",
-          overflow: "hidden", whiteSpace: "nowrap", transition: "opacity 0.25s ease",
-        }}>Definition</span>
-        <ChevronUp size={13}
-          style={{ transform: opened ? "rotate(0deg)" : "rotate(180deg)",
-                   transition: "transform 0.42s cubic-bezier(.19,1,.22,1)" }} />
+        <span style={{ width: 38, height: 4, borderRadius: 2,
+          background: "rgba(199,184,232,0.34)" }} />
       </button>
 
       <div style={{

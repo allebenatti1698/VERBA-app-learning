@@ -40,3 +40,36 @@ export function publishWordOrigin(el: HTMLElement | null, correct: boolean) {
     correct,
   });
 }
+
+/* ── la geometria della scheda, in un posto solo ──────────────────────────
+ * La parola-eroe del gradino 1 e il titolo della scheda devono avere la
+ * STESSA dimensione e la STESSA quota: è così che lì la parola non si muove.
+ * Se questi numeri vivessero in due file diversi, prima o poi divergerebbero.
+ */
+
+/** Dove comincia la scheda, in frazione dell'altezza della finestra. */
+export const CARD_TOP_FRAC = 0.055;
+/** Distanza fra la cima della scheda e il centro del titolo: padding + badge. */
+export const TITLE_OFFSET = 26 + 17 + 10 + 26;
+/** Spazio riservato in fondo alla barra del Next. */
+export const BOTTOM_BAR = 104;
+/** Altezza minima della scheda. */
+export const CARD_MIN = 190;
+
+/** La quota del titolo, cioè dove la parola-eroe deve stare. */
+export function titleMidY(): number {
+  if (typeof window === "undefined") return 120;
+  return Math.max(20, window.innerHeight * CARD_TOP_FRAC) + TITLE_OFFSET;
+}
+
+/**
+ * Il corpo del titolo. Scende sulle parole lunghe, perché a 44px
+ * `circumlocution` non entrerebbe nella larghezza della scheda.
+ */
+export function titleFontSize(word: string): number {
+  const n = word.length;
+  if (n <= 9) return 44;
+  if (n <= 12) return 38;
+  if (n <= 15) return 32;
+  return 27;
+}

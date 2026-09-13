@@ -1,0 +1,379 @@
+VERBA — La scheda: titolo = parola-eroe, maniglia sul bordo, apertura a richiesta.
+ECONOMY MODE, Claude Sonnet 5, Effort Medium. Stima ~$1.00–1.80.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Applica OGNI edit in modo indipendente: salta e segnala i mismatch senza fermarti.
+
+REGOLA NUOVA E VINCOLANTE: solo edit mirati con old_string/new_string.
+NON riscrivere file interi, NON ricostruire funzioni da capo.
+In coda riporta il conteggio righe di OGNI file toccato, prima e dopo.
+
+Tre file.
+
+════════════════════════════════════════════════════════════
+1 · src/lib/wordOrigin.ts — le misure condivise
+════════════════════════════════════════════════════════════
+EDIT 1a — in coda al file, AGGIUNGI:
+
+/* ── la geometria della scheda, in un posto solo ──────────────────────────
+ * La parola-eroe del gradino 1 e il titolo della scheda devono avere la
+ * STESSA dimensione e la STESSA quota: è così che lì la parola non si muove.
+ * Se questi numeri vivessero in due file diversi, prima o poi divergerebbero.
+ */
+
+/** Dove comincia la scheda, in frazione dell'altezza della finestra. */
+export const CARD_TOP_FRAC = 0.055;
+/** Distanza fra la cima della scheda e il centro del titolo: padding + badge. */
+export const TITLE_OFFSET = 26 + 17 + 10 + 26;
+/** Spazio riservato in fondo alla barra del Next. */
+export const BOTTOM_BAR = 104;
+/** Altezza minima della scheda. */
+export const CARD_MIN = 190;
+
+/** La quota del titolo, cioè dove la parola-eroe deve stare. */
+export function titleMidY(): number {
+  if (typeof window === "undefined") return 120;
+  return Math.max(20, window.innerHeight * CARD_TOP_FRAC) + TITLE_OFFSET;
+}
+
+/**
+ * Il corpo del titolo. Scende sulle parole lunghe, perché a 44px
+ * `circumlocution` non entrerebbe nella larghezza della scheda.
+ */
+export function titleFontSize(word: string): number {
+  const n = word.length;
+  if (n <= 9) return 44;
+  if (n <= 12) return 38;
+  if (n <= 15) return 32;
+  return 27;
+}
+
+════════════════════════════════════════════════════════════
+2 · src/components/quiz/RecognizeQuestion.tsx
+════════════════════════════════════════════════════════════
+La parola-eroe deve stare esattamente dove starà il titolo, con lo stesso
+corpo: solo così nel gradino 1 non si muove di un pixel.
+
+EDIT 2a — import
+TROVA:
+import { publishWordOrigin } from "@/lib/wordOrigin";
+
+SOSTITUISCI CON:
+import { publishWordOrigin, titleFontSize, titleMidY } from "@/lib/wordOrigin";
+
+EDIT 2b — il corpo della parola viene dalla funzione condivisa
+TROVA:
+  const wlen = word.word.length;
+  const wordFontSize =
+    wlen <= 13 ? "clamp(34px, 8.5vw, 50px)" :
+    wlen <= 15 ? "clamp(28px, 7vw, 42px)" :
+                 "clamp(26px, 6vw, 38px)";
+
+SOSTITUISCI CON:
+  // stessa funzione che usa il titolo della scheda: se divergessero, la
+  // parola "salterebbe" nel momento in cui la scheda si apre
+  const wordFontSize = titleFontSize(word.word) + "px";
+
+EDIT 2c — il ref va sullo span del testo, non sull'h2
+L'h2 ha nowrap e padding laterale: il suo rettangolo è molto più largo del
+testo, e la scheda si aprirebbe da un riquadro sbagliato.
+
+TROVA:
+          <h2 ref={heroRef} style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: wordFontSize, lineHeight: 1.3, color: "#C7B8E8", margin: 0, textAlign: "center", width: "100%", maxWidth: "100%", padding: "20px 14px 32px 14px", boxSizing: "border-box", overflow: "visible", whiteSpace: "nowrap", wordBreak: "keep-all" }}>
+            {word.word}
+          </h2>
+
+SOSTITUISCI CON:
+          <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: wordFontSize, lineHeight: 1.1, color: "#C7B8E8", margin: 0, textAlign: "center", width: "100%", boxSizing: "border-box", overflow: "visible", whiteSpace: "nowrap", wordBreak: "keep-all",
+            // la parola si posa alla quota esatta del titolo della scheda
+            position: "absolute", left: 0, right: 0, top: heroTop, pointerEvents: "none" }}>
+            <span ref={heroRef} style={{ display: "inline-block" }}>{word.word}</span>
+          </h2>
+
+EDIT 2d — la quota, e lo spazio che la parola occupava
+TROVA:
+  const heroRef = useRef<HTMLHeadingElement | null>(null);
+
+SOSTITUISCI CON:
+  const heroRef = useRef<HTMLSpanElement | null>(null);
+  /** Quota del testo: il centro deve cadere dove cadrà il titolo. */
+  const heroTop = Math.max(8, titleMidY() - titleFontSize(word.word) * 0.55);
+
+E POI, poiché l'h2 è ora in posizione assoluta, serve mantenere lo spazio.
+TROVA:
+          style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 24, paddingBottom: 8, width: "100%", maxWidth: SCREEN_MAX }}
+
+SOSTITUISCI CON:
+          style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", paddingTop: heroTop + titleFontSize(word.word) + 26, paddingBottom: 8, width: "100%", maxWidth: SCREEN_MAX }}
+
+════════════════════════════════════════════════════════════
+3 · src/components/FeedbackCard.tsx — sei edit mirati
+════════════════════════════════════════════════════════════
+EDIT 3a — import delle misure condivise
+TROVA:
+import { getWordOrigin, setWordOrigin, type WordOrigin } from "@/lib/wordOrigin";
+
+SOSTITUISCI CON:
+import { getWordOrigin, setWordOrigin, type WordOrigin,
+         CARD_TOP_FRAC, TITLE_OFFSET, BOTTOM_BAR, CARD_MIN,
+         titleFontSize } from "@/lib/wordOrigin";
+
+EDIT 3b — le costanti locali cedono il posto a quelle condivise
+TROVA:
+  const TITLE_FS = 32;      // corpo del titolo
+  const TITLE_X = 24;       // rientro del titolo dentro la scheda
+  const TITLE_Y = 74;       // quota del titolo dentro la scheda
+  const TOP_FRAC = 0.19;    // dove comincia il riquadro
+  const BOTTOM_BAR = 86;    // spazio riservato alla barra del Next
+
+SOSTITUISCI CON:
+  // il titolo È la parola-eroe: stesso corpo, stessa quota. Per questo i
+  // numeri stanno in wordOrigin.ts e non qui.
+  const TITLE_FS = titleFontSize(word.word);
+
+EDIT 3c — geometria: quota fissa, altezza dal contenuto
+TROVA:
+  useEffect(() => {
+    const measure = () => {
+      const h = window.innerHeight;
+      const top = Math.max(104, h * TOP_FRAC);
+      setBox({ top, height: Math.max(180, h - top - BOTTOM_BAR) });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+SOSTITUISCI CON:
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * L'altezza di partenza non è una frazione dello schermo: è quella che
+   * contiene ESATTAMENTE il contenuto, così una parola con una definizione
+   * non scorre. L'allungamento serve alle parole con più significati.
+   */
+  const naturalH = () => {
+    const sc = scrollRef.current;
+    if (!sc) return 320;
+    const prev = sc.style.height;
+    sc.style.height = "auto";
+    const nat = sc.scrollHeight + 2;
+    sc.style.height = prev;
+    return nat;
+  };
+
+  useEffect(() => {
+    const measure = () => {
+      const h = window.innerHeight;
+      const top = Math.max(20, h * CARD_TOP_FRAC);
+      const max = h - top - BOTTOM_BAR;
+      setBox({ top, height: Math.max(CARD_MIN, Math.min(max, naturalH() || max)) });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [show, word.word]);
+
+EDIT 3d — il bersaglio del viaggio: il titolo, centrato
+TROVA:
+    const target = { x: 14 + TITLE_X, y: box.top + TITLE_Y, scale: TITLE_FS / o.fontSize };
+
+SOSTITUISCI CON:
+    // il titolo è centrato: il bersaglio è il bordo sinistro del testo, non
+    // della scheda, perciò si misura dal centro meno metà larghezza
+    const tw = word.word.length * TITLE_FS * 0.56;
+    const target = {
+      x: window.innerWidth / 2 - tw / 2,
+      y: box.top + TITLE_OFFSET,
+      scale: TITLE_FS / o.fontSize,
+    };
+
+EDIT 3e — badge e titolo entrano nello scorrimento, centrati
+TROVA:
+        <div className="fb-scroll"
+          style={{
+            position: "absolute", inset: 0, overflowY: "auto",
+            overscrollBehavior: "contain", WebkitOverflowScrolling: "touch",
+            touchAction: "pan-y", padding: "118px 24px 26px",
+          }}>
+
+SOSTITUISCI CON:
+        <div className="fb-scroll" ref={scrollRef}
+          style={{
+            position: "absolute", inset: 0, overflowY: "auto",
+            overscrollBehavior: "contain", WebkitOverflowScrolling: "touch",
+            touchAction: "pan-y", padding: "26px 24px 30px",
+          }}>
+          {/* badge e titolo stanno DENTRO lo scorrimento: scorrono col resto,
+              come in una scheda vera. Niente più elementi fissi sopra. */}
+          <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 13,
+            letterSpacing: "0.1em", textTransform: "uppercase", textAlign: "center",
+            color: isCorrect ? "#10B981" : "#EF4444", margin: "0 0 10px" }}>
+            {isCorrect ? "✓ Correct" : "✗ Incorrect"}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 12, marginBottom: 22, opacity: flying ? 0 : 1 }}>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700,
+              fontSize: TITLE_FS, color: "#C7B8E8", lineHeight: 1.1, whiteSpace: "nowrap" }}>
+              {word.word}
+            </span>
+            <button onClick={() => speakWord(word.word)}
+              style={{ background: "none", border: "none", cursor: "pointer",
+                color: "rgba(199,184,232,0.55)", padding: 4, display: "flex", alignItems: "center" }}
+              aria-label="Pronounce">
+              <IconVolume />
+            </button>
+          </div>
+
+EDIT 3f — via il badge e il titolo fissi che stavano fuori
+TROVA:
+      {/* badge e titolo: fuori dallo scorrimento, sempre alla stessa quota */}
+      <p style={{
+        position: "fixed", left: 14 + TITLE_X, top: box.top + 30, zIndex: 52,
+        fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 13,
+        letterSpacing: "0.1em", textTransform: "uppercase",
+        color: isCorrect ? "#10B981" : "#EF4444", margin: 0, pointerEvents: "none",
+      }}>
+        {isCorrect ? "✓ Correct" : "✗ Incorrect"}
+      </p>
+
+      {!flying && (
+        <div style={{
+          position: "fixed", left: 14 + TITLE_X, top: box.top + TITLE_Y, zIndex: 53,
+          transform: "translateY(-50%)", display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: TITLE_FS, color: "#C7B8E8", lineHeight: 1.1 }}>
+            {word.word}
+          </span>
+          <button onClick={() => speakWord(word.word)}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(199,184,232,0.55)", padding: 4, display: "flex", alignItems: "center" }}
+            aria-label="Pronounce">
+            <IconVolume />
+          </button>
+        </div>
+      )}
+
+SOSTITUISCI CON:
+(niente — cancella completamente questo blocco)
+
+EDIT 3g — il viaggio parte a richiesta, non da solo
+TROVA:
+    const o = getWordOrigin();
+    originRef.current = o;
+    setOpened(!isCorrect);      // sull'errore si apre da sé
+    setFlying(!!o && !reduced);
+
+    if (!o || reduced) {
+      requestAnimationFrame(() => applyClip(isCorrect ? 0 : 1, false));
+      setFlying(false);
+      return;
+    }
+
+SOSTITUISCI CON:
+    const o = getWordOrigin();
+    originRef.current = o;
+
+    /**
+     * Rispondi giusto e non succede niente: la parola resta dove il formato
+     * l'ha lasciata, compare solo la maniglia. Il viaggio e la scheda
+     * avvengono quando li chiedi — o da soli se hai sbagliato, perché lì hai
+     * motivo di leggere.
+     */
+    if (isCorrect) {
+      setOpened(false);
+      setFlying(false);
+      requestAnimationFrame(() => applyClip(0, false));
+      return;
+    }
+    setOpened(true);
+    setFlying(!!o && !reduced);
+
+    if (!o || reduced) {
+      requestAnimationFrame(() => applyClip(1, false));
+      setFlying(false);
+      return;
+    }
+
+EDIT 3h — la maniglia sostituisce il pulsante Definition
+TROVA la riga:
+          onClick={() => { if (!dragRef.current?.moved) toggle(!opened); }}
+
+e da lì fino alla riga:
+      </button>
+
+SOSTITUISCILE CON:
+          onClick={() => { if (!dragRef.current?.moved) toggle(!opened); }}
+          onPointerDown={(e) => {
+            dragRef.current = { y0: e.clientY, from: opened, moved: false, h0: box.height };
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+            if (cardRef.current) cardRef.current.style.transition = "";
+          }}
+          onPointerMove={(e) => {
+            const d = dragRef.current; if (!d) return;
+            const dy = e.clientY - d.y0;
+            if (Math.abs(dy) > 4) d.moved = true;
+            if (!d.from) {
+              // chiusa: il gesto la apre seguendo il dito
+              const span = Math.max(120, box.height * 0.6);
+              const v = clamp01(dy / span);
+              applyClip(easeOut(v), false);
+              d.v = v;
+              return;
+            }
+            // aperta: lo stesso gesto ne cambia l'altezza, tirando il bordo
+            const h = window.innerHeight;
+            const max = h - box.top - BOTTOM_BAR;
+            setBox((b) => ({ ...b, height: Math.max(CARD_MIN, Math.min(max, (d.h0 ?? b.height) + dy)) }));
+            d.v = 1;
+          }}
+          onPointerUp={() => {
+            const d = dragRef.current; if (!d) return;
+            if (d.moved && !d.from) toggle((d.v ?? 0) > 0.5);
+            dragRef.current = null;
+          }}
+          aria-label={opened ? "Close definition" : "Show definition"}
+          style={{
+            /* LA MANIGLIA. Non un pulsante che sta da qualche parte: è il
+               BORDO INFERIORE della scheda, quindi non può sovrapporsi a
+               niente. Chiusa sta appena sotto la parola; aperta è in fondo —
+               dove il pollice arriva comodo. */
+            position: "fixed", left: "50%", transform: "translateX(-50%)",
+            top: handleY, zIndex: 54,
+            width: 74, height: 26, padding: 0, border: "none", background: "none",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", touchAction: "none", userSelect: "none",
+          }}>
+          <span style={{ width: 38, height: 4, borderRadius: 2,
+            background: "rgba(199,184,232,0.34)" }} />
+      </button>
+
+EDIT 3i — la quota della maniglia e il tipo del trascinamento
+TROVA:
+  const dragRef = useRef<{ y0: number; from: boolean; moved: boolean } | null>(null);
+
+SOSTITUISCI CON:
+  const dragRef = useRef<{ y0: number; from: boolean; moved: boolean; h0?: number; v?: number } | null>(null);
+  /**
+   * Dove sta la maniglia: sul bordo inferiore VISIBILE, non sul fondo del
+   * riquadro. Chiusa, il ritaglio stringe la scheda attorno alla parola,
+   * quindi la maniglia sta lì sotto — in una zona vuota.
+   */
+  const handleY = opened
+    ? box.top + box.height + 6
+    : (originRef.current ? originRef.current.y + originRef.current.h + 10 : box.top + 60);
+
+════════════════════════════════════════════════════════════
+VERIFICA E RIPORTA — obbligatorio
+════════════════════════════════════════════════════════════
+· Per OGNI file: righe prima e dopo
+· Per OGNI file: quante volte compare "export default"  (deve essere 1)
+· Typecheck: sì/no + errori PER INTERO
+· Conferma che in FeedbackCard.tsx NON esistono più: TITLE_X, TITLE_Y, TOP_FRAC
+· Conferma che "Definition" come testo del pulsante è SPARITO
+· Segnala se `mounted`/`setMounted` risultano dichiarati e non usati
+
+NON FARE
+· NON toccare QuizScreen.tsx, ContextQuestion.tsx.
+· NON riscrivere file interi.
+· NON avviare il dev server, NON testare.

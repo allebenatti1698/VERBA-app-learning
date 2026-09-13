@@ -4,6 +4,7 @@ import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { lowercaseFirst } from "@/lib/formatText";
 import { tapScale } from "@/components/SpringTap";
 import type { QuestionProps } from "@/components/quiz/types";
+import { titleFontSize } from "@/lib/wordOrigin";
 
 // Gradino 1 — Recognize: vedi la parola, scegli la definizione.
 
@@ -52,11 +53,9 @@ export default function RecognizeQuestion({
     [word],
   );
 
-  const wlen = word.word.length;
-  const wordFontSize =
-    wlen <= 13 ? "clamp(34px, 8.5vw, 50px)" :
-    wlen <= 15 ? "clamp(28px, 7vw, 42px)" :
-                 "clamp(26px, 6vw, 38px)";
+  // stessa funzione che usa il titolo della scheda: se divergessero, la
+  // parola "salterebbe" nel momento in cui la scheda si apre
+  const wordFontSize = titleFontSize(word.word) + "px";
 
   return (
     <>
