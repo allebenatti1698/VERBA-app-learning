@@ -7,7 +7,7 @@ import { lowercaseFirst, highlightWord } from "@/lib/formatText";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 import { getWordOrigin, setWordOrigin, type WordOrigin,
          CARD_TOP_FRAC, TITLE_OFFSET, BOTTOM_BAR, CARD_MIN,
-         titleFontSize } from "@/lib/wordOrigin";
+         titleFontSize, CARD_TOGGLE_EVENT } from "@/lib/wordOrigin";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -589,6 +589,13 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
     return () => window.removeEventListener("resize", measure);
   }, [show, word.word]);
 
+  // la parola premuta nell'esercizio apre e chiude la scheda
+  useEffect(() => {
+    const onToggle = () => { if (show) toggle(!opened); };
+    window.addEventListener(CARD_TOGGLE_EVENT, onToggle);
+    return () => window.removeEventListener(CARD_TOGGLE_EVENT, onToggle);
+  });
+
   /* il viaggio della parola */
   useEffect(() => {
     if (!show) {
@@ -693,6 +700,9 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
           position: "fixed", left: 14, right: 14, top: box.top, height: box.height,
           maxWidth: SCREEN_MAX, marginLeft: "auto", marginRight: "auto",
           borderRadius: 22, overflow: "hidden", opacity: 0,
+          // chiusa lascia passare il tocco: altrimenti copre la parola e
+          // se lo mangia, pur essendo a opacità zero
+          pointerEvents: opened ? "auto" : "none",
           background: "linear-gradient(168deg,#16151B,#0D0C11)",
           border: "1px solid rgba(199,184,232,0.2)",
           boxShadow: "0 30px 90px rgba(0,0,0,0.72)",
@@ -835,10 +845,10 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
         .fb-scroll {
           scrollbar-width: none;
           -ms-overflow-style: none;
-          -webkit-mask-image: linear-gradient(to bottom, transparent 88px, #000 118px,
-                              #000 calc(100% - 22px), transparent 100%);
-          mask-image: linear-gradient(to bottom, transparent 88px, #000 118px,
-                      #000 calc(100% - 22px), transparent 100%);
+          /* solo in fondo: in cima non c'è più niente di fisso sotto cui il
+             testo possa passare, e una sfumatura lì taglierebbe il titolo */
+          -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent 100%);
         }
         .fb-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
       `}</style>

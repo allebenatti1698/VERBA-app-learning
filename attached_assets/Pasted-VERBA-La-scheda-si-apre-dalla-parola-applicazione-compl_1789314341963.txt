@@ -1,0 +1,534 @@
+VERBA — La scheda si apre dalla parola: applicazione completa.
+ECONOMY MODE, Claude Sonnet 5, Effort Medium. Stima ~$1.30–2.30.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Applica OGNI edit in modo indipendente: salta e segnala i mismatch senza fermarti.
+
+REGOLA VINCOLANTE: solo edit mirati old_string→new_string.
+NON riscrivere file interi. In coda riporta righe prima/dopo di OGNI file.
+
+Quattro file.
+
+════════════════════════════════════════════════════════════
+1 · src/lib/wordOrigin.ts — misure condivise e canale di apertura
+════════════════════════════════════════════════════════════
+IN CODA al file, AGGIUNGI:
+
+/* ── la geometria della scheda, in un posto solo ──────────────────────────
+ * La parola-eroe del gradino 1 e il titolo della scheda devono avere la
+ * STESSA dimensione e la STESSA quota: è così che lì la parola non si muove.
+ * Se questi numeri vivessero in due file, prima o poi divergerebbero.
+ */
+export const CARD_TOP_FRAC = 0.055;
+/** Dalla cima della scheda al centro del titolo: padding + badge + margini. */
+export const TITLE_OFFSET = 26 + 17 + 10 + 26;
+export const BOTTOM_BAR = 104;
+export const CARD_MIN = 190;
+
+export function titleMidY(): number {
+  if (typeof window === "undefined") return 120;
+  return Math.max(20, window.innerHeight * CARD_TOP_FRAC) + TITLE_OFFSET;
+}
+
+/** Il corpo del titolo: scende sulle parole lunghe, che a 44px non entrano. */
+export function titleFontSize(word: string): number {
+  const n = word.length;
+  if (n <= 9) return 44;
+  if (n <= 12) return 38;
+  if (n <= 15) return 32;
+  return 27;
+}
+
+/**
+ * La parola è premibile dopo la risposta, e apre la scheda. Ma la parola vive
+ * nel componente-domanda e la scheda è un altro sottoalbero: questo evento è
+ * il canale, senza cambiare la firma di onSelect per tutti i formati.
+ */
+export const CARD_TOGGLE_EVENT = "verba:card-toggle";
+export function requestCardToggle() {
+  if (typeof window !== "undefined")
+    window.dispatchEvent(new CustomEvent(CARD_TOGGLE_EVENT));
+}
+
+════════════════════════════════════════════════════════════
+2 · src/components/quiz/ContextQuestion.tsx — cinque edit
+════════════════════════════════════════════════════════════
+EDIT 2a — import
+TROVA:
+import { publishWordOrigin } from "@/lib/wordOrigin";
+
+SOSTITUISCI CON:
+import { publishWordOrigin, requestCardToggle } from "@/lib/wordOrigin";
+
+EDIT 2b — il ref dell'esito, che draw può leggere
+TROVA:
+  const answerRef = useRef(answer);
+  const optionsRef = useRef(options);
+
+SOSTITUISCI CON:
+  const answerRef = useRef(answer);
+  const optionsRef = useRef(options);
+  /** L'esito, leggibile da draw: là dentro le variabili sono stale. */
+  const correctRef = useRef(false);
+
+EDIT 2c — a composizione finita la parola diventa l'origine, ed è premibile
+TROVA:
+      const sz = sizerRef.current;
+      if (sz) {
+        sz.style.visibility = "visible";
+        sz.style.color = "#34D399";
+        sz.textContent = answerRef.current;
+      }
+      flyRef.current = [];
+
+SOSTITUISCI CON:
+      settle();
+      flyRef.current = [];
+
+EDIT 2d — la funzione che conclude, usata anche dalla rete di sicurezza
+TROVA:
+  /* ── il disegno ──────────────────────────────────────────────────────── */
+
+SOSTITUISCI CON:
+  /**
+   * Conclude la composizione: il canvas cede il posto al DOM, la parola
+   * diventa l'origine da cui la scheda si aprirà, e da lì è premibile.
+   */
+  function settle() {
+    settledRef.current = true;
+    const sz = sizerRef.current;
+    if (!sz) return;
+    sz.style.visibility = "visible";
+    sz.style.color = "#34D399";
+    sz.textContent = answerRef.current;
+    sz.classList.add("verba-tappable");
+    sz.onclick = () => requestCardToggle();
+    publishWordOrigin(sz, correctRef.current);
+    // qualunque lettera fosse rimasta nascosta nel bottone torna visibile:
+    // un bottone mezzo vuoto è peggio di un bottone pieno
+    const wrap = optsRef.current;
+    if (wrap) [...wrap.children].forEach((el) => {
+      [...(el as HTMLElement).querySelectorAll<HTMLElement>("span")]
+        .forEach((s) => { if (s.style.opacity === "0") s.style.opacity = "0"; });
+    });
+  }
+
+  /* ── il disegno ──────────────────────────────────────────────────────── */
+
+EDIT 2e — l'esito si registra, e una rete di sicurezza chiude comunque
+TROVA:
+    const correct = option === answer;
+    answeredRef.current = true;
+
+SOSTITUISCI CON:
+    const correct = option === answer;
+    correctRef.current = correct;
+    answeredRef.current = true;
+
+E POI TROVA:
+    if (correct) {
+      compose();
+    } else {
+      setShakeIdx(i);
+      window.setTimeout(compose, SHAKE_MS + FAIL_GAP);
+    }
+
+SOSTITUISCI CON:
+    if (correct) {
+      compose();
+    } else {
+      setShakeIdx(i);
+      window.setTimeout(compose, SHAKE_MS + FAIL_GAP);
+    }
+    /* Rete di sicurezza. Se per qualunque ragione il ciclo di disegno non
+       conclude, le lettere prelevate dal bottone resterebbero invisibili per
+       sempre e il buco vuoto. Questa NON corregge la causa: garantisce solo
+       che l'utente non resti con un bottone svuotato a metà. */
+    window.setTimeout(() => {
+      if (!settledRef.current) { flyRef.current = []; settle(); }
+    }, delay + 400);
+
+EDIT 2f — anche il ripiego senza animazioni conclude allo stesso modo
+TROVA:
+      if (sizerRef.current) {
+        sizerRef.current.textContent = answer;
+        sizerRef.current.style.visibility = "visible";
+        sizerRef.current.style.color = "#34D399";
+      }
+      settledRef.current = true;
+      return;
+
+SOSTITUISCI CON:
+      settle();
+      return;
+
+EDIT 2g — lo stile del premibile, in fondo al JSX
+TROVA:
+      <canvas ref={canvasRef} aria-hidden
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 0 }} />
+
+SOSTITUISCI CON:
+      <canvas ref={canvasRef} aria-hidden
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 0 }} />
+      <style>{`
+        /* LA PAROLA È UN TASTO: dopo la risposta si preme e si schiaccia,
+           come un tasto vero. È la risposta al tocco a dire che è premibile,
+           meglio di un sottolineato che avvisa prima e sporca la tipografia. */
+        .verba-tappable {
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+          display: inline-block;
+          transition: transform 0.18s cubic-bezier(.2,1.3,.35,1);
+        }
+        .verba-tappable:active { transform: scale(0.94); transition: transform 0.07s ease-out; }
+        /* nel gradino 2 la parola è alta 17px: troppo poco per un pollice.
+           L'area sensibile si allarga, quel che si vede no. */
+        .verba-tappable::after {
+          content: ""; position: absolute; left: -10px; right: -10px; top: -14px; bottom: -14px;
+        }
+      `}</style>
+
+E POI TROVA:
+              <span ref={sizerRef} style={{ visibility: "hidden", whiteSpace: "nowrap", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500 }} />
+
+SOSTITUISCI CON:
+              <span ref={sizerRef} style={{ position: "relative", visibility: "hidden", whiteSpace: "nowrap", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500 }} />
+
+════════════════════════════════════════════════════════════
+3 · src/components/quiz/RecognizeQuestion.tsx — quattro edit
+════════════════════════════════════════════════════════════
+EDIT 3a — import
+TROVA:
+import { publishWordOrigin } from "@/lib/wordOrigin";
+
+SOSTITUISCI CON:
+import { publishWordOrigin, requestCardToggle, titleFontSize, titleMidY } from "@/lib/wordOrigin";
+
+EDIT 3b — il ref va sul testo, non sull'h2 (che ha padding e nowrap)
+TROVA:
+  const heroRef = useRef<HTMLHeadingElement | null>(null);
+
+SOSTITUISCI CON:
+  const heroRef = useRef<HTMLSpanElement | null>(null);
+  /** La parola si posa dove cadrà il titolo: lì non dovrà muoversi. */
+  const heroTop = Math.max(8, titleMidY() - titleFontSize(word.word) * 0.6);
+
+EDIT 3c — corpo e posizione vengono dalle misure condivise
+TROVA:
+  const wlen = word.word.length;
+  const wordFontSize =
+    wlen <= 13 ? "clamp(34px, 8.5vw, 50px)" :
+    wlen <= 15 ? "clamp(28px, 7vw, 42px)" :
+                 "clamp(26px, 6vw, 38px)";
+
+SOSTITUISCI CON:
+  // stessa funzione che usa il titolo della scheda: se divergessero, la parola
+  // "salterebbe" nel momento in cui la scheda si apre
+  const wordFontSize = titleFontSize(word.word) + "px";
+
+EDIT 3d — l'h2 si posiziona, e il testo diventa premibile
+TROVA:
+          <h2 ref={heroRef} style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: wordFontSize, lineHeight: 1.3, color: "#C7B8E8", margin: 0, textAlign: "center", width: "100%", maxWidth: "100%", padding: "20px 14px 32px 14px", boxSizing: "border-box", overflow: "visible", whiteSpace: "nowrap", wordBreak: "keep-all" }}>
+            {word.word}
+          </h2>
+
+SOSTITUISCI CON:
+          <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: wordFontSize, lineHeight: 1.1, color: "#C7B8E8", margin: 0, textAlign: "center", width: "100%", boxSizing: "border-box", overflow: "visible", whiteSpace: "nowrap", wordBreak: "keep-all", position: "absolute", left: 0, right: 0, top: heroTop }}>
+            <span ref={heroRef}
+              className={isAnswered ? "verba-tappable" : undefined}
+              onClick={isAnswered ? () => requestCardToggle() : undefined}
+              style={{ position: "relative", display: "inline-block" }}>
+              {word.word}
+            </span>
+          </h2>
+
+E POI TROVA:
+          style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 24, paddingBottom: 8, width: "100%", maxWidth: SCREEN_MAX }}
+
+SOSTITUISCI CON:
+          style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", paddingTop: heroTop + titleFontSize(word.word) + 30, paddingBottom: 8, width: "100%", maxWidth: SCREEN_MAX }}
+
+EDIT 3e — pubblica l'origine al momento della risposta
+TROVA:
+              onClick={() => onSelect(option, option === correctAnswer)}
+
+SOSTITUISCI CON:
+              onClick={() => {
+                // la parola è già dove servirà: la scheda si aprirà da lì
+                publishWordOrigin(heroRef.current, option === correctAnswer);
+                onSelect(option, option === correctAnswer);
+              }}
+
+════════════════════════════════════════════════════════════
+4 · src/components/FeedbackCard.tsx — otto edit
+════════════════════════════════════════════════════════════
+EDIT 4a — import
+TROVA:
+import { getWordOrigin, setWordOrigin, type WordOrigin } from "@/lib/wordOrigin";
+
+SOSTITUISCI CON:
+import { getWordOrigin, setWordOrigin, type WordOrigin,
+         CARD_TOP_FRAC, TITLE_OFFSET, BOTTOM_BAR, CARD_MIN,
+         titleFontSize, CARD_TOGGLE_EVENT } from "@/lib/wordOrigin";
+
+EDIT 4b — le costanti locali cedono a quelle condivise
+TROVA:
+  const TITLE_FS = 32;      // corpo del titolo
+  const TITLE_X = 24;       // rientro del titolo dentro la scheda
+  const TITLE_Y = 74;       // quota del titolo dentro la scheda
+  const TOP_FRAC = 0.19;    // dove comincia il riquadro
+  const BOTTOM_BAR = 86;    // spazio riservato alla barra del Next
+
+SOSTITUISCI CON:
+  // il titolo È la parola-eroe: stesso corpo, stessa quota. Per questo i
+  // numeri stanno in wordOrigin.ts e non qui.
+  const TITLE_FS = titleFontSize(word.word);
+
+EDIT 4c — geometria dal contenuto, non dallo schermo
+TROVA:
+  useEffect(() => {
+    const measure = () => {
+      const h = window.innerHeight;
+      const top = Math.max(104, h * TOP_FRAC);
+      setBox({ top, height: Math.max(180, h - top - BOTTOM_BAR) });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+SOSTITUISCI CON:
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * L'altezza di partenza non è una frazione dello schermo: è quella che
+   * contiene ESATTAMENTE il contenuto, così una parola con una definizione
+   * non scorre. L'allungamento serve alle parole con più significati.
+   */
+  const naturalH = () => {
+    const sc = scrollRef.current;
+    if (!sc) return 0;
+    const prev = sc.style.height;
+    sc.style.height = "auto";
+    const nat = sc.scrollHeight + 4;
+    sc.style.height = prev;
+    return nat;
+  };
+
+  useEffect(() => {
+    const measure = () => {
+      const h = window.innerHeight;
+      const top = Math.max(20, h * CARD_TOP_FRAC);
+      const max = h - top - BOTTOM_BAR;
+      setBox({ top, height: Math.max(CARD_MIN, Math.min(max, naturalH() || max)) });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [show, word.word]);
+
+  // la parola premuta nell'esercizio apre e chiude la scheda
+  useEffect(() => {
+    const onToggle = () => { if (show) toggle(!opened); };
+    window.addEventListener(CARD_TOGGLE_EVENT, onToggle);
+    return () => window.removeEventListener(CARD_TOGGLE_EVENT, onToggle);
+  });
+
+EDIT 4d — il bersaglio del viaggio: il titolo, centrato
+TROVA:
+    const target = { x: 14 + TITLE_X, y: box.top + TITLE_Y, scale: TITLE_FS / o.fontSize };
+
+SOSTITUISCI CON:
+    // il titolo è centrato: il bersaglio è il bordo sinistro del testo
+    const tw = word.word.length * TITLE_FS * 0.56;
+    const target = {
+      x: window.innerWidth / 2 - tw / 2,
+      y: box.top + TITLE_OFFSET,
+      scale: TITLE_FS / o.fontSize,
+    };
+
+EDIT 4e — apertura solo a richiesta o su errore
+TROVA:
+    const o = getWordOrigin();
+    originRef.current = o;
+    setOpened(!isCorrect);      // sull'errore si apre da sé
+    setFlying(!!o && !reduced);
+
+    if (!o || reduced) {
+      requestAnimationFrame(() => applyClip(!isCorrect ? 1 : 0, false));
+      setFlying(false);
+      return;
+    }
+
+SOSTITUISCI CON:
+    const o = getWordOrigin();
+    originRef.current = o;
+
+    /**
+     * Rispondi giusto e non succede niente: la parola resta dove il formato
+     * l'ha lasciata, premibile. Il viaggio e la scheda avvengono quando li
+     * chiedi — o da soli se hai sbagliato, perché lì hai motivo di leggere.
+     */
+    if (isCorrect) {
+      setOpened(false);
+      setFlying(false);
+      requestAnimationFrame(() => applyClip(0, false));
+      return;
+    }
+    setOpened(true);
+    setFlying(!!o && !reduced);
+
+    if (!o || reduced) {
+      requestAnimationFrame(() => applyClip(1, false));
+      setFlying(false);
+      return;
+    }
+
+EDIT 4f — badge e titolo dentro lo scorrimento, parola centrata da sola
+TROVA:
+        <div className="fb-scroll"
+          style={{
+            position: "absolute", inset: 0, overflowY: "auto",
+            overscrollBehavior: "contain", WebkitOverflowScrolling: "touch",
+            touchAction: "pan-y", padding: "118px 24px 26px",
+          }}>
+
+SOSTITUISCI CON:
+        <div className="fb-scroll" ref={scrollRef}
+          style={{
+            position: "absolute", inset: 0, overflowY: "auto",
+            overscrollBehavior: "contain", WebkitOverflowScrolling: "touch",
+            touchAction: "pan-y", padding: "26px 24px 34px",
+          }}>
+          {/* badge e titolo stanno DENTRO lo scorrimento: scorrono col resto */}
+          <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 13,
+            letterSpacing: "0.1em", textTransform: "uppercase", textAlign: "center",
+            color: isCorrect ? "#10B981" : "#EF4444", margin: "0 0 10px" }}>
+            {isCorrect ? "✓ Correct" : "✗ Incorrect"}
+          </p>
+          {/* la parola sta DA SOLA sulla sua riga: un'icona accanto la
+              sposterebbe di metà della propria larghezza e non sarebbe più
+              centrata sul badge. E si preme, per tornare all'esercizio. */}
+          <div style={{ textAlign: "center", marginBottom: 6, opacity: flying ? 0 : 1 }}>
+            <span className="verba-tappable" onClick={() => toggle(false)}
+              style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700,
+                fontSize: TITLE_FS, color: "#C7B8E8", lineHeight: 1.1,
+                whiteSpace: "nowrap", position: "relative" }}>
+              {word.word}
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 9, marginBottom: 22, opacity: flying ? 0 : 1 }}>
+            <span style={{ fontFamily: "monospace", fontSize: 13,
+              color: "rgba(255,255,255,0.4)", letterSpacing: "0.02em" }}>
+              {word.phonetic}
+            </span>
+            <button onClick={() => speakWord(word.word)}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 3,
+                display: "flex", alignItems: "center", color: "rgba(199,184,232,0.5)" }}
+              aria-label="Pronounce">
+              <IconVolume />
+            </button>
+          </div>
+
+EDIT 4g — via badge e titolo che stavano fuori
+TROVA la riga:
+      {/* badge e titolo: fuori dallo scorrimento, sempre alla stessa quota */}
+
+e da lì fino alla riga che chiude quel blocco:
+      )}
+
+CANCELLA tutto il blocco (il paragrafo del badge e il `{!flying && (...)}`).
+NON cancellare il blocco della parola in volo, che comincia con
+`{/* la parola che viaggia`.
+
+EDIT 4h — la maniglia sostituisce il pulsante Definition
+TROVA la riga:
+      <button
+        onClick={() => { if (!dragRef.current?.moved) toggle(!opened); }}
+
+e da lì fino alla riga:
+      </button>
+
+SOSTITUISCILE CON:
+      {/* LA MANIGLIA. Non un pulsante che sta da qualche parte: è il LATO
+          BASSO della scheda, una fascia larga quanto lei. La si afferra da
+          qualunque punto e si tira: l'altezza segue il dito fra un minimo e
+          un massimo. La barretta al centro è solo l'indicatore. */}
+      {opened && (
+        <div
+          onPointerDown={(e) => {
+            dragRef.current = { y0: e.clientY, from: true, moved: false, h0: box.height };
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+            if (cardRef.current) cardRef.current.style.transition = "";
+          }}
+          onPointerMove={(e) => {
+            const d = dragRef.current; if (!d) return;
+            const dy = e.clientY - d.y0;
+            if (Math.abs(dy) > 4) d.moved = true;
+            const h = window.innerHeight;
+            const max = h - box.top - BOTTOM_BAR;
+            setBox((b) => ({ ...b, height: Math.max(CARD_MIN, Math.min(max, (d.h0 ?? b.height) + dy)) }));
+          }}
+          onPointerUp={() => {
+            const d = dragRef.current;
+            if (d && !d.moved) toggle(false);   // un tocco senza trascinare chiude
+            dragRef.current = null;
+          }}
+          style={{
+            position: "fixed", left: 14, right: 14, top: box.top + box.height - 15,
+            maxWidth: SCREEN_MAX, marginLeft: "auto", marginRight: "auto",
+            height: 30, zIndex: 54, cursor: "ns-resize",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            touchAction: "none", userSelect: "none",
+          }}>
+          <span style={{ width: 44, height: 4, borderRadius: 2,
+            background: "rgba(199,184,232,0.3)" }} />
+        </div>
+      )}
+
+EDIT 4i — tipo del trascinamento, e la scheda chiusa lascia passare il tocco
+TROVA:
+  const dragRef = useRef<{ y0: number; from: boolean; moved: boolean } | null>(null);
+
+SOSTITUISCI CON:
+  const dragRef = useRef<{ y0: number; from: boolean; moved: boolean; h0?: number } | null>(null);
+
+E POI TROVA:
+            borderRadius: 22, overflow: "hidden", opacity: 0,
+
+SOSTITUISCI CON:
+            borderRadius: 22, overflow: "hidden", opacity: 0,
+            // chiusa lascia passare il tocco: altrimenti copre la parola e
+            // se lo mangia, pur essendo a opacità zero
+            pointerEvents: opened ? "auto" : "none",
+
+EDIT 4j — la maschera sfuma solo in fondo
+TROVA:
+          -webkit-mask-image: linear-gradient(to bottom, transparent 88px, #000 118px,
+                              #000 calc(100% - 22px), transparent 100%);
+          mask-image: linear-gradient(to bottom, transparent 88px, #000 118px,
+                      #000 calc(100% - 22px), transparent 100%);
+
+SOSTITUISCI CON:
+          /* solo in fondo: in cima non c'è più niente di fisso sotto cui il
+             testo possa passare, e una sfumatura lì taglierebbe il titolo */
+          -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 calc(100% - 30px), transparent 100%);
+
+════════════════════════════════════════════════════════════
+VERIFICA E RIPORTA — obbligatorio
+════════════════════════════════════════════════════════════
+· Per OGNI file: righe prima e dopo, e quante volte "export default" (=1)
+· Typecheck: sì/no + errori PER INTERO
+· In ContextQuestion: "publishWordOrigin(" deve comparire ALMENO 1 volta
+  come CHIAMATA, non solo nell'import. Riporta il conteggio.
+· In FeedbackCard: confermare che TITLE_X, TITLE_Y, TOP_FRAC non esistono più
+· In FeedbackCard: confermare che la stringa "Definition" è sparita
+· Segnalare se `mounted`/`setMounted` restano dichiarati e non usati
+
+NON FARE
+· NON toccare QuizScreen.tsx.
+· NON riscrivere file interi.
+· NON avviare il dev server, NON testare.

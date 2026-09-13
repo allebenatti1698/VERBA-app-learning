@@ -4,7 +4,7 @@ import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { lowercaseFirst } from "@/lib/formatText";
 import { tapScale } from "@/components/SpringTap";
 import type { QuestionProps } from "@/components/quiz/types";
-import { titleFontSize } from "@/lib/wordOrigin";
+import { publishWordOrigin, requestCardToggle, titleFontSize, titleMidY } from "@/lib/wordOrigin";
 
 // Gradino 1 — Recognize: vedi la parola, scegli la definizione.
 
@@ -42,6 +42,7 @@ export default function RecognizeQuestion({
   onSelect,
   animKey,
 }: QuestionProps) {
+  const heroRef = useRef<HTMLSpanElement | null>(null);
   const [showTranslation, setShowTranslation] = useState(false);
 
   // L'hint si richiude da solo alla parola successiva.
@@ -56,6 +57,8 @@ export default function RecognizeQuestion({
   // stessa funzione che usa il titolo della scheda: se divergessero, la
   // parola "salterebbe" nel momento in cui la scheda si apre
   const wordFontSize = titleFontSize(word.word) + "px";
+  /** La parola si posa dove cadrà il titolo: lì non dovrà muoversi. */
+  const heroTop = Math.max(8, titleMidY() - titleFontSize(word.word) * 0.6);
 
   return (
     <>
@@ -67,10 +70,15 @@ export default function RecognizeQuestion({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -16 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
-          style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 24, paddingBottom: 8, width: "100%", maxWidth: SCREEN_MAX }}
+          style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", paddingTop: heroTop + titleFontSize(word.word) + 30, paddingBottom: 8, width: "100%", maxWidth: SCREEN_MAX }}
         >
-          <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: wordFontSize, lineHeight: 1.3, color: "#C7B8E8", margin: 0, textAlign: "center", width: "100%", maxWidth: "100%", padding: "20px 14px 32px 14px", boxSizing: "border-box", overflow: "visible", whiteSpace: "nowrap", wordBreak: "keep-all" }}>
-            {word.word}
+          <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: wordFontSize, lineHeight: 1.1, color: "#C7B8E8", margin: 0, textAlign: "center", width: "100%", boxSizing: "border-box", overflow: "visible", whiteSpace: "nowrap", wordBreak: "keep-all", position: "absolute", left: 0, right: 0, top: heroTop }}>
+            <span ref={heroRef}
+              className={isAnswered ? "verba-tappable" : undefined}
+              onClick={isAnswered ? () => requestCardToggle() : undefined}
+              style={{ position: "relative", display: "inline-block" }}>
+              {word.word}
+            </span>
           </h2>
 
           <motion.button
@@ -137,7 +145,11 @@ export default function RecognizeQuestion({
                 x: { duration: 0.34, ease: [0.36, 0.07, 0.19, 0.97], delay: 0 },
               }}
               whileTap={isAnswered ? undefined : tapScale("card")}
-              onClick={() => onSelect(option, option === correctAnswer)}
+              onClick={() => {
+                // la parola è già dove servirà: la scheda si aprirà da lì
+                publishWordOrigin(heroRef.current, option === correctAnswer);
+                onSelect(option, option === correctAnswer);
+              }}
               disabled={isAnswered}
               style={{
                 ...getOptionStyle(option, correctAnswer, selectedOption, isAnswered),

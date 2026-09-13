@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { tapScale } from "@/components/SpringTap";
 import type { QuestionProps } from "@/components/quiz/types";
-import { publishWordOrigin } from "@/lib/wordOrigin";
+import { publishWordOrigin, requestCardToggle } from "@/lib/wordOrigin";
 
 // Gradino 2 — Recall in context.
 //
@@ -111,6 +111,8 @@ export default function ContextQuestion({
    */
   const answerRef = useRef(answer);
   const optionsRef = useRef(options);
+  /** L'esito, leggibile da draw: là dentro le variabili sono stale. */
+  const correctRef = useRef(false);
 
   /* ── misure ──────────────────────────────────────────────────────────── */
   function targetsFor(w: string): Target[] {
@@ -211,6 +213,29 @@ export default function ContextQuestion({
     flyRef.current = out;
   }
 
+  /**
+   * Conclude la composizione: il canvas cede il posto al DOM, la parola
+   * diventa l'origine da cui la scheda si aprirà, e da lì è premibile.
+   */
+  function settle() {
+    settledRef.current = true;
+    const sz = sizerRef.current;
+    if (!sz) return;
+    sz.style.visibility = "visible";
+    sz.style.color = "#34D399";
+    sz.textContent = answerRef.current;
+    sz.classList.add("verba-tappable");
+    sz.onclick = () => requestCardToggle();
+    publishWordOrigin(sz, correctRef.current);
+    // qualunque lettera fosse rimasta nascosta nel bottone torna visibile:
+    // un bottone mezzo vuoto è peggio di un bottone pieno
+    const wrap = optsRef.current;
+    if (wrap) [...wrap.children].forEach((el) => {
+      [...(el as HTMLElement).querySelectorAll<HTMLElement>("span")]
+        .forEach((s) => { if (s.style.opacity === "0") s.style.opacity = "0"; });
+    });
+  }
+
   /* ── il disegno ──────────────────────────────────────────────────────── */
   function draw(now: number) {
     const cv = canvasRef.current, host = hostRef.current;
@@ -282,12 +307,7 @@ export default function ContextQuestion({
     // vero, allineato come il resto della frase
     if (!settledRef.current && flyRef.current.length > 0 && !pending) {
       settledRef.current = true;
-      const sz = sizerRef.current;
-      if (sz) {
-        sz.style.visibility = "visible";
-        sz.style.color = "#34D399";
-        sz.textContent = answerRef.current;
-      }
+      settle();
       flyRef.current = [];
     }
   }
@@ -350,6 +370,7 @@ export default function ContextQuestion({
   function handlePick(option: string, i: number) {
     if (isAnswered) return;
     const correct = option === answer;
+    correctRef.current = correct;
     answeredRef.current = true;
     // il respiro si ferma e la frase torna dritta
     const stem = stemRef.current;
@@ -362,12 +383,7 @@ export default function ContextQuestion({
 
     if (reduced) {
       if (gapRef.current) gapRef.current.style.width = "auto";
-      if (sizerRef.current) {
-        sizerRef.current.textContent = answer;
-        sizerRef.current.style.visibility = "visible";
-        sizerRef.current.style.color = "#34D399";
-      }
-      settledRef.current = true;
+      settle();
       return;
     }
 
@@ -377,6 +393,13 @@ export default function ContextQuestion({
       setShakeIdx(i);
       window.setTimeout(compose, SHAKE_MS + FAIL_GAP);
     }
+    /* Rete di sicurezza. Se per qualunque ragione il ciclo di disegno non
+       conclude, le lettere prelevate dal bottone resterebbero invisibili per
+       sempre e il buco vuoto. Questa NON corregge la causa: garantisce solo
+       che l'utente non resti con un bottone svuotato a metà. */
+    window.setTimeout(() => {
+      if (!settledRef.current) { flyRef.current = []; settle(); }
+    }, delay + 400);
   }
 
   const optStyle = (o: string): React.CSSProperties => {
@@ -424,6 +447,23 @@ export default function ContextQuestion({
       style={{ position: "relative", width: "100%", maxWidth: SCREEN_MAX, flex: 1, display: "flex", flexDirection: "column" }}>
       <canvas ref={canvasRef} aria-hidden
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 0 }} />
+      <style>{`
+        /* LA PAROLA È UN TASTO: dopo la risposta si preme e si schiaccia,
+           come un tasto vero. È la risposta al tocco a dire che è premibile,
+           meglio di un sottolineato che avvisa prima e sporca la tipografia. */
+        .verba-tappable {
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+          display: inline-block;
+          transition: transform 0.18s cubic-bezier(.2,1.3,.35,1);
+        }
+        .verba-tappable:active { transform: scale(0.94); transition: transform 0.07s ease-out; }
+        /* nel gradino 2 la parola è alta 17px: troppo poco per un pollice.
+           L'area sensibile si allarga, quel che si vede no. */
+        .verba-tappable::after {
+          content: ""; position: absolute; left: -10px; right: -10px; top: -14px; bottom: -14px;
+        }
+      `}</style>
 
       <AnimatePresence mode="wait">
         <motion.div key={animKey}
@@ -438,7 +478,7 @@ export default function ContextQuestion({
             {chars(parts.pre, "pre")}
             <span ref={gapRef}
               style={{ position: "relative", display: "inline-block", verticalAlign: "baseline", width: GAP_MIN, transition: "width 0.4s cubic-bezier(.19,1,.22,1)" }}>
-              <span ref={sizerRef} style={{ visibility: "hidden", whiteSpace: "nowrap", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500 }} />
+              <span ref={sizerRef} style={{ position: "relative", visibility: "hidden", whiteSpace: "nowrap", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500 }} />
               <span ref={glyphsRef} aria-hidden style={{ position: "absolute", left: 0, top: 0, whiteSpace: "nowrap", visibility: "hidden", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500 }} />
             </span>
             {chars(parts.post, "post")}

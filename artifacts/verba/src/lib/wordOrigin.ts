@@ -73,3 +73,14 @@ export function titleFontSize(word: string): number {
   if (n <= 15) return 32;
   return 27;
 }
+
+/**
+ * La parola è premibile dopo la risposta, e apre la scheda. Ma la parola vive
+ * nel componente-domanda e la scheda è un altro sottoalbero: questo evento è
+ * il canale, senza cambiare la firma di onSelect per tutti i formati.
+ */
+export const CARD_TOGGLE_EVENT = "verba:card-toggle";
+export function requestCardToggle() {
+  if (typeof window !== "undefined")
+    window.dispatchEvent(new CustomEvent(CARD_TOGGLE_EVENT));
+}
