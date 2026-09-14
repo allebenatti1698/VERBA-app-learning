@@ -736,7 +736,7 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
                 {word.phonetic}
               </span>
             )}
-            <button onClick={() => speakWord(word.word)}
+            <button className="verba-press" onClick={() => speakWord(word.word)}
               style={{ background: "none", border: "none", cursor: "pointer", padding: 3,
                 display: "flex", alignItems: "center", color: "rgba(199,184,232,0.5)" }}
               aria-label="Pronounce">
@@ -857,6 +857,13 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
           transition: transform 0.18s cubic-bezier(.2,1.3,.35,1);
         }
         .verba-tappable:active { transform: scale(0.94); transition: transform 0.07s ease-out; }
+        /* l'icona scende un po' di più: è piccola, e su un bersaglio piccolo
+           lo stesso 6% non si vedrebbe */
+        .verba-press {
+          -webkit-tap-highlight-color: transparent;
+          transition: transform 0.18s cubic-bezier(.2,1.3,.35,1), color 0.18s ease;
+        }
+        .verba-press:active { transform: scale(0.86); transition: transform 0.07s ease-out; }
         .fb-scroll {
           scrollbar-width: none;
           -ms-overflow-style: none;
