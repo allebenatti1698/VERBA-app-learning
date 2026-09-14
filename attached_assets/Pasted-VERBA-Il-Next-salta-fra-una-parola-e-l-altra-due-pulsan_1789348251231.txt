@@ -1,0 +1,119 @@
+VERBA — Il Next salta fra una parola e l'altra: due pulsanti che si alternano.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.20–0.40.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Solo edit mirati. Se un edit NON aggancia, SEGNALALO e fermati su quello.
+
+FILE UNICO: src/pages/QuizScreen.tsx
+
+CAUSA: esistono DUE pulsanti Next. Quello della scheda sta in una barra fissa
+a bottom 0; quello di QuizScreen (riga ~342) è flottante nel flusso con
+margin 8px auto. handleNext chiama setShowFeedback(false) in modo sincrono:
+la scheda si smonta, ma `revealReady` è ancora true, quindi per i 300ms del
+setTimeout compare il flottante — a un'altra quota, e con initial y:10, cioè
+entrando dal basso. È quello lo scatto verso l'alto.
+
+──────────────────────────────────────────────────────────────
+EDIT 1 — il flottante non compare mentre si passa alla parola dopo
+──────────────────────────────────────────────────────────────
+TROVA:
+        <AnimatePresence>
+          {revealReady && !showFeedback && (
+
+SOSTITUISCI CON:
+        <AnimatePresence>
+          {/* `advancing` esclude i 300ms in cui la scheda si è già smontata ma
+              la parola non è ancora cambiata: senza, questo pulsante compare
+              al posto di quello della scheda, a una quota diversa, e si vede
+              saltare. Sono due Next che si scambiano il posto. */}
+          {revealReady && !showFeedback && !advancing && (
+
+──────────────────────────────────────────────────────────────
+EDIT 2 — lo stato che copre la transizione
+──────────────────────────────────────────────────────────────
+TROVA:
+  function handleNext() {
+    setShowFeedback(false);
+    setTimeout(() => {
+
+SOSTITUISCI CON:
+  function handleNext() {
+    setAdvancing(true);
+    setShowFeedback(false);
+    setTimeout(() => {
+
+E POI TROVA (dentro lo stesso setTimeout, il blocco di reset):
+      setCurrentIndex((i) => i + 1);
+      setSelectedOption(null);
+      setIsAnswered(false);
+      setIsCorrect(false);
+      setShowFeedback(false);
+      setRevealReady(false);
+      setWordKey((k) => k + 1);
+
+SOSTITUISCI CON:
+      setCurrentIndex((i) => i + 1);
+      setSelectedOption(null);
+      setIsAnswered(false);
+      setIsCorrect(false);
+      setShowFeedback(false);
+      setRevealReady(false);
+      setWordKey((k) => k + 1);
+      setAdvancing(false);
+
+──────────────────────────────────────────────────────────────
+EDIT 3 — la dichiarazione dello stato
+──────────────────────────────────────────────────────────────
+TROVA:
+  const [revealReady, setRevealReady] = useState(false);
+
+SOSTITUISCI CON:
+  const [revealReady, setRevealReady] = useState(false);
+  /** Vero nei 300ms fra il tocco su Next e il cambio di parola. */
+  const [advancing, setAdvancing] = useState(false);
+
+Se la riga cercata non esiste con questo testo esatto, cerca la dichiarazione
+di `revealReady` così com'è e aggiungi la riga di `advancing` subito dopo,
+SEGNALANDO il testo che hai trovato.
+
+──────────────────────────────────────────────────────────────
+EDIT 4 — se la sessione finisce, lo stato non resta appeso
+──────────────────────────────────────────────────────────────
+Nei due rami che chiudono la sessione (`setLocation("/review-summary")` e
+`setLocation("/results")`) il reset non viene eseguito perché c'è un `return`.
+Non è un problema perché si cambia pagina, ma per sicurezza:
+
+TROVA:
+          setLocation("/review-summary");
+          return;
+
+SOSTITUISCI CON:
+          setAdvancing(false);
+          setLocation("/review-summary");
+          return;
+
+E POI TROVA:
+        setLocation("/results");
+        return;
+
+SOSTITUISCI CON:
+        setAdvancing(false);
+        setLocation("/results");
+        return;
+
+──────────────────────────────────────────────────────────────
+VERIFICA E RIPORTA — rispondi a OGNI voce
+──────────────────────────────────────────────────────────────
+a) righe del file prima e dopo
+b) "advancing" — quante volte compare?  (atteso 6)
+c) "setAdvancing(true)" — quante volte?  (atteso 1)
+d) "setAdvancing(false)" — quante volte?  (atteso 3)
+e) "!advancing" dentro la condizione dell'AnimatePresence — presente sì/no?
+f) Typecheck: sì/no + errori per intero
+g) Quali edit fra 1, 2, 3 e 4 NON hanno agganciato? Elencali.
+
+NON FARE
+· Nessun altro file.
+· NON riscrivere il file intero.
+· NON avviare il dev server.

@@ -85,6 +85,8 @@ export default function QuizScreen() {
   // Il Next non appare a risposta data, ma a rivelazione avvenuta: nel gradino 2
   // la parola giusta impiega più di un secondo a comporsi, ed è lì che si impara.
   const [revealReady, setRevealReady] = useState(false);
+  /** Vero nei 300ms fra il tocco su Next e il cambio di parola. */
+  const [advancing, setAdvancing] = useState(false);
 
   const [quizWords, setQuizWords] = useState<QuizWord[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -186,6 +188,7 @@ export default function QuizScreen() {
   }
 
   function handleNext() {
+    setAdvancing(true);
     setShowFeedback(false);
     setTimeout(() => {
       if (currentIndex + 1 >= quizWords.length) {
@@ -202,6 +205,7 @@ export default function QuizScreen() {
             correct: !wrongAnswersRef.current.has(idx),
           }));
           sessionStorage.setItem("verba_review_summary", JSON.stringify(summary));
+          setAdvancing(false);
           setLocation("/review-summary");
           return;
         }
@@ -230,6 +234,7 @@ export default function QuizScreen() {
           wordIds: quizWords.map((w) => String(w.id)),
         };
         sessionStorage.setItem("verbaSessionResult", JSON.stringify(result));
+        setAdvancing(false);
         setLocation("/results");
         return;
       }
@@ -240,6 +245,7 @@ export default function QuizScreen() {
       setShowFeedback(false);
       setRevealReady(false);
       setWordKey((k) => k + 1);
+      setAdvancing(false);
     }, 300);
   }
 
@@ -338,7 +344,11 @@ export default function QuizScreen() {
 
         {/* Floating Next button */}
         <AnimatePresence>
-          {revealReady && !showFeedback && (
+          {/* `advancing` esclude i 300ms in cui la scheda si è già smontata ma
+              la parola non è ancora cambiata: senza, questo pulsante compare
+              al posto di quello della scheda, a una quota diversa, e si vede
+              saltare. Sono due Next che si scambiano il posto. */}
+          {revealReady && !showFeedback && !advancing && (
             <motion.button
               data-testid="button-next-floating"
               onClick={handleNext}
