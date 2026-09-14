@@ -354,8 +354,10 @@ export default function QuizScreen() {
               onClick={handleNext}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={{ duration: 0.2, scale: TAP_SPRING }}
+              // esce SUL POSTO: se scendesse mentre svanisce sembrerebbe
+              // scappare, e l'occhio lo perde prima del tempo
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, exit: { duration: 0.34 }, scale: TAP_SPRING }}
               whileTap={tapScale()}
               style={{ ...primaryButtonStyle, display: "block", margin: "8px auto 0", touchAction: "manipulation" }}
             >

@@ -10,6 +10,7 @@ import { getDueCount, getWordStat } from "@/lib/wordStats";
 import StreakCelebration from "@/components/StreakCelebration";
 import GlassDrop from "@/components/GlassDrop";
 import FeedbackCard from "@/components/FeedbackCard";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 
 // TODO: Replace `visible={true}` with user preferences from settings (Step 8)
 
@@ -352,7 +353,8 @@ function ActionButtons({ wordCount, visible = true }: ActionButtonsProps) {
     >
       {/* Try again */}
       <motion.button
-        whileTap={{ scale: 0.97 }}
+        whileTap={tapScale("card")}
+        transition={TAP_SPRING}
         onClick={() => navigate(`/quiz?words=${wordCount}`)}
         style={{
           flex: 1,
@@ -375,7 +377,8 @@ function ActionButtons({ wordCount, visible = true }: ActionButtonsProps) {
 
       {/* New session */}
       <motion.button
-        whileTap={{ scale: 0.97 }}
+        whileTap={tapScale("card")}
+        transition={TAP_SPRING}
         onClick={() => navigate("/decks")}
         style={{
           flex: 1,
@@ -521,7 +524,8 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
           >
             {/* Star — top right, does NOT propagate to card click */}
             <motion.button
-              whileTap={{ scale: 0.85 }}
+              whileTap={tapScale("icon")}
+              transition={TAP_SPRING}
               onClick={(e) => { e.stopPropagation(); toggleMyWord(String(mw.id)); }}
               style={{
                 position: "absolute",
@@ -591,7 +595,8 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
         {/* Navigation row: ‹ dots › */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
           <motion.button
-            whileTap={{ scale: 0.9 }}
+            whileTap={tapScale("icon")}
+            transition={TAP_SPRING}
             onClick={() => goTo(currentIndex - 1)}
             disabled={currentIndex === 0}
             style={{
@@ -615,7 +620,8 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
               <motion.button
                 key={i}
                 onClick={() => goTo(i)}
-                whileTap={{ scale: 0.85 }}
+                whileTap={tapScale("icon")}
+                transition={TAP_SPRING}
                 animate={{
                   width: i === currentIndex ? 16 : 6,
                   background: i === currentIndex ? "#D97706" : "rgba(255,255,255,0.18)",
@@ -633,7 +639,8 @@ function MissedWordsList({ missedWords, visible = true }: MissedWordsListProps) 
           </div>
 
           <motion.button
-            whileTap={{ scale: 0.9 }}
+            whileTap={tapScale("icon")}
+            transition={TAP_SPRING}
             onClick={() => goTo(currentIndex + 1)}
             disabled={currentIndex === missedWords.length - 1}
             style={{

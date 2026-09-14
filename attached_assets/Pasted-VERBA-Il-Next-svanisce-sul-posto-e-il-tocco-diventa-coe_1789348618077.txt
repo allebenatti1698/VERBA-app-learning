@@ -1,0 +1,94 @@
+VERBA — Il Next svanisce sul posto, e il tocco diventa coerente ovunque.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.50–0.90.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Solo edit mirati. Se un edit NON aggancia, SEGNALALO e prosegui con gli altri.
+
+════════════════════════════════════════════════════════════
+1 · src/pages/QuizScreen.tsx — il Next non scappa, svanisce
+════════════════════════════════════════════════════════════
+CAUSA: `advancing` diventa vero in modo sincrono, quindi il pulsante esce
+subito; e l'uscita ha y:10, cioè scende mentre svanisce. Il risultato è che
+sparisce prima di quanto l'occhio si aspetti.
+
+TROVA:
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.2, scale: TAP_SPRING }}
+
+SOSTITUISCI CON:
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              // esce SUL POSTO: se scendesse mentre svanisce sembrerebbe
+              // scappare, e l'occhio lo perde prima del tempo
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, exit: { duration: 0.34 }, scale: TAP_SPRING }}
+
+════════════════════════════════════════════════════════════
+2 · SpringTap ovunque — il passaggio due, mai fatto
+════════════════════════════════════════════════════════════
+CONTESTO: src/components/SpringTap.tsx definisce cinque categorie con una
+logica precisa — più grande è l'oggetto, meno deve muoversi, perché l'occhio
+misura i pixel di spostamento del bordo e non la percentuale:
+  button 0.94 · icon 0.88 · chip 0.93 · card 0.98 · row 0.985
+Diciassette elementi usano ancora valori scritti a mano. Vanno collegati.
+
+REGOLA DI CLASSIFICAZIONE — applicala per ogni occorrenza:
+· bottone d'azione primario (usa primaryButtonStyle)      → tapScale()
+· icona sola, senza testo, sotto i 44px                   → tapScale("icon")
+· pillola/chip con poco testo e bordo tondo               → tapScale("chip")
+· card, riquadro o opzione grande e cliccabile            → tapScale("card")
+· riga di una lista                                       → tapScale("row")
+
+Per OGNI file qui sotto: aggiungi l'import se manca
+  import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+e sostituisci il valore scritto a mano con la categoria giusta, aggiungendo
+  transition={TAP_SPRING}
+se non c'è già un transition. Se un transition esiste già, NON sovrascriverlo:
+aggiungi solo `scale: TAP_SPRING` al suo interno, come è stato fatto nel Next
+flottante di QuizScreen.
+
+File e righe da trattare (le righe sono indicative, cerca il valore):
+· src/components/BottomNav.tsx            riga ~46   { scale: 0.9 }
+· src/components/quiz/RecognizeQuestion.tsx riga ~86 { scale: 0.95 }
+· src/components/FeedbackCard.tsx         riga ~449  { scale: 0.96 }
+· src/pages/DeckSelectionScreen.tsx       riga ~138  { scale: 0.95 }
+· src/pages/DeckSelectionScreen.tsx       riga ~236  { scale: 0.97 }
+· src/pages/ResultsScreen.tsx             riga ~355  { scale: 0.97 }
+· src/pages/ResultsScreen.tsx             riga ~378  { scale: 0.97 }
+· src/pages/ResultsScreen.tsx             riga ~524  { scale: 0.85 }
+· src/pages/ResultsScreen.tsx             riga ~594  { scale: 0.9 }
+· src/pages/ResultsScreen.tsx             riga ~618  { scale: 0.85 }
+· src/pages/ResultsScreen.tsx             riga ~636  { scale: 0.9 }
+· src/pages/ReviewSummaryScreen.tsx       riga ~140  { scale: 0.97 }
+
+Per OGNUNA riporta: file, riga, che elemento è (in tre parole), categoria
+scelta, valore vecchio → valore nuovo.
+Se per un elemento la categoria non è ovvia, scegli la più prudente e
+SEGNALALO: lo rivedo io.
+
+════════════════════════════════════════════════════════════
+3 · src/pages/ProgressScreen.tsx — gli elementi scoperti
+════════════════════════════════════════════════════════════
+NON modificare. Cerca e riporta soltanto: in ProgressScreen.tsx ci sono
+elementi cliccabili SENZA whileTap (chip dei filtri, stelline, il tastino
+dello storico, le righe della lista)? Elencali con file e riga.
+
+════════════════════════════════════════════════════════════
+VERIFICA E RIPORTA — rispondi a OGNI voce
+════════════════════════════════════════════════════════════
+a) righe prima/dopo di OGNI file toccato
+b) quante occorrenze di `whileTap={{ scale:` restano in tutto src/ (escluso
+   attached_assets)?  (atteso 0)
+c) quante occorrenze di `tapScale(` in tutto src/?
+d) la tabella del punto 2, completa
+e) l'elenco del punto 3
+f) Typecheck: sì/no + errori per intero
+g) edit non agganciati, se ce ne sono
+
+NON FARE
+· NON toccare SpringTap.tsx, primaryButtonStyle.ts.
+· NON riscrivere file interi.
+· NON avviare il dev server.

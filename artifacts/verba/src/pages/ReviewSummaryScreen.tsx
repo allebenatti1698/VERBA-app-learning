@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { Star } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
 import { SCREEN_MAX } from "@/components/ScreenColumn";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 
 // Contratto dati (scritto dal QuizScreen a fine review source=due, step 3c):
 // sessionStorage "verba_review_summary" = [{ id, word, status }]
@@ -136,8 +137,8 @@ export default function ReviewSummaryScreen() {
         <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.5, duration: 0.3 }}
-          whileTap={{ scale: 0.97 }}
+          transition={{ delay: 0.5, duration: 0.3, scale: TAP_SPRING }}
+          whileTap={tapScale()}
           onClick={() => navigate("/progress")}
           style={{ marginTop: 24, padding: "12px 36px", borderRadius: 9999, border: "none", cursor: "pointer", background: "linear-gradient(to right, #F59E0B, #EA580C)", fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 15, letterSpacing: "0.04em", color: "#FFFFFF", outline: "none", boxShadow: "0 0 14px rgba(245,158,11,0.3)" }}
         >

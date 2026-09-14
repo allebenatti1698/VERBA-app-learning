@@ -5,6 +5,7 @@ import { useLocation } from "wouter";
 import { BookOpen, Library, GraduationCap, Star } from "lucide-react";
 import { getDifficultyLabel } from "@/lib/difficultyLabel";
 import AppBackground from "@/components/AppBackground";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 
 // ─── Family palette tokens ────────────────────────────────────────────────────
 const BLUE  = { label: "rgba(125,211,252,0.55)", border: "rgba(125,211,252,0.35)", hover: "rgba(125,211,252,0.7)"  };
@@ -135,7 +136,8 @@ function ContinueCard({ session }: { session: LastSession }) {
           </p>
         </div>
         <motion.button
-          whileTap={{ scale: 0.95 }}
+          whileTap={tapScale("chip")}
+          transition={TAP_SPRING}
           onClick={resume}
           onMouseEnter={() => setBtnHovered(true)}
           onMouseLeave={() => setBtnHovered(false)}
@@ -233,7 +235,8 @@ function DeckCard({
   return (
     <motion.div
       onClick={handleClick}
-      whileTap={{ scale: 0.97 }}
+      whileTap={tapScale("card")}
+      transition={TAP_SPRING}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{

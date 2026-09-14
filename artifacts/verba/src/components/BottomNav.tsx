@@ -1,6 +1,7 @@
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { BookOpen, Target, LineChart, User } from "lucide-react";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 
 export const TAB_PATHS = ["/study", "/decks", "/progress", "/profile"];
 
@@ -43,7 +44,8 @@ export default function BottomNav() {
         return (
           <motion.button
             key={path}
-            whileTap={{ scale: 0.9 }}
+            whileTap={tapScale("icon")}
+            transition={TAP_SPRING}
             onClick={() => navigate(path)}
             style={{
               background: "none",

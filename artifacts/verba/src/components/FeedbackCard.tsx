@@ -446,7 +446,8 @@ export function FeedbackNextButton({ onClick, isLast, visible = true }: Feedback
     <motion.button
       data-testid="button-next"
       onClick={onClick}
-      whileTap={{ scale: 0.96 }}
+      whileTap={tapScale()}
+      transition={TAP_SPRING}
       style={{ ...primaryButtonStyle, display: "block", margin: "44px auto 0 auto" }}
     >
       {isLast ? "Finish" : "Next →"}

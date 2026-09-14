@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { lowercaseFirst } from "@/lib/formatText";
-import { tapScale } from "@/components/SpringTap";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 import type { QuestionProps } from "@/components/quiz/types";
 import { publishWordOrigin, requestCardToggle, titleFontSize, titleMidY } from "@/lib/wordOrigin";
 
@@ -83,7 +83,8 @@ export default function RecognizeQuestion({
 
           <motion.button
             onClick={() => setShowTranslation((v) => !v)}
-            whileTap={{ scale: 0.95 }}
+            whileTap={tapScale("chip")}
+            transition={TAP_SPRING}
             style={{ marginTop: 8, background: "none", border: "1px solid rgba(217,119,6,0.6)", borderRadius: 9999, padding: "4px 12px", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: "0.72rem", color: "rgba(217,119,6,0.8)", letterSpacing: "0.03em", display: "flex", alignItems: "center", gap: 5, opacity: 0.7, transition: "color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.9)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.5)"; (e.currentTarget as HTMLButtonElement).style.opacity = "1"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(217,119,6,0.5)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(217,119,6,0.25)"; (e.currentTarget as HTMLButtonElement).style.opacity = "0.7"; }}
