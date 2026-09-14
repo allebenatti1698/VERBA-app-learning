@@ -1,0 +1,118 @@
+VERBA — Il backdrop blocca il tocco, e la parola non è centrata.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.30–0.55.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Solo edit mirati. Se un edit NON aggancia, SEGNALALO e fermati su quello.
+
+FILE UNICO: src/components/FeedbackCard.tsx
+
+──────────────────────────────────────────────────────────────
+EDIT 1 — il velo lascia passare il tocco quando la scheda è chiusa
+──────────────────────────────────────────────────────────────
+CAUSA: il backdrop sta a zIndex 40 e copre tutto lo schermo. A scheda chiusa
+è semitrasparente ma riceve comunque gli eventi, quindi si mangia il tocco
+sulla parola prima che arrivi. La scheda era già stata resa trasparente al
+tocco; il velo dietro no.
+
+TROVA:
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.62)", zIndex: 40 }} />
+
+SOSTITUISCI CON:
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.62)", zIndex: 40,
+              // a scheda chiusa il velo deve lasciar passare il tocco: la
+              // parola sotto è premibile, e questo se lo mangerebbe
+              pointerEvents: opened ? "auto" : "none" }} />
+
+──────────────────────────────────────────────────────────────
+EDIT 2 — la parola da sola, fonetica e altoparlante sotto
+──────────────────────────────────────────────────────────────
+CAUSA: parola e altoparlante stanno in un flex centrato INSIEME, quindi la
+parola risulta spostata a sinistra di metà icona: non è centrata sul badge.
+E la trascrizione fonetica non c'è.
+
+TROVA (righe 716–728, testo esatto):
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 12, marginBottom: 22, opacity: flying ? 0 : 1 }}>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700,
+              fontSize: TITLE_FS, color: "#C7B8E8", lineHeight: 1.1, whiteSpace: "nowrap" }}>
+              {word.word}
+            </span>
+            <button onClick={() => speakWord(word.word)}
+              style={{ background: "none", border: "none", cursor: "pointer",
+                color: "rgba(199,184,232,0.55)", padding: 4, display: "flex", alignItems: "center" }}
+              aria-label="Pronounce">
+              <IconVolume />
+            </button>
+          </div>
+
+SOSTITUISCI CON:
+          {/* La parola sta DA SOLA sulla sua riga: un'icona accanto la
+              sposterebbe di metà della propria larghezza, e non sarebbe più
+              centrata sul badge. E si preme, per tornare all'esercizio. */}
+          <div style={{ textAlign: "center", marginBottom: 6, opacity: flying ? 0 : 1 }}>
+            <span className="verba-tappable" onClick={() => toggle(false)}
+              style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700,
+                fontSize: TITLE_FS, color: "#C7B8E8", lineHeight: 1.1,
+                whiteSpace: "nowrap", position: "relative", cursor: "pointer" }}>
+              {word.word}
+            </span>
+          </div>
+          {/* sotto: come si scrive e come si pronuncia, su una riga loro */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 9, marginBottom: 22, opacity: flying ? 0 : 1 }}>
+            {word.phonetic && (
+              <span style={{ fontFamily: "monospace", fontSize: 13,
+                color: "rgba(255,255,255,0.4)", letterSpacing: "0.02em" }}>
+                {word.phonetic}
+              </span>
+            )}
+            <button onClick={() => speakWord(word.word)}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 3,
+                display: "flex", alignItems: "center", color: "rgba(199,184,232,0.5)" }}
+              aria-label="Pronounce">
+              <IconVolume />
+            </button>
+          </div>
+
+──────────────────────────────────────────────────────────────
+EDIT 3 — lo stile del premibile serve anche qui
+──────────────────────────────────────────────────────────────
+La classe .verba-tappable è definita in ContextQuestion, che nel gradino 1
+non è montato: senza questa copia, il titolo non si schiaccia.
+
+TROVA:
+      <style>{`
+        .fb-scroll {
+
+SOSTITUISCI CON:
+      <style>{`
+        /* la parola è un tasto anche qui: si preme per tornare all'esercizio */
+        .verba-tappable {
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+          display: inline-block;
+          transition: transform 0.18s cubic-bezier(.2,1.3,.35,1);
+        }
+        .verba-tappable:active { transform: scale(0.94); transition: transform 0.07s ease-out; }
+        .fb-scroll {
+
+──────────────────────────────────────────────────────────────
+VERIFICA E RIPORTA — elenco puntuale, rispondi a OGNI voce
+──────────────────────────────────────────────────────────────
+Per ciascuna voce scrivi il valore trovato. Se una non corrisponde
+all'atteso, dillo esplicitamente.
+
+a) righe del file prima e dopo l'edit
+b) "pointerEvents: opened ? \"auto\" : \"none\"" — quante volte?  (atteso 2)
+c) "word.phonetic" — quante volte?  (atteso 1)
+d) "verba-tappable" — quante volte?  (atteso 2: la classe nel CSS e l'uso)
+e) "toggle(false)" dentro il blocco del titolo — presente sì/no?
+f) il vecchio blocco con `gap: 12` e la parola accanto al bottone — SPARITO sì/no?
+g) Typecheck: sì/no + errori per intero
+h) Quali edit fra 1, 2 e 3 NON hanno agganciato? Elencali.
+
+NON FARE
+· Nessun altro file.
+· NON riscrivere il file intero.
+· NON avviare il dev server.

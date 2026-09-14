@@ -683,7 +683,10 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
         initial={{ opacity: 0 }} animate={{ opacity: opened ? 1 : 0.45 }}
         transition={{ duration: 0.28 }}
         onClick={() => opened && toggle(false)}
-        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.62)", zIndex: 40 }} />
+        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.62)", zIndex: 40,
+          // a scheda chiusa il velo deve lasciar passare il tocco: la
+          // parola sotto è premibile, e questo se lo mangerebbe
+          pointerEvents: opened ? "auto" : "none" }} />
 
       {/* IL RIQUADRO. Il contenuto scorre col dito e SVANISCE prima di
           arrivare sotto il titolo: una maschera, non un fondo opaco. */}
@@ -713,15 +716,29 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
             color: isCorrect ? "#10B981" : "#EF4444", margin: "0 0 10px" }}>
             {isCorrect ? "✓ Correct" : "✗ Incorrect"}
           </p>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
-            gap: 12, marginBottom: 22, opacity: flying ? 0 : 1 }}>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700,
-              fontSize: TITLE_FS, color: "#C7B8E8", lineHeight: 1.1, whiteSpace: "nowrap" }}>
+          {/* La parola sta DA SOLA sulla sua riga: un'icona accanto la
+              sposterebbe di metà della propria larghezza, e non sarebbe più
+              centrata sul badge. E si preme, per tornare all'esercizio. */}
+          <div style={{ textAlign: "center", marginBottom: 6, opacity: flying ? 0 : 1 }}>
+            <span className="verba-tappable" onClick={() => toggle(false)}
+              style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700,
+                fontSize: TITLE_FS, color: "#C7B8E8", lineHeight: 1.1,
+                whiteSpace: "nowrap", position: "relative", cursor: "pointer" }}>
               {word.word}
             </span>
+          </div>
+          {/* sotto: come si scrive e come si pronuncia, su una riga loro */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 9, marginBottom: 22, opacity: flying ? 0 : 1 }}>
+            {word.phonetic && (
+              <span style={{ fontFamily: "monospace", fontSize: 13,
+                color: "rgba(255,255,255,0.4)", letterSpacing: "0.02em" }}>
+                {word.phonetic}
+              </span>
+            )}
             <button onClick={() => speakWord(word.word)}
-              style={{ background: "none", border: "none", cursor: "pointer",
-                color: "rgba(199,184,232,0.55)", padding: 4, display: "flex", alignItems: "center" }}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 3,
+                display: "flex", alignItems: "center", color: "rgba(199,184,232,0.5)" }}
               aria-label="Pronounce">
               <IconVolume />
             </button>
@@ -832,6 +849,14 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
       </div>
 
       <style>{`
+        /* la parola è un tasto anche qui: si preme per tornare all'esercizio */
+        .verba-tappable {
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+          display: inline-block;
+          transition: transform 0.18s cubic-bezier(.2,1.3,.35,1);
+        }
+        .verba-tappable:active { transform: scale(0.94); transition: transform 0.07s ease-out; }
         .fb-scroll {
           scrollbar-width: none;
           -ms-overflow-style: none;
