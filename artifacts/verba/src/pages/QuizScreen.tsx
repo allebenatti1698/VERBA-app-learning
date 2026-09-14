@@ -340,23 +340,37 @@ export default function QuizScreen() {
           />
         )}
 
-        {/* Floating Next button */}
+        {/* IL NEXT DELL'ESERCIZIO.
+            Sta nella STESSA barra fissa in fondo del Next della scheda e del
+            Continue di DifficultyScreen. Prima viveva nel flusso, attaccato
+            sotto le risposte: quando la scheda si smontava, il pulsante
+            "saltava" da una quota all'altra. Nella stessa posizione può anche
+            restare visibile durante il cambio parola, perché non si muove. */}
         <AnimatePresence>
           {revealReady && !showFeedback && (
-            <motion.button
-              data-testid="button-next-floating"
-              onClick={handleNext}
+            <motion.div
+              key="next-bar"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              // esce SUL POSTO: se scendesse mentre svanisce sembrerebbe
-              // scappare, e l'occhio lo perde prima del tempo
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.24, scale: TAP_SPRING }}
-              whileTap={tapScale()}
-              style={{ ...primaryButtonStyle, display: "block", margin: "8px auto 0", touchAction: "manipulation" }}
+              transition={{ duration: 0.24 }}
+              style={{
+                position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 30,
+                padding: "18px 16px", display: "flex", justifyContent: "center",
+                background: "linear-gradient(to top, #0A0A0A 62%, transparent)",
+                pointerEvents: "none",
+              }}
             >
-              {isLast ? "Finish" : "Next →"}
-            </motion.button>
+              <motion.button
+                data-testid="button-next-floating"
+                onClick={handleNext}
+                whileTap={tapScale()}
+                transition={TAP_SPRING}
+                style={{ ...primaryButtonStyle, pointerEvents: "auto", touchAction: "manipulation" }}
+              >
+                {isLast ? "Finish" : "Next →"}
+              </motion.button>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>

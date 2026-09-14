@@ -1,0 +1,103 @@
+VERBA — Il Next dell'esercizio va nella barra fissa, come tutti gli altri.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.25–0.45.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Solo edit mirati. Se un edit NON aggancia, SEGNALALO.
+
+FILE UNICO: src/pages/QuizScreen.tsx
+
+CAUSA: esistono due pulsanti Next in posti DIVERSI. Quello della scheda sta in
+una barra fissa a bottom 0; questo sta nel flusso, con margin "8px auto 0",
+cioè attaccato sotto le risposte. Premendo, la scheda si smonta e resta quello
+attaccato alle risposte: è quello lo spostamento.
+
+La correzione non è nascondere l'uno o l'altro — è metterli NELLO STESSO POSTO.
+Così può anche restare visibile durante la transizione, perché non si muove.
+
+──────────────────────────────────────────────────────────────
+EDIT 1 — il pulsante entra in una barra fissa in fondo
+──────────────────────────────────────────────────────────────
+TROVA:
+        {/* Floating Next button */}
+        <AnimatePresence>
+          {revealReady && !showFeedback && (
+            <motion.button
+              data-testid="button-next-floating"
+              onClick={handleNext}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.24, scale: TAP_SPRING }}
+              whileTap={tapScale()}
+              style={{ ...primaryButtonStyle, display: "block", margin: "8px auto 0", touchAction: "manipulation" }}
+            >
+              {isLast ? "Finish" : "Next →"}
+            </motion.button>
+          )}
+        </AnimatePresence>
+
+SOSTITUISCI CON:
+        {/* IL NEXT DELL'ESERCIZIO.
+            Sta nella STESSA barra fissa in fondo del Next della scheda e del
+            Continue di DifficultyScreen. Prima viveva nel flusso, attaccato
+            sotto le risposte: quando la scheda si smontava, il pulsante
+            "saltava" da una quota all'altra. Nella stessa posizione può anche
+            restare visibile durante il cambio parola, perché non si muove. */}
+        <AnimatePresence>
+          {revealReady && !showFeedback && (
+            <motion.div
+              key="next-bar"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.24 }}
+              style={{
+                position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 30,
+                padding: "18px 16px", display: "flex", justifyContent: "center",
+                background: "linear-gradient(to top, #0A0A0A 62%, transparent)",
+                pointerEvents: "none",
+              }}
+            >
+              <motion.button
+                data-testid="button-next-floating"
+                onClick={handleNext}
+                whileTap={tapScale()}
+                transition={TAP_SPRING}
+                style={{ ...primaryButtonStyle, pointerEvents: "auto", touchAction: "manipulation" }}
+              >
+                {isLast ? "Finish" : "Next →"}
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+──────────────────────────────────────────────────────────────
+EDIT 2 — le opzioni non finiscono sotto la barra
+──────────────────────────────────────────────────────────────
+La barra occupa ora circa 80px in fondo: senza spazio, l'ultima opzione ci
+finisce sotto.
+
+TROVA il contenitore dell'area domanda, cioè il div con:
+      <div style={{ position: "relative", zIndex: 10,
+
+e AGGIUNGI alla sua proprietà di stile, dopo `zIndex: 10,`:
+        paddingBottom: 92,
+
+Se quel div ha già un paddingBottom, NON aggiungerne un altro: riportami il
+valore esistente senza modificarlo.
+
+──────────────────────────────────────────────────────────────
+VERIFICA E RIPORTA — rispondi a OGNI voce
+──────────────────────────────────────────────────────────────
+a) righe del file prima e dopo
+b) "margin: \"8px auto 0\"" — quante volte compare?  (atteso 0)
+c) "next-bar" — presente sì/no?
+d) il paddingBottom del contenitore domanda: valore finale
+e) Typecheck: sì/no + errori PER INTERO
+f) edit non agganciati, se ce ne sono
+
+NON FARE
+· Nessun altro file.
+· NON riscrivere il file intero.
+· NON avviare il dev server.
