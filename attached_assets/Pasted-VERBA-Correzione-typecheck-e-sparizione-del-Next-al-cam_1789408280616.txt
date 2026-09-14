@@ -1,0 +1,94 @@
+VERBA — Correzione typecheck e sparizione del Next al cambio schermata.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.20–0.35.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Solo edit mirati. Se un edit NON aggancia, SEGNALALO.
+
+FILE UNICO: src/pages/QuizScreen.tsx
+
+──────────────────────────────────────────────────────────────
+EDIT 1 — via la chiave `exit` dentro transition (non esiste)
+──────────────────────────────────────────────────────────────
+CAUSA: `exit` dentro un oggetto Transition è valido solo sulle varianti, non
+su un motion.button. Era un errore nella specifica precedente.
+
+TROVA:
+              transition={{ duration: 0.2, exit: { duration: 0.34 }, scale: TAP_SPRING }}
+
+SOSTITUISCI CON:
+              transition={{ duration: 0.24, scale: TAP_SPRING }}
+
+──────────────────────────────────────────────────────────────
+EDIT 2 — il pulsante sparisce QUANDO CAMBIA LA PAROLA, non al tocco
+──────────────────────────────────────────────────────────────
+CAUSA: `setAdvancing(true)` viene eseguito all'istante del tocco, ma la
+parola cambia 300ms dopo. Nel mezzo il pulsante è già sparito, e l'occhio lo
+perde prima che succeda qualcosa. Deve svanire insieme al cambio di schermata.
+
+TROVA:
+  function handleNext() {
+    setAdvancing(true);
+    setShowFeedback(false);
+    setTimeout(() => {
+
+SOSTITUISCI CON:
+  function handleNext() {
+    setShowFeedback(false);
+    setTimeout(() => {
+
+E POI TROVA:
+      setCurrentIndex((i) => i + 1);
+      setSelectedOption(null);
+      setIsAnswered(false);
+      setIsCorrect(false);
+      setShowFeedback(false);
+      setRevealReady(false);
+      setWordKey((k) => k + 1);
+      setAdvancing(false);
+
+SOSTITUISCI CON:
+      /* Il pulsante svanisce QUI, nello stesso fotogramma in cui la parola
+         cambia: `setRevealReady(false)` lo fa uscire, e l'uscita coincide con
+         l'ingresso della domanda nuova. Farlo sparire al tocco lo toglieva
+         300ms prima che succedesse qualcosa, e sembrava scomparire da solo. */
+      setCurrentIndex((i) => i + 1);
+      setSelectedOption(null);
+      setIsAnswered(false);
+      setIsCorrect(false);
+      setShowFeedback(false);
+      setRevealReady(false);
+      setWordKey((k) => k + 1);
+
+──────────────────────────────────────────────────────────────
+EDIT 3 — `advancing` non serve più: era la toppa sbagliata
+──────────────────────────────────────────────────────────────
+`revealReady` basta da solo a governare il pulsante, e resta vero per tutti i
+300ms della transizione: è quello che vogliamo.
+
+TROVA:
+          {revealReady && !showFeedback && !advancing && (
+
+SOSTITUISCI CON:
+          {revealReady && !showFeedback && (
+
+E POI TROVA e CANCELLA per intero (commento compreso):
+  /** Vero nei 300ms fra il tocco su Next e il cambio di parola. */
+  const [advancing, setAdvancing] = useState(false);
+
+E POI cerca ogni altra occorrenza residua di `setAdvancing(false)` nei rami
+che chiudono la sessione e CANCELLA quelle righe.
+
+──────────────────────────────────────────────────────────────
+VERIFICA E RIPORTA — rispondi a OGNI voce
+──────────────────────────────────────────────────────────────
+a) righe del file prima e dopo
+b) "advancing" — quante volte compare?  (atteso 0)
+c) "exit: {" dentro un transition — quante volte?  (atteso 0)
+d) Typecheck: sì/no + errori PER INTERO
+e) edit non agganciati, se ce ne sono
+
+NON FARE
+· Nessun altro file.
+· NON riscrivere il file intero.
+· NON avviare il dev server.

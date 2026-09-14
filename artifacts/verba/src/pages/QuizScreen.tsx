@@ -85,8 +85,6 @@ export default function QuizScreen() {
   // Il Next non appare a risposta data, ma a rivelazione avvenuta: nel gradino 2
   // la parola giusta impiega più di un secondo a comporsi, ed è lì che si impara.
   const [revealReady, setRevealReady] = useState(false);
-  /** Vero nei 300ms fra il tocco su Next e il cambio di parola. */
-  const [advancing, setAdvancing] = useState(false);
 
   const [quizWords, setQuizWords] = useState<QuizWord[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -188,7 +186,6 @@ export default function QuizScreen() {
   }
 
   function handleNext() {
-    setAdvancing(true);
     setShowFeedback(false);
     setTimeout(() => {
       if (currentIndex + 1 >= quizWords.length) {
@@ -205,7 +202,6 @@ export default function QuizScreen() {
             correct: !wrongAnswersRef.current.has(idx),
           }));
           sessionStorage.setItem("verba_review_summary", JSON.stringify(summary));
-          setAdvancing(false);
           setLocation("/review-summary");
           return;
         }
@@ -234,10 +230,13 @@ export default function QuizScreen() {
           wordIds: quizWords.map((w) => String(w.id)),
         };
         sessionStorage.setItem("verbaSessionResult", JSON.stringify(result));
-        setAdvancing(false);
         setLocation("/results");
         return;
       }
+      /* Il pulsante svanisce QUI, nello stesso fotogramma in cui la parola
+         cambia: `setRevealReady(false)` lo fa uscire, e l'uscita coincide con
+         l'ingresso della domanda nuova. Farlo sparire al tocco lo toglieva
+         300ms prima che succedesse qualcosa, e sembrava scomparire da solo. */
       setCurrentIndex((i) => i + 1);
       setSelectedOption(null);
       setIsAnswered(false);
@@ -245,7 +244,6 @@ export default function QuizScreen() {
       setShowFeedback(false);
       setRevealReady(false);
       setWordKey((k) => k + 1);
-      setAdvancing(false);
     }, 300);
   }
 
@@ -344,11 +342,7 @@ export default function QuizScreen() {
 
         {/* Floating Next button */}
         <AnimatePresence>
-          {/* `advancing` esclude i 300ms in cui la scheda si è già smontata ma
-              la parola non è ancora cambiata: senza, questo pulsante compare
-              al posto di quello della scheda, a una quota diversa, e si vede
-              saltare. Sono due Next che si scambiano il posto. */}
-          {revealReady && !showFeedback && !advancing && (
+          {revealReady && !showFeedback && (
             <motion.button
               data-testid="button-next-floating"
               onClick={handleNext}
@@ -357,7 +351,7 @@ export default function QuizScreen() {
               // esce SUL POSTO: se scendesse mentre svanisce sembrerebbe
               // scappare, e l'occhio lo perde prima del tempo
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2, exit: { duration: 0.34 }, scale: TAP_SPRING }}
+              transition={{ duration: 0.24, scale: TAP_SPRING }}
               whileTap={tapScale()}
               style={{ ...primaryButtonStyle, display: "block", margin: "8px auto 0", touchAction: "manipulation" }}
             >
