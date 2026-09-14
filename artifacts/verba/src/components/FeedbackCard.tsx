@@ -519,14 +519,6 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
   const originRef = useRef<WordOrigin | null>(null);
   const rafRef = useRef<number | null>(null);
   const dragRef = useRef<{ y0: number; from: boolean; moved: boolean; h0?: number; v?: number } | null>(null);
-  /**
-   * Dove sta la maniglia: sul bordo inferiore VISIBILE, non sul fondo del
-   * riquadro. Chiusa, il ritaglio stringe la scheda attorno alla parola,
-   * quindi la maniglia sta lì sotto — in una zona vuota.
-   */
-  const handleY = opened
-    ? box.top + box.height + 6
-    : (originRef.current ? originRef.current.y + originRef.current.h + 10 : box.top + 60);
 
   const [reduced] = useState(
     () => typeof window !== "undefined" &&
@@ -782,51 +774,49 @@ export default function FeedbackCard({ show, word, isCorrect, isLast, onNext }: 
       {/* LA LINGUETTA. In alto a destra, sulla riga del badge: non può
           sovrapporsi al contenuto qualunque sia la lunghezza della parola.
           Apre e chiude lo stesso elemento — nessuna ✕ altrove. */}
-      <button
-        onClick={() => { if (!dragRef.current?.moved) toggle(!opened); }}
-        onPointerDown={(e) => {
-          dragRef.current = { y0: e.clientY, from: opened, moved: false, h0: box.height };
-          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-          if (cardRef.current) cardRef.current.style.transition = "";
-        }}
-        onPointerMove={(e) => {
-          const d = dragRef.current; if (!d) return;
-          const dy = e.clientY - d.y0;
-          if (Math.abs(dy) > 4) d.moved = true;
-          if (!d.from) {
-            // chiusa: il gesto la apre seguendo il dito
-            const span = Math.max(120, box.height * 0.6);
-            const v = clamp01(dy / span);
-            applyClip(easeOut(v), false);
-            d.v = v;
-            return;
-          }
-          // aperta: lo stesso gesto ne cambia l'altezza, tirando il bordo
-          const h = window.innerHeight;
-          const max = h - box.top - BOTTOM_BAR;
-          setBox((b) => ({ ...b, height: Math.max(CARD_MIN, Math.min(max, (d.h0 ?? b.height) + dy)) }));
-          d.v = 1;
-        }}
-        onPointerUp={() => {
-          const d = dragRef.current; if (!d) return;
-          if (d.moved && !d.from) toggle((d.v ?? 0) > 0.5);
-          dragRef.current = null;
-        }}
-        aria-label={opened ? "Close definition" : "Show definition"}
-        style={{
-          /* LA MANIGLIA. Non un pulsante che sta da qualche parte: è il
-             BORDO INFERIORE della scheda, quindi non può sovrapporsi a
-             niente. Chiusa sta appena sotto la parola; aperta è in fondo —
-             dove il pollice arriva comodo. */
-          position: "fixed", left: "50%", transform: "translateX(-50%)",
-          top: handleY, zIndex: 54,
-          width: 74, height: 26, padding: 0, border: "none", background: "none",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: "pointer", touchAction: "none", userSelect: "none",
-        }}>
-        <span style={{ width: 38, height: 4, borderRadius: 2,
-          background: "rgba(199,184,232,0.34)" }} />
-      </button>
+      {/* IL LATO BASSO DELLA SCHEDA.
+          Non un pulsante che sta da qualche parte: una fascia larga quanto la
+          scheda, a cavallo del suo bordo inferiore. La si afferra da QUALUNQUE
+          punto e si tira — l'altezza segue il dito fra un minimo e un massimo.
+          La barretta al centro è solo l'indicatore.
+
+          Esiste solo a scheda APERTA: chiusa non c'è nessun bordo da tirare,
+          e la si apre premendo la parola nell'esercizio. */}
+      {opened && (
+        <div
+          onPointerDown={(e) => {
+            dragRef.current = { y0: e.clientY, from: true, moved: false, h0: box.height };
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+            if (cardRef.current) cardRef.current.style.transition = "";
+          }}
+          onPointerMove={(e) => {
+            const d = dragRef.current; if (!d) return;
+            const dy = e.clientY - d.y0;
+            if (Math.abs(dy) > 4) d.moved = true;
+            const h = window.innerHeight;
+            const max = h - box.top - BOTTOM_BAR;
+            setBox((b) => ({ ...b, height: Math.max(CARD_MIN, Math.min(max, (d.h0 ?? b.height) + dy)) }));
+          }}
+          onPointerUp={() => {
+            const d = dragRef.current;
+            // un tocco senza trascinare chiude; il trascinamento lascia l'altezza
+            if (d && !d.moved) toggle(false);
+            dragRef.current = null;
+          }}
+          role="button"
+          aria-label="Resize or close definition"
+          style={{
+            position: "fixed", left: 14, right: 14,
+            top: box.top + box.height - 15,
+            maxWidth: SCREEN_MAX, marginLeft: "auto", marginRight: "auto",
+            height: 30, zIndex: 54, cursor: "ns-resize",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            touchAction: "none", userSelect: "none",
+          }}>
+          <span style={{ width: 44, height: 4, borderRadius: 2,
+            background: "rgba(199,184,232,0.3)" }} />
+        </div>
+      )}
 
       <div style={{
         position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 55,
