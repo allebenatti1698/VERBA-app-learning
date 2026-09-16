@@ -1,0 +1,230 @@
+VERBA — SpringTap su ProgressScreen + due categorie da correggere in ResultsScreen.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.60–1.10. Due file.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/. Stringhe simili vivono lì: ignorale.
+SOLO edit mirati old_string → new_string. NESSUNA sostituzione integrale di file.
+Applica OGNI edit in modo INDIPENDENTE: se una find non combacia ESATTAMENTE,
+SALTA quell'edit e SEGNALALO, ma esegui comunque gli altri.
+Se combacia il contenuto ma non l'indentazione, applica l'edit rispettando
+l'indentazione REALE del file e segnalalo nel rapporto.
+
+════════════════════════════════════════════════════════════
+1 · src/pages/ProgressScreen.tsx
+════════════════════════════════════════════════════════════
+
+CONTESTO: questo file non importa ancora SpringTap. Nove elementi cliccabili
+non hanno nessuna risposta al tocco. `motion` è già importato da framer-motion.
+Categorie disponibili in src/components/SpringTap.tsx:
+  button 0.94 · icon 0.88 · chip 0.93 · card 0.98 · row 0.985
+
+──────────── 1a · IMPORT ────────────
+TROVA:
+import WordHistorySheet from "@/components/WordHistorySheet";
+
+SOSTITUISCI CON:
+import WordHistorySheet from "@/components/WordHistorySheet";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+
+──────────── 1b · LA RIGA di TroubleRow ────────────
+TROVA:
+        <motion.div
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.5}
+          onDragEnd={(_, info) => { if (info.offset.x < -64) onDismiss(entry.id); }}
+
+SOSTITUISCI CON:
+        <motion.div
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.5}
+          whileTap={tapScale("row")}
+          // whileDrag ha priorità su whileTap: senza questo la riga resterebbe
+          // schiacciata per tutta la durata dello swipe, perché whileTap si
+          // accende al pointerdown, cioè PRIMA che il drag cominci.
+          whileDrag={{ scale: 1 }}
+          transition={TAP_SPRING}
+          onDragEnd={(_, info) => { if (info.offset.x < -64) onDismiss(entry.id); }}
+
+──────────── 1c · CHEVRON dello storico ────────────
+TROVA:
+            <button onClick={(e) => { e.stopPropagation(); onOpen(entry); }}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: "3px 1px", display: "flex", alignItems: "center", color: "rgba(255,255,255,0.3)" }}
+              aria-label={`Storico di ${entry.word}`}>
+
+SOSTITUISCI CON:
+            <motion.button onClick={(e) => { e.stopPropagation(); onOpen(entry); }}
+              onPointerDown={(e) => e.stopPropagation()}
+              whileTap={tapScale("icon")}
+              transition={TAP_SPRING}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: "3px 1px", display: "flex", alignItems: "center", color: "rgba(255,255,255,0.3)" }}
+              aria-label={`Storico di ${entry.word}`}>
+
+E POI, nello stesso blocco, TROVA:
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M9 6l6 6-6 6" /></svg>
+            </button>
+
+SOSTITUISCI CON:
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M9 6l6 6-6 6" /></svg>
+            </motion.button>
+
+──────────── 1d · STELLA My Verba ────────────
+TROVA:
+            <button onClick={(e) => { e.stopPropagation(); onToggleStar(entry.id); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }} aria-label={starred ? "Remove from My Verba" : "Add to My Verba"}>
+              <Star size={15} fill={starred ? AMBER : "none"} stroke={starred ? AMBER : "rgba(255,255,255,0.26)"} />
+            </button>
+
+SOSTITUISCI CON:
+            <motion.button onClick={(e) => { e.stopPropagation(); onToggleStar(entry.id); }} onPointerDown={(e) => e.stopPropagation()} whileTap={tapScale("icon")} transition={TAP_SPRING} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }} aria-label={starred ? "Remove from My Verba" : "Add to My Verba"}>
+              <Star size={15} fill={starred ? AMBER : "none"} stroke={starred ? AMBER : "rgba(255,255,255,0.26)"} />
+            </motion.button>
+
+NOTA sugli `onPointerDown` di 1c e 1d: servono perché il pointerdown sui due
+bottoni risale alla riga e accenderebbe ANCHE il suo whileTap — toccando la
+stella si schiaccerebbero icona e riga insieme. Non toccano il click: quello
+continua a passare.
+
+──────────── 1e · RIQUADRO "words to review" ────────────
+ATTENZIONE: questo elemento contiene div annidati. Leggi tutto prima di agire.
+
+TROVA:
+                <div onClick={() => startReview(getDueWordIds())} style={{ background: "rgba(245,158,11,0.07)", border: "0.5px solid rgba(245,158,11,0.28)", borderRadius: 16, position: "relative", padding: "15px 48px 15px 16px", cursor: "pointer" }}>
+
+SOSTITUISCI CON:
+                <motion.div onClick={() => startReview(getDueWordIds())} whileTap={tapScale("card")} transition={TAP_SPRING} style={{ background: "rgba(245,158,11,0.07)", border: "0.5px solid rgba(245,158,11,0.28)", borderRadius: 16, position: "relative", padding: "15px 48px 15px 16px", cursor: "pointer" }}>
+
+POI individua il `</div>` che chiude QUESTO elemento — non uno dei div annidati
+dentro di lui — e sostituiscilo con `</motion.div>`.
+Se NON riesci a individuarlo con certezza contando le aperture e le chiusure:
+ANNULLA anche la sostituzione dell'apertura, lascia il file com'era, e
+segnalalo. NON lasciare il file con un tag spaiato e NON indovinare.
+Nel rapporto scrivi il numero di riga del tag di chiusura che hai cambiato.
+
+──────────── 1f · TOGGLE ⓘ ────────────
+TROVA:
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setInfoOpen((o) => !o); }}
+                      aria-label="What is this?"
+
+SOSTITUISCI CON:
+                    <motion.button
+                      onClick={(e) => { e.stopPropagation(); setInfoOpen((o) => !o); }}
+                      whileTap={tapScale("icon")}
+                      transition={TAP_SPRING}
+                      aria-label="What is this?"
+
+POI, subito sotto, TROVA:
+                      <Info size={14} />
+                    </button>
+
+SOSTITUISCI CON:
+                      <Info size={14} />
+                    </motion.button>
+
+Se `<Info size={14} />` compare PIÙ DI UNA VOLTA nel file, NON applicare questa
+seconda sostituzione: fermati su questo edit e riporta ogni occorrenza con il
+numero di riga. Le altre voci di questo prompt vanno comunque eseguite.
+
+──────────── 1g · RAPPORTO su un eventuale SECONDO ⓘ ────────────
+NON modificare niente. Cerca nel file tutte le occorrenze di `setInfoOpen` e di
+`<Info` e riportale con numero di riga e con la riga di codice intera.
+Serve a capire se esiste un secondo toggle oltre a quello di 1f.
+
+──────────── 1h · CHIP dei filtri ────────────
+TROVA:
+                    <button key={k}
+                      onClick={() => { setTroubleFilter(k); setTroubleExpanded(false); }}
+                      style={{
+
+SOSTITUISCI CON:
+                    <motion.button key={k}
+                      onClick={() => { setTroubleFilter(k); setTroubleExpanded(false); }}
+                      whileTap={tapScale("chip")}
+                      transition={TAP_SPRING}
+                      style={{
+
+POI TROVA:
+                      {label}<span style={{ opacity: 0.55, marginLeft: 4 }}>{n}</span>
+                    </button>
+
+SOSTITUISCI CON:
+                      {label}<span style={{ opacity: 0.55, marginLeft: 4 }}>{n}</span>
+                    </motion.button>
+
+──────────── 1i · "show N more" ────────────
+TROVA:
+                        <button onClick={() => setTroubleExpanded(true)}
+                          style={{ width: "100%", padding: 10, background: "rgba(255,255,255,0.02)", border: "none", borderTop: "0.5px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter', sans-serif", fontSize: 11.5, cursor: "pointer", outline: "none" }}>
+                          show {rows.length - shown.length} more ↓
+                        </button>
+
+SOSTITUISCI CON:
+                        <motion.button onClick={() => setTroubleExpanded(true)}
+                          whileTap={tapScale("row")}
+                          transition={TAP_SPRING}
+                          style={{ width: "100%", padding: 10, background: "rgba(255,255,255,0.02)", border: "none", borderTop: "0.5px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter', sans-serif", fontSize: 11.5, cursor: "pointer", outline: "none" }}>
+                          show {rows.length - shown.length} more ↓
+                        </motion.button>
+
+──────────── 1j · "show less" ────────────
+TROVA:
+                        <button onClick={() => setTroubleExpanded(false)}
+                          style={{ width: "100%", padding: 10, background: "rgba(255,255,255,0.02)", border: "none", borderTop: "0.5px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter', sans-serif", fontSize: 11.5, cursor: "pointer", outline: "none" }}>
+                          show less ↑
+                        </button>
+
+SOSTITUISCI CON:
+                        <motion.button onClick={() => setTroubleExpanded(false)}
+                          whileTap={tapScale("row")}
+                          transition={TAP_SPRING}
+                          style={{ width: "100%", padding: 10, background: "rgba(255,255,255,0.02)", border: "none", borderTop: "0.5px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter', sans-serif", fontSize: 11.5, cursor: "pointer", outline: "none" }}>
+                          show less ↑
+                        </motion.button>
+
+════════════════════════════════════════════════════════════
+2 · src/pages/ResultsScreen.tsx — due categorie sbagliate
+════════════════════════════════════════════════════════════
+
+CONTESTO: `Another round` e `New session` sono finiti a `tapScale("card")`
+(0.98, quasi immobili) ma sono bottoni d'azione larghi metà schermo: vanno a
+`tapScale()`, cioè 0.94.
+
+2a) Cerca in questo file TUTTE le occorrenze di `tapScale("card")`.
+    Per ognuna, guarda il testo visibile del bottone a cui appartiene.
+    · Se il testo contiene "Another round" oppure "New session" →
+      sostituisci `tapScale("card")` con `tapScale()`.
+    · In tutti gli altri casi → NON toccare.
+    Nel rapporto elenca OGNI occorrenza trovata con numero di riga, testo del
+    bottone, e se l'hai cambiata o no.
+
+2b) NON toccare il pallino di paginazione (il `motion.button` con
+    `whileTap={{ scale: 0.85 }}` dentro la fila dei dots). Resta com'è.
+
+════════════════════════════════════════════════════════════
+VERIFICA — rispondi VOCE PER VOCE, non in prosa
+════════════════════════════════════════════════════════════
+a) Conteggio righe di src/pages/ProgressScreen.tsx PRIMA e DOPO.
+b) Conteggio righe di src/pages/ResultsScreen.tsx PRIMA e DOPO.
+c) Se uno dei due numeri è RADDOPPIATO o più: FERMATI, non fare altro, dillo
+   subito. È un difetto già visto su altri file.
+d) 1a import aggiunto: sì/no.
+e) 1b riga di TroubleRow: sì/no. Conferma che `whileDrag` e `onDragEnd` sono
+   entrambi presenti nel tag finale.
+f) 1c chevron: apertura E chiusura convertite entrambe: sì/no.
+g) 1d stella: sì/no.
+h) 1e riquadro "words to review": apertura convertita sì/no; chiusura
+   convertita sì/no; numero di riga della chiusura. Se hai annullato, dillo.
+i) 1f toggle ⓘ: sì/no. Quante occorrenze di `<Info size={14} />` esistono nel
+   file.
+j) 1g: elenco completo di `setInfoOpen` e `<Info` con numeri di riga.
+k) 1h chip, 1i show more, 1j show less: sì/no per ciascuno.
+l) 2a: elenco delle occorrenze di `tapScale("card")` come richiesto sopra.
+m) Typecheck: pulito sì/no, con gli errori riportati per intero se ce ne sono.
+n) Elenco degli edit SALTATI e il motivo di ciascuno.
+
+NON FARE
+· Nessun altro file. NON toccare SpringTap.tsx, QuizScreen.tsx, FeedbackCard.tsx,
+  wordStats.ts, attached_assets/.
+· NON avviare il dev server, NON testare.
+· NON riscrivere nessun file per intero.

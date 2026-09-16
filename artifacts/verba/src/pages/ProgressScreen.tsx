@@ -8,6 +8,7 @@ import { fetchWordsByIds } from "@/lib/quizQueries";
 import { motion } from "framer-motion";
 import { dismissTrouble } from "@/lib/troubleDismiss";
 import WordHistorySheet from "@/components/WordHistorySheet";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 
 const DECK = "gre";
 const AMBER = "#F59E0B";
@@ -112,6 +113,12 @@ function AttemptStrip({ attempts, seen }: { attempts: Array<"c" | "e">; seen: nu
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.5}
+          whileTap={tapScale("row")}
+          // whileDrag ha priorità su whileTap: senza questo la riga resterebbe
+          // schiacciata per tutta la durata dello swipe, perché whileTap si
+          // accende al pointerdown, cioè PRIMA che il drag cominci.
+          whileDrag={{ scale: 1 }}
+          transition={TAP_SPRING}
           onDragEnd={(_, info) => { if (info.offset.x < -64) onDismiss(entry.id); }}
           style={{ position: "relative", background: "#0B0B0D", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", touchAction: "pan-y", cursor: "grab" }}
         >
@@ -119,14 +126,17 @@ function AttemptStrip({ attempts, seen }: { attempts: Array<"c" | "e">; seen: nu
           <div style={{ display: "flex", alignItems: "center", gap: 11, flexShrink: 0 }}>
             <AttemptStrip attempts={entry.attempts} seen={entry.seen} />
             <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: RED }}>✗ {entry.wrong}</span>
-            <button onClick={(e) => { e.stopPropagation(); onOpen(entry); }}
+            <motion.button onClick={(e) => { e.stopPropagation(); onOpen(entry); }}
+              onPointerDown={(e) => e.stopPropagation()}
+              whileTap={tapScale("icon")}
+              transition={TAP_SPRING}
               style={{ background: "none", border: "none", cursor: "pointer", padding: "3px 1px", display: "flex", alignItems: "center", color: "rgba(255,255,255,0.3)" }}
               aria-label={`Storico di ${entry.word}`}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M9 6l6 6-6 6" /></svg>
-            </button>
-            <button onClick={(e) => { e.stopPropagation(); onToggleStar(entry.id); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }} aria-label={starred ? "Remove from My Verba" : "Add to My Verba"}>
+            </motion.button>
+            <motion.button onClick={(e) => { e.stopPropagation(); onToggleStar(entry.id); }} onPointerDown={(e) => e.stopPropagation()} whileTap={tapScale("icon")} transition={TAP_SPRING} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }} aria-label={starred ? "Remove from My Verba" : "Add to My Verba"}>
               <Star size={15} fill={starred ? AMBER : "none"} stroke={starred ? AMBER : "rgba(255,255,255,0.26)"} />
-            </button>
+            </motion.button>
           </div>
         </motion.div>
       </div>
@@ -321,7 +331,7 @@ export default function ProgressScreen() {
             <div style={{ marginBottom: 22 }}>
               {snap.dueCount > 0 ? (
                 <>
-                <div onClick={() => startReview(getDueWordIds())} style={{ background: "rgba(245,158,11,0.07)", border: "0.5px solid rgba(245,158,11,0.28)", borderRadius: 16, position: "relative", padding: "15px 48px 15px 16px", cursor: "pointer" }}>
+                <motion.div onClick={() => startReview(getDueWordIds())} whileTap={tapScale("card")} transition={TAP_SPRING} style={{ background: "rgba(245,158,11,0.07)", border: "0.5px solid rgba(245,158,11,0.28)", borderRadius: 16, position: "relative", padding: "15px 48px 15px 16px", cursor: "pointer" }}>
                   <ChevronRight size={22} color={AMBER_SOFT} style={{ position: "absolute", top: "50%", right: 16, transform: "translateY(-50%)" }} />
                   <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                     <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 23, color: AMBER_SOFT }}>{snap.dueCount}</span>
@@ -340,7 +350,7 @@ export default function ProgressScreen() {
                   <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(248,184,78,0.95)", marginTop: 8 }}>
                     Choose how many to do now →
                   </div>
-                </div>
+                </motion.div>
                 {infoOpen && (
                   <motion.div
                     initial={{ opacity: 0, y: -4 }}
@@ -414,8 +424,10 @@ export default function ProgressScreen() {
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
                   {chips.map(([k, label, n]) => (
-                    <button key={k}
+                    <motion.button key={k}
                       onClick={() => { setTroubleFilter(k); setTroubleExpanded(false); }}
+                      whileTap={tapScale("chip")}
+                      transition={TAP_SPRING}
                       style={{
                         padding: "5px 11px", borderRadius: 9999, cursor: "pointer",
                         fontFamily: "'Inter', sans-serif", fontSize: 11,
@@ -425,7 +437,7 @@ export default function ProgressScreen() {
                         outline: "none",
                       }}>
                       {label}<span style={{ opacity: 0.55, marginLeft: 4 }}>{n}</span>
-                    </button>
+                    </motion.button>
                   ))}
                 </div>
                 {/* Il rosso CLASSIFICA l'intero elenco: bordo su tutti i lati,
@@ -461,16 +473,20 @@ export default function ProgressScreen() {
                       {rows.length > shown.length && (
                         /* La lista si allunga: niente scorrimento dentro
                            scorrimento, che su mobile è sgradevole. */
-                        <button onClick={() => setTroubleExpanded(true)}
+                        <motion.button onClick={() => setTroubleExpanded(true)}
+                          whileTap={tapScale("row")}
+                          transition={TAP_SPRING}
                           style={{ width: "100%", padding: 10, background: "rgba(255,255,255,0.02)", border: "none", borderTop: "0.5px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter', sans-serif", fontSize: 11.5, cursor: "pointer", outline: "none" }}>
                           show {rows.length - shown.length} more ↓
-                        </button>
+                        </motion.button>
                       )}
                       {troubleExpanded && rows.length > TROUBLE_PAGE && (
-                        <button onClick={() => setTroubleExpanded(false)}
+                        <motion.button onClick={() => setTroubleExpanded(false)}
+                          whileTap={tapScale("row")}
+                          transition={TAP_SPRING}
                           style={{ width: "100%", padding: 10, background: "rgba(255,255,255,0.02)", border: "none", borderTop: "0.5px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter', sans-serif", fontSize: 11.5, cursor: "pointer", outline: "none" }}>
                           show less ↑
-                        </button>
+                        </motion.button>
                       )}
                     </>
                   )}

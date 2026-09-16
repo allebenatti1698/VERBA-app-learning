@@ -353,7 +353,7 @@ function ActionButtons({ wordCount, visible = true }: ActionButtonsProps) {
     >
       {/* Try again */}
       <motion.button
-        whileTap={tapScale("card")}
+        whileTap={tapScale()}
         transition={TAP_SPRING}
         onClick={() => navigate(`/quiz?words=${wordCount}`)}
         style={{
@@ -377,7 +377,7 @@ function ActionButtons({ wordCount, visible = true }: ActionButtonsProps) {
 
       {/* New session */}
       <motion.button
-        whileTap={tapScale("card")}
+        whileTap={tapScale()}
         transition={TAP_SPRING}
         onClick={() => navigate("/decks")}
         style={{
