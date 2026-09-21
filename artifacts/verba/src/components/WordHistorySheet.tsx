@@ -22,20 +22,20 @@ function whenLabel(iso: string): string {
   const n = new Date();
   const b = new Date(n.getFullYear(), n.getMonth(), n.getDate());
   const days = Math.round((b.getTime() - a.getTime()) / 86400000);
-  if (days <= 0) return "oggi";
-  if (days === 1) return "ieri";
-  if (days < 30) return `${days} giorni fa`;
-  return d.toLocaleDateString("it-IT", { day: "numeric", month: "short" });
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days} days ago`;
+  return d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
 }
 
 function dueLabel(iso: string | null | undefined): string {
-  if (!iso) return "non ancora programmata";
+  if (!iso) return "not scheduled yet";
   const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return "non ancora programmata";
+  if (Number.isNaN(t)) return "not scheduled yet";
   const days = Math.ceil((t - Date.now()) / 86400000);
-  if (days <= 0) return "da ripassare adesso";
-  if (days === 1) return "torna domani";
-  return `torna fra ${days} giorni`;
+  if (days <= 0) return "due now";
+  if (days === 1) return "back tomorrow";
+  return `back in ${days} days`;
 }
 
 export default function WordHistorySheet({
@@ -78,7 +78,7 @@ export default function WordHistorySheet({
               borderRadius: "20px 20px 0 0", padding: "22px 22px 32px", zIndex: 61,
             }}
           >
-            <button onClick={onClose} aria-label="Chiudi"
+            <button onClick={onClose} aria-label="Close"
               style={{ position: "absolute", top: 14, right: 16, width: 30, height: 30,
                 borderRadius: "50%", background: "rgba(255,255,255,0.05)", border: "none",
                 color: "rgba(255,255,255,0.45)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>
@@ -89,16 +89,16 @@ export default function WordHistorySheet({
               fontSize: 24, color: LAVENDER, margin: "0 0 3px" }}>{word}</p>
             <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5,
               color: "rgba(255,255,255,0.42)", margin: "0 0 18px" }}>
-              incontrata {seen} {seen === 1 ? "volta" : "volte"}
+              seen {seen} {seen === 1 ? "time" : "times"}
               {stat ? ` · ${LEVEL_NAME[stat.level] ?? "Recognize"}` : ""}
               {stat ? ` · ${dueLabel(stat.nextReviewAt)}` : ""}
             </p>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 20 }}>
               {[
-                [correct, "corrette", GREEN],
-                [wrong, "sbagliate", RED],
-                [`${rate}%`, "successo", LAVENDER],
+                [correct, "correct", GREEN],
+                [wrong, "wrong", RED],
+                [`${rate}%`, "accuracy", LAVENDER],
               ].map(([v, label, col]) => (
                 <div key={String(label)} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "11px 12px" }}>
                   <b style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif",
@@ -111,12 +111,12 @@ export default function WordHistorySheet({
 
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 9,
               color: "rgba(255,255,255,0.4)", letterSpacing: "0.14em",
-              textTransform: "uppercase", marginBottom: 12 }}>Storico</div>
+              textTransform: "uppercase", marginBottom: 12 }}>History</div>
 
             {events.length === 0 && unknown === 0 && (
               <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12,
                 color: "rgba(255,255,255,0.4)", margin: 0 }}>
-                Nessun incontro registrato.
+                Nothing recorded yet.
               </p>
             )}
 
@@ -151,10 +151,10 @@ export default function WordHistorySheet({
                   <span style={{ position: "absolute", left: -16, top: 13, width: 7, height: 7,
                     borderRadius: 2, background: "rgba(255,255,255,0.2)" }} />
                   <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11,
-                    color: "rgba(255,255,255,0.42)", width: 84, flexShrink: 0 }}>prima</span>
+                    color: "rgba(255,255,255,0.42)", width: 84, flexShrink: 0 }}>earlier</span>
                   <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 12.5,
                     color: "rgba(255,255,255,0.45)" }}>
-                    {unknown} {unknown === 1 ? "incontro" : "incontri"} non registrati
+                    {unknown} {unknown === 1 ? "encounter" : "encounters"} not recorded
                   </span>
                 </div>
               )}
@@ -164,8 +164,8 @@ export default function WordHistorySheet({
               <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 10.5,
                 color: "rgba(255,255,255,0.32)", lineHeight: 1.6, background: "rgba(255,255,255,0.02)",
                 borderRadius: 10, padding: "10px 12px", margin: "14px 0 0" }}>
-                Verba ha cominciato a tenere lo storico dopo i primi incontri con questa
-                parola: di quelli conosce solo il totale.
+                Verba started keeping a history after the first encounters with this
+                word — for those it only knows the total.
               </p>
             )}
           </motion.div>

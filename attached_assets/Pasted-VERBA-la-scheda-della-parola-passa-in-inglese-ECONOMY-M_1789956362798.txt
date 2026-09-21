@@ -1,0 +1,175 @@
+VERBA — la scheda della parola passa in inglese.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.45–0.80. Due file.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+SOLO edit mirati old_string → new_string. NESSUNA sostituzione integrale di file.
+Applica OGNI edit in modo INDIPENDENTE: se una find non combacia ESATTAMENTE,
+SALTA quell'edit e SEGNALALO, ma esegui comunque gli altri.
+
+CONTESTO: l'interfaccia di Verba è in inglese. WordHistorySheet è l'unica
+superficie rimasta in italiano — una svista. Questo prompt la allinea.
+NON tradurre i commenti nel codice: quelli restano in italiano, sono per noi.
+Si traducono SOLO le stringhe che l'utente legge o che uno screen reader legge.
+NON toccare i nomi dei gradini (Recognize / Recall in context / Produce):
+sono già in inglese e sono termini di prodotto.
+
+════════════════════════════════════════════════════════════
+1 · src/components/WordHistorySheet.tsx
+════════════════════════════════════════════════════════════
+
+──── 1a · le etichette temporali dello storico ────
+TROVA:
+  if (days <= 0) return "oggi";
+  if (days === 1) return "ieri";
+  if (days < 30) return `${days} giorni fa`;
+  return d.toLocaleDateString("it-IT", { day: "numeric", month: "short" });
+
+SOSTITUISCI CON:
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days} days ago`;
+  return d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
+
+Nota: cambia anche il locale, altrimenti le date oltre i 30 giorni uscirebbero
+in italiano ("21 set" invece di "Sep 21").
+
+──── 1b · quando torna la parola ────
+TROVA:
+  if (!iso) return "non ancora programmata";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "non ancora programmata";
+  const days = Math.ceil((t - Date.now()) / 86400000);
+  if (days <= 0) return "da ripassare adesso";
+  if (days === 1) return "torna domani";
+  return `torna fra ${days} giorni`;
+
+SOSTITUISCI CON:
+  if (!iso) return "not scheduled yet";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "not scheduled yet";
+  const days = Math.ceil((t - Date.now()) / 86400000);
+  if (days <= 0) return "due now";
+  if (days === 1) return "back tomorrow";
+  return `back in ${days} days`;
+
+──── 1c · la riga sotto la parola ────
+TROVA:
+              incontrata {seen} {seen === 1 ? "volta" : "volte"}
+
+SOSTITUISCI CON:
+              seen {seen} {seen === 1 ? "time" : "times"}
+
+──── 1d · le tre caselle dei numeri ────
+TROVA:
+                [correct, "corrette", GREEN],
+                [wrong, "sbagliate", RED],
+                [`${rate}%`, "successo", LAVENDER],
+
+SOSTITUISCI CON:
+                [correct, "correct", GREEN],
+                [wrong, "wrong", RED],
+                [`${rate}%`, "accuracy", LAVENDER],
+
+Nota: "accuracy" e non "success rate" perché quel testo è in maiuscoletto
+dentro una colonna larga un terzo dello schermo e andrebbe a capo.
+
+──── 1e · il titolo della sezione ────
+TROVA:
+              textTransform: "uppercase", marginBottom: 12 }}>Storico</div>
+
+SOSTITUISCI CON:
+              textTransform: "uppercase", marginBottom: 12 }}>History</div>
+
+──── 1f · lo stato vuoto ────
+TROVA:
+                Nessun incontro registrato.
+
+SOSTITUISCI CON:
+                Nothing recorded yet.
+
+──── 1g · l'etichetta della riga degli incontri non registrati ────
+TROVA:
+                    color: "rgba(255,255,255,0.42)", width: 84, flexShrink: 0 }}>prima</span>
+
+SOSTITUISCI CON:
+                    color: "rgba(255,255,255,0.42)", width: 84, flexShrink: 0 }}>earlier</span>
+
+──── 1h · il conteggio degli incontri non registrati ────
+TROVA:
+                    {unknown} {unknown === 1 ? "incontro" : "incontri"} non registrati
+
+SOSTITUISCI CON:
+                    {unknown} {unknown === 1 ? "encounter" : "encounters"} not recorded
+
+──── 1i · la nota in fondo ────
+TROVA:
+                Verba ha cominciato a tenere lo storico dopo i primi incontri con questa
+                parola: di quelli conosce solo il totale.
+
+SOSTITUISCI CON:
+                Verba started keeping a history after the first encounters with this
+                word — for those it only knows the total.
+
+──── 1j · il bottone di chiusura ────
+TROVA:
+            <button onClick={onClose} aria-label="Chiudi"
+
+SOSTITUISCI CON:
+            <button onClick={onClose} aria-label="Close"
+
+════════════════════════════════════════════════════════════
+2 · src/pages/ProgressScreen.tsx — due aria-label rimaste in italiano
+════════════════════════════════════════════════════════════
+Non si vedono sullo schermo, ma sono quello che sente chi usa uno screen reader.
+
+──── 2a · il nome della riga premibile ────
+TROVA:
+          aria-label={`Storico di ${entry.word}`}
+
+SOSTITUISCI CON:
+          aria-label={`History of ${entry.word}`}
+
+Attenzione: questa stringa deve comparire UNA VOLTA SOLA, sulla riga di
+TroubleRow. Se ne trovi due, il chevron non era stato rimosso davvero:
+non sostituire niente e segnalalo.
+
+──── 2b · il nome della striscia ────
+TROVA:
+      aria-label={`Ultimi ${STRIP} incontri`}
+
+SOSTITUISCI CON:
+      aria-label={`Last ${STRIP} encounters`}
+
+Se questa find non aggancia, NON indovinare: cerca nel file l'attributo
+aria-label della funzione AttemptStrip, copialo nel rapporto così com'è, e
+lascia il file invariato su questo punto.
+
+════════════════════════════════════════════════════════════
+VERIFICA — rispondi VOCE PER VOCE, non in prosa
+════════════════════════════════════════════════════════════
+a) Conteggio righe PRIMA e DOPO di ENTRAMBI i file.
+   Atteso: invariati o quasi (tutte sostituzioni in linea, nessuna riga
+   aggiunta o tolta). Qualsiasi variazione oltre ±1 va spiegata.
+b) Se un conteggio è RADDOPPIATO o più: FERMATI e dillo subito.
+c) Da 1a a 1j: sì/no per ciascuno.
+d) 2a: sì/no, e quante occorrenze della stringa hai trovato.
+e) 2b: sì/no; se no, la riga copiata dal file.
+f) CONTROLLO FINALE — cerca in src/components/WordHistorySheet.tsx queste
+   parole e riporta ogni occorrenza rimasta con numero di riga:
+   oggi, ieri, giorni, volta, volte, corrette, sbagliate, successo, Storico,
+   incontro, incontri, registrat, Chiudi, it-IT, programmata, ripassare, torna
+   ATTENZIONE: alcune compaiono legittimamente dentro i COMMENTI, che NON
+   vanno tradotti. Per ogni occorrenza dichiara se è dentro un commento o
+   dentro una stringa visibile. Se è dentro una stringa visibile, l'ho
+   dimenticata: segnalamela, NON tradurla di tua iniziativa.
+g) Typecheck: pulito sì/no, errori per intero se ce ne sono.
+h) Edit saltati e motivo.
+
+NON FARE
+· Nessun altro file. NON toccare wordStats.ts, ResultsScreen.tsx, SpringTap.tsx.
+· NON tradurre i commenti del codice.
+· NON toccare LEVEL_NAME né i nomi dei gradini.
+· NON cambiare stili, dimensioni, colori o layout: solo testo.
+· NON avviare il dev server, NON testare.
+· NON riscrivere nessun file per intero.

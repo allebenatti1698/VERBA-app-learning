@@ -86,7 +86,7 @@ function AttemptStrip({ attempts, seen }: { attempts: Array<"c" | "e">; seen: nu
     ...attempts,
   ];
   return (
-    <span aria-label={`Ultimi ${STRIP} incontri`}
+    <span aria-label={`Last ${STRIP} encounters`}
       style={{ display: "flex", gap: 3, alignItems: "center" }}>
       {cells.map((c, i) => (
         <i key={i} style={{
@@ -133,7 +133,7 @@ function AttemptStrip({ attempts, seen }: { attempts: Array<"c" | "e">; seen: nu
           onClick={() => { if (!dragGuard) onOpen(entry); }}
           role="button"
           tabIndex={0}
-          aria-label={`Storico di ${entry.word}`}
+          aria-label={`History of ${entry.word}`}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(entry); } }}
           style={{ position: "relative", background: "#0B0B0D", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", touchAction: "pan-y", cursor: "pointer" }}
         >
