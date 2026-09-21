@@ -1,0 +1,562 @@
+VERBA — Gradino 3, Produce: scrivi la parola.
+ECONOMY MODE, Claude Sonnet 5, Effort Medium. Stima ~$1.40–2.40.
+Un file NUOVO, due modificati.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Il file nuovo si CREA; i file esistenti si toccano SOLO con edit mirati
+old_string → new_string. NESSUNA sostituzione integrale di file esistenti.
+Applica OGNI edit in modo INDIPENDENTE: se una find non combacia ESATTAMENTE,
+SALTA quell'edit e SEGNALALO, ma esegui comunque gli altri.
+
+PRIMA DI TUTTO riporta il numero di righe di:
+  src/pages/QuizScreen.tsx · src/lib/wordStats.ts
+e conferma che src/components/quiz/ProduceQuestion.tsx NON esiste ancora.
+Se esiste già, FERMATI e dimmelo senza creare né modificare nulla.
+
+CONTESTO
+Il gradino 3 mostra la definizione e chiede di SCRIVERE la parola. La
+tolleranza ai refusi usa src/lib/typoMatch.ts, che esiste già e NON va toccato.
+docs/reverse-typing-reference.md resta com'è: è documentazione, non codice.
+Della vecchia modalità reverse NON si recupera niente oltre a ciò che è già
+dentro il file nuovo: nessuna coda in sessionStorage, nessuna route
+/review-complete, nessuna chiave localStorage "verba_mastered_words".
+
+════════════════════════════════════════════════════════════
+1 · FILE NUOVO — src/components/quiz/ProduceQuestion.tsx
+════════════════════════════════════════════════════════════
+Crea il file con ESATTAMENTE questo contenuto, dalla prima riga (import) fino
+alla graffa finale. Deve risultare di 399 righe.
+
+import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { SCREEN_MAX } from "@/components/ScreenColumn";
+import { lowercaseFirst } from "@/lib/formatText";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+import { damerauLevenshtein, nearMissThreshold } from "@/lib/typoMatch";
+import { publishWordOrigin, requestCardToggle } from "@/lib/wordOrigin";
+import type { QuestionProps } from "@/components/quiz/types";
+
+// Gradino 3 — Produce: leggi la definizione, scrivi la parola.
+//
+// Il momento visivo di questo gradino è la digitazione stessa: la parola la
+// componi tu. L'unica animazione è la correzione quando sbagli: le lettere che
+// non c'entrano cadono, quelle giuste restano e scivolano al loro posto, quelle
+// mancanti arrivano. È lo stesso vocabolario del gradino 2.
+//
+// Regola del quasi-giusto (un refuso entro la soglia di typoMatch): il campo si
+// ferma e chiede di correggere; riscritta bene, conta come GIUSTA. La sezione
+// verbale del GRE non chiede mai di scrivere una parola: questo gradino misura
+// il richiamo, non l'ortografia. Dopo NEAR_MAX_TRIES quasi-giusti di fila il
+// campo si corregge da solo e conta comunque come giusta, perché il richiamo è
+// avvenuto e bloccare la sessione sull'ortografia smentirebbe la regola.
+//
+// Come gli altri formati, questo componente non registra la risposta nella
+// scala e non suona: lo fa l'orchestratore dentro handleSelect. onSelect si
+// chiama UNA volta sola per parola, sul verdetto finale; i quasi-giusti no.
+//
+// Della vecchia modalità reverse qui NON torna niente: né la coda di ripasso in
+// session storage, né la schermata di fine ripasso, né un secondo registro delle
+// parole padroneggiate in local storage. La padronanza vive solo in wordStats.
+
+const GREEN = "#34D399";
+const RED = "#EF4444";
+const LAVENDER = "#C7B8E8";
+
+/* ── numeri regolabili a occhio ── */
+const SHAKE_HARD_MS = 420;
+const SHAKE_SOFT_MS = 300;
+const GAP_MS = 80;
+const FALL_MS = 420;
+const FALL_STAGGER = 35;
+const SLIDE_MS = 460;
+const ARRIVE_MS = 380;
+const ARRIVE_DELAY = 140;
+const ARRIVE_STAGGER = 55;
+const PAUSE_MS = 550;
+/** Dopo quanti quasi-giusti di fila il campo si corregge da solo. */
+const NEAR_MAX_TRIES = 2;
+
+type Op =
+  | { k: "keep"; gi: number; ti: number }
+  | { k: "del"; gi: number }
+  | { k: "ins"; ti: number };
+
+/**
+ * Allineamento lettera per lettera: cosa resta, cosa cade, cosa arriva.
+ * È la sottosequenza comune più lunga, NON la distanza di edit: la distanza
+ * minimizza le operazioni e per farlo sostituisce volentieri una lettera che
+ * poteva restare. Qui conta il contrario — che resti in piedi il più possibile
+ * di quello che hai scritto, così vedi cosa avevi già giusto.
+ */
+function align(g: string, t: string): Op[] {
+  const m = g.length, n = t.length;
+  const L: number[][] = [];
+  for (let i = 0; i <= m; i++) L[i] = new Array(n + 1).fill(0);
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      L[i][j] = g[i - 1] === t[j - 1] ? L[i - 1][j - 1] + 1 : Math.max(L[i - 1][j], L[i][j - 1]);
+  const ops: Op[] = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && g[i - 1] === t[j - 1] && L[i][j] === L[i - 1][j - 1] + 1) {
+      ops.push({ k: "keep", gi: i - 1, ti: j - 1 }); i--; j--;
+    } else if (i > 0 && (j === 0 || L[i - 1][j] >= L[i][j - 1])) {
+      ops.push({ k: "del", gi: i - 1 }); i--;
+    } else {
+      ops.push({ k: "ins", ti: j - 1 }); j--;
+    }
+  }
+  return ops.reverse();
+}
+
+/** Il piano della correzione e quanto dura: serve PRIMA di animare, per il ritardo. */
+function plan(guess: string, target: string) {
+  const ops = align(guess.toLowerCase(), target.toLowerCase());
+  const gone = new Set<number>();
+  const kept = new Map<number, number>();
+  let arrivals = 0;
+  for (const o of ops) {
+    if (o.k === "del") gone.add(o.gi);
+    else if (o.k === "ins") arrivals++;
+    else kept.set(o.ti, o.gi);
+  }
+  const fallMs = gone.size ? FALL_MS + (gone.size - 1) * FALL_STAGGER : 0;
+  const arriveMs = arrivals ? ARRIVE_DELAY + (arrivals - 1) * ARRIVE_STAGGER + ARRIVE_MS : 0;
+  return { gone, kept, fallMs, restMs: Math.max(SLIDE_MS, arriveMs) };
+}
+
+/** Riempie il contenitore con una lettera per span: serve solo alla correzione. */
+function fillLetters(host: HTMLElement, text: string, color: string): HTMLElement[] {
+  host.textContent = "";
+  return text.split("").map((ch) => {
+    const s = document.createElement("span");
+    s.textContent = ch;
+    s.style.display = "inline-block";
+    s.style.color = color;
+    host.appendChild(s);
+    return s;
+  });
+}
+
+const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
+
+export default function ProduceQuestion({ word, isAnswered, onSelect, animKey }: QuestionProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const fieldRef = useRef<HTMLDivElement | null>(null);
+  /** Il contenitore della parola dopo il verdetto. React non ne gestisce i figli. */
+  const lettersRef = useRef<HTMLSpanElement | null>(null);
+  /** Cambia a ogni parola: una correzione ancora in corso si ferma da sola. */
+  const seqRef = useRef(0);
+  const correctRef = useRef(false);
+  const nearRef = useRef(0);
+
+  const [typed, setTyped] = useState("");
+  const [phase, setPhase] = useState<"typing" | "near" | "right" | "wrong">("typing");
+  const [showLetters, setShowLetters] = useState(false);
+
+  const [reduced] = useState(
+    () => typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+
+  // parola nuova: campo vuoto e di nuovo pronto
+  useEffect(() => {
+    seqRef.current += 1;
+    correctRef.current = false;
+    nearRef.current = 0;
+    setTyped("");
+    setPhase("typing");
+    setShowLetters(false);
+    if (lettersRef.current) lettersRef.current.textContent = "";
+    const t = window.setTimeout(() => inputRef.current?.focus(), 60);
+    return () => window.clearTimeout(t);
+  }, [word.id]);
+
+  function shake(hard: boolean) {
+    const el = fieldRef.current;
+    if (!el || reduced) return;
+    el.animate(
+      {
+        transform: hard
+          ? ["translateX(0)", "translateX(-11px)", "translateX(10px)", "translateX(-8px)",
+             "translateX(6px)", "translateX(-4px)", "translateX(2px)", "translateX(0)"]
+          : ["translateX(0)", "translateX(-4px)", "translateX(3px)", "translateX(-2px)", "translateX(0)"],
+      },
+      { duration: hard ? SHAKE_HARD_MS : SHAKE_SOFT_MS, easing: "ease-in-out" },
+    );
+  }
+
+  function submit() {
+    if (isAnswered || phase === "right" || phase === "wrong") return;
+    const guess = typed.trim();
+    if (!guess) return;
+    const target = word.word;
+    const dist = damerauLevenshtein(guess.toLowerCase(), target.toLowerCase());
+
+    if (dist === 0) { settleRight(); return; }
+
+    if (dist <= nearMissThreshold(target.length)) {
+      nearRef.current += 1;
+      if (nearRef.current >= NEAR_MAX_TRIES) { correctInPlace(guess, true); return; }
+      setPhase("near");
+      shake(false);
+      window.setTimeout(() => inputRef.current?.focus(), 0);
+      return;
+    }
+    correctInPlace(guess, false);
+  }
+
+  /** Giusta: la parola resta nel campo, verde e premibile. Nessuna animazione. */
+  function settleRight() {
+    correctRef.current = true;
+    setPhase("right");
+    inputRef.current?.blur();
+    const host = lettersRef.current;
+    // testo intero, non una lettera per span: così mantiene la crenatura
+    if (host) { host.textContent = word.word; host.style.color = GREEN; }
+    setShowLetters(true);
+    publishWordOrigin(host, true);
+    onSelect(word.word, true);
+  }
+
+  /** La tua parola diventa quella giusta, lettera per lettera, dentro il campo. */
+  function correctInPlace(guess: string, finalCorrect: boolean) {
+    const seq = seqRef.current;
+    correctRef.current = finalCorrect;
+    setPhase(finalCorrect ? "right" : "wrong");
+    inputRef.current?.blur();
+
+    const target = word.word;
+    const p = plan(guess, target);
+    const lead = finalCorrect ? SHAKE_SOFT_MS : SHAKE_HARD_MS;
+    const color = finalCorrect ? GREEN : LAVENDER;
+    // Il verdetto parte subito, così l'orchestratore registra adesso; la
+    // rivelazione aspetta la fine della correzione, che è il momento in cui si
+    // impara come si scrive.
+    const total = reduced ? 400 : lead + GAP_MS + p.fallMs + p.restMs + PAUSE_MS;
+    onSelect(finalCorrect ? target : guess, finalCorrect, total);
+
+    const host = lettersRef.current;
+    if (!host) return;
+
+    if (reduced) {
+      host.textContent = target;
+      host.style.color = color;
+      setShowLetters(true);
+      publishWordOrigin(host, finalCorrect);
+      return;
+    }
+
+    host.style.color = LAVENDER;
+    fillLetters(host, guess, LAVENDER);
+    setShowLetters(true);
+    shake(!finalCorrect);
+
+    void (async () => {
+      await wait(lead + GAP_MS);
+      if (seq !== seqRef.current) return;
+
+      const old = Array.from(host.children) as HTMLElement[];
+      const oldX = old.map((s) => s.getBoundingClientRect().left);
+      let k = 0;
+      old.forEach((s, gi) => {
+        if (!p.gone.has(gi)) return;
+        s.style.color = RED;
+        s.animate(
+          [
+            { transform: "translateY(0) rotate(0deg)", opacity: 1 },
+            { transform: `translateY(24px) rotate(${Math.round(Math.random() * 50 - 25)}deg)`, opacity: 0 },
+          ],
+          { duration: FALL_MS, delay: k * FALL_STAGGER, easing: "cubic-bezier(.5,0,.8,.4)", fill: "forwards" },
+        );
+        k++;
+      });
+      if (p.fallMs) await wait(p.fallMs);
+      if (seq !== seqRef.current) return;
+
+      const neu = fillLetters(host, target, color);
+      let c = 0;
+      neu.forEach((s, ti) => {
+        const gi = p.kept.get(ti);
+        if (gi !== undefined) {
+          const dx = oldX[gi] - s.getBoundingClientRect().left;
+          if (Math.abs(dx) > 0.5) {
+            s.animate(
+              [{ transform: `translateX(${dx}px)` }, { transform: "translateX(0)" }],
+              { duration: SLIDE_MS, easing: "cubic-bezier(.2,.9,.25,1)" },
+            );
+          }
+        } else {
+          s.animate(
+            [{ opacity: 0, transform: "translateY(-14px) scale(.55)" }, { opacity: 1, transform: "none" }],
+            { duration: ARRIVE_MS, delay: ARRIVE_DELAY + c * ARRIVE_STAGGER,
+              easing: "cubic-bezier(.2,1.3,.4,1)", fill: "backwards" },
+          );
+          c++;
+        }
+      });
+      await wait(p.restMs);
+      if (seq !== seqRef.current) return;
+
+      // Finita la correzione, torna testo intero: la crenatura si ricompone e
+      // il rettangolo misurato è quello della parola vera, da cui partirà la scheda.
+      host.textContent = target;
+      host.style.color = color;
+      publishWordOrigin(host, finalCorrect);
+    })();
+  }
+
+  /** Dopo il verdetto la parola è premibile, come negli altri due gradini. */
+  function openCard() {
+    if (!isAnswered) return;
+    publishWordOrigin(lettersRef.current, correctRef.current);
+    requestCardToggle();
+  }
+
+  const border =
+    phase === "near" ? "rgba(250,204,21,0.65)" :
+    phase === "right" ? "rgba(52,211,153,0.55)" :
+    phase === "wrong" ? "rgba(239,68,68,0.5)" :
+    "rgba(217,119,6,0.28)";
+
+  const canCheck = !isAnswered && typed.trim().length > 0;
+
+  return (
+    <div style={{ flex: 1, width: "100%", maxWidth: SCREEN_MAX, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+      <style>{`
+        .verba-produce-input::placeholder { color: rgba(199,184,232,0.3); }
+        .verba-produce-tap {
+          position: relative; cursor: pointer; -webkit-tap-highlight-color: transparent;
+          transition: transform 0.18s cubic-bezier(.2,1.3,.35,1);
+        }
+        .verba-produce-tap:active { transform: scale(0.94); transition: transform 0.07s ease-out; }
+        .verba-produce-tap::after {
+          content: ""; position: absolute; left: -10px; right: -10px; top: -14px; bottom: -14px;
+        }
+      `}</style>
+
+      <motion.div
+        key={animKey}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        style={{ paddingTop: 80, textAlign: "center" }}
+      >
+        <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 400, fontSize: "clamp(18px, 4.5vw, 24px)",
+          lineHeight: 1.4, color: "rgba(255,255,255,0.95)", margin: 0, padding: "20px 8px 28px" }}>
+          {lowercaseFirst(word.correctDefinition)}
+        </p>
+      </motion.div>
+
+      <div style={{ width: "100%" }}>
+        <p aria-live="polite" style={{ minHeight: 18, margin: "0 0 10px", textAlign: "center",
+          fontFamily: "'Inter', sans-serif", fontWeight: 600, fontSize: 12, letterSpacing: "0.02em",
+          color: "#FACC15", opacity: phase === "near" ? 1 : 0, transition: "opacity 0.2s ease" }}>
+          {phase === "near" ? "Almost — check your spelling" : ""}
+        </p>
+
+        <div ref={fieldRef} style={{ position: "relative" }}>
+          <input
+            ref={inputRef}
+            className="verba-produce-input"
+            value={typed}
+            onChange={(e) => { setTyped(e.target.value); if (phase === "near") setPhase("typing"); }}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submit(); } }}
+            disabled={isAnswered}
+            placeholder="type the word…"
+            aria-label="Type the word for this definition"
+            // la correzione automatica della tastiera sistemerebbe i refusi al
+            // posto tuo, o trasformerebbe una parola rara in una comune
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            enterKeyHint="go"
+            style={{
+              width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.03)",
+              border: `1px solid ${border}`, borderRadius: 14, padding: "14px 18px",
+              // almeno 16px: sotto quella soglia iOS ingrandisce la pagina al tocco
+              fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500, fontSize: "1.05rem",
+              color: showLetters ? "transparent" : LAVENDER,
+              WebkitTextFillColor: showLetters ? "transparent" : LAVENDER,
+              opacity: 1, textAlign: "left", outline: "none", transition: "border-color 0.2s ease",
+            }}
+          />
+          <div style={{ position: "absolute", inset: 0, padding: "0 19px", display: "flex",
+            alignItems: "center", pointerEvents: "none", overflow: "hidden" }}>
+            <span
+              ref={lettersRef}
+              className={isAnswered ? "verba-produce-tap" : undefined}
+              role={isAnswered ? "button" : undefined}
+              tabIndex={isAnswered ? 0 : -1}
+              aria-label={isAnswered ? `Open the card for ${word.word}` : undefined}
+              aria-hidden={isAnswered ? undefined : true}
+              onClick={isAnswered ? openCard : undefined}
+              onKeyDown={(e) => {
+                if (isAnswered && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openCard(); }
+              }}
+              style={{ display: "inline-block", whiteSpace: "pre", pointerEvents: isAnswered ? "auto" : "none",
+                visibility: showLetters ? "visible" : "hidden",
+                fontFamily: "'Space Grotesk', sans-serif", fontWeight: 500, fontSize: "1.05rem", color: LAVENDER }}
+            />
+          </div>
+        </div>
+
+        <AnimatePresence>
+          {!isAnswered && (
+            <motion.button
+              type="button"
+              onClick={submit}
+              disabled={!canCheck}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: canCheck ? 1 : 0.4 }}
+              exit={{ opacity: 0 }}
+              whileTap={canCheck ? tapScale() : undefined}
+              transition={{ duration: 0.2, scale: TAP_SPRING }}
+              style={{ display: "block", width: "100%", marginTop: 12, border: "none", borderRadius: 9999,
+                padding: 13, background: "linear-gradient(90deg, #B45309, #C2410C)", color: "#FFFFFF",
+                fontFamily: "'Inter', sans-serif", fontWeight: 500, fontSize: 15, letterSpacing: "0.02em",
+                cursor: canCheck ? "pointer" : "default", outline: "none", touchAction: "manipulation" }}
+            >
+              Check
+            </motion.button>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+════════════════════════════════════════════════════════════
+2 · src/pages/QuizScreen.tsx — cinque edit
+════════════════════════════════════════════════════════════
+
+──── 2a · import e porta di prova ────
+TROVA:
+import ContextQuestion from "@/components/quiz/ContextQuestion";
+
+SOSTITUISCI CON:
+import ContextQuestion from "@/components/quiz/ContextQuestion";
+import ProduceQuestion from "@/components/quiz/ProduceQuestion";
+
+/**
+ * SOLO SVILUPPO — la porta di prova dei gradini.
+ * Con `format=3` (oppure 1 o 2) nell'indirizzo del quiz, ogni parola viene
+ * interrogata con quel formato, senza aspettare giorni che ci salga.
+ * In questa modalità le risposte NON entrano nella scala: si prova, non si
+ * impara, e i dati veri restano puliti.
+ * In produzione import.meta.env.DEV è false e la funzione rende sempre null.
+ */
+function forcedFormat(): AnswerFormat | null {
+  if (!import.meta.env.DEV || typeof window === "undefined") return null;
+  const v = new URLSearchParams(window.location.search).get("format");
+  return v === "1" || v === "2" || v === "3" ? (Number(v) as AnswerFormat) : null;
+}
+
+Se la riga dell'import di ContextQuestion non combacia, NON indovinare:
+salta 2a, riporta tutte le righe `import` del file, e continua con gli altri.
+
+──── 2b · il formato può essere forzato in sviluppo ────
+TROVA:
+    const f = formatForWord(currentWord.id);
+
+SOSTITUISCI CON:
+    const f = forcedFormat() ?? formatForWord(currentWord.id);
+
+──── 2c · in modalità prova la scala non si tocca ────
+Questa stringa deve comparire UNA VOLTA SOLA nel file. Se ne trovi più di una,
+non sostituire niente e segnalalo.
+TROVA:
+    recordAnswer(currentWord.id, correct, currentFormat);
+
+SOSTITUISCI CON:
+    // modalità prova (solo sviluppo, vedi forcedFormat): la scala non si tocca
+    if (!forcedFormat()) recordAnswer(currentWord.id, correct, currentFormat);
+
+──── 2d · il commento del selettore non dice più il vero ────
+TROVA:
+          Selettore di formato. Oggi MAX_AVAILABLE_LEVEL = 1 in wordStats.ts,
+          quindi formatForWord() restituisce sempre 1 e passa sempre di qui.
+
+SOSTITUISCI CON:
+          Selettore di formato. Ogni gradino ha il suo componente; quale usare
+          lo decide formatForWord() in wordStats.ts, tetto compreso.
+
+──── 2e · il ramo del gradino 3 ────
+TROVA:
+        {currentFormat === 2 ? (
+
+SOSTITUISCI CON:
+        {currentFormat === 3 ? (
+          <ProduceQuestion
+            word={currentWord}
+            isAnswered={isAnswered}
+            selectedOption={selectedOption}
+            onSelect={handleSelect}
+            animKey={wordKey}
+          />
+        ) : currentFormat === 2 ? (
+
+════════════════════════════════════════════════════════════
+3 · src/lib/wordStats.ts — il tetto sale a 3
+════════════════════════════════════════════════════════════
+Da questo momento una parola può arrivare a mastered. Le parole ferme al
+gradino 2 col contatore pieno NON vanno toccate: alla loro prossima risposta
+giusta salgono da sole, la logica di recordAnswer lo fa già.
+
+──── 3a ────
+TROVA:
+export const MAX_AVAILABLE_LEVEL: MasteryLevel = 2;
+
+SOSTITUISCI CON:
+export const MAX_AVAILABLE_LEVEL: MasteryLevel = 3;
+
+──── 3b · il commento sopra ────
+Cerca nel file la stringa `OGGI VALE 2`.
+· Se compare ESATTAMENTE una volta, sostituiscila con `OGGI VALE 3`.
+· Altrimenti non toccare niente.
+In entrambi i casi copia nel rapporto il blocco di commento che sta sopra
+MAX_AVAILABLE_LEVEL, così com'è DOPO l'intervento.
+
+════════════════════════════════════════════════════════════
+4 · SOLO LETTURA — nessuna modifica
+════════════════════════════════════════════════════════════
+In src/pages/QuizScreen.tsx trova il bottone con
+data-testid="button-next-floating". Stampa verbatim il suo tag di apertura
+<motion.button ...> e il tag di apertura dell'elemento che lo contiene
+direttamente, con numeri di riga. Serve a allineare il Check del gradino 3
+con il Next nel prossimo intervento.
+
+════════════════════════════════════════════════════════════
+VERIFICA — rispondi VOCE PER VOCE, non in prosa
+════════════════════════════════════════════════════════════
+a) Righe PRIMA e DOPO di QuizScreen.tsx (atteso: +24) e di wordStats.ts
+   (atteso: invariato).
+b) Righe di ProduceQuestion.tsx: devono essere 399. Se sono diverse, dillo
+   subito e riporta di quante.
+c) Se un conteggio è RADDOPPIATO o più: FERMATI e dillo per primo.
+d) In ProduceQuestion.tsx: quante volte compare
+   `export default function ProduceQuestion` (deve essere 1).
+e) In ProduceQuestion.tsx cerca queste parole e riporta ogni occorrenza:
+   sessionStorage, localStorage, verba_mastered_words, review-complete,
+   recordAnswer, playCorrectSound. Il numero atteso è ZERO per tutte.
+f) Edit 2a–2e: sì/no per ciascuno.
+g) Stampa il blocco del selettore di formato in QuizScreen così com'è ADESSO,
+   dal commento "Selettore di formato" fino alla chiusura del ternario.
+   Devono esserci tre rami: 3 → ProduceQuestion, 2 → ContextQuestion,
+   altrimenti RecognizeQuestion.
+h) 3a e 3b: sì/no, e il blocco di commento richiesto.
+i) Punto 4: i due tag richiesti, verbatim, con numeri di riga.
+j) Typecheck: pulito sì/no, errori riportati PER INTERO se ce ne sono.
+   Se l'errore riguarda `import.meta.env`, riportalo e non correggerlo.
+k) Edit saltati e motivo.
+
+NON FARE
+· NON toccare FeedbackCard.tsx, ContextQuestion.tsx, RecognizeQuestion.tsx,
+  typoMatch.ts, wordOrigin.ts, types.ts, ProgressScreen.tsx, attached_assets/.
+· NON cancellare docs/reverse-typing-reference.md.
+· NON modificare ProduceQuestion.tsx dopo averlo creato, nemmeno per
+  "sistemare" qualcosa: se il typecheck segnala un errore lì, riportalo.
+· NON avviare il dev server, NON testare.
+· NON riscrivere nessun file esistente per intero.

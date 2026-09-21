@@ -12,6 +12,21 @@ import { undismissTrouble } from "@/lib/troubleDismiss";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 import RecognizeQuestion from "@/components/quiz/RecognizeQuestion";
 import ContextQuestion from "@/components/quiz/ContextQuestion";
+import ProduceQuestion from "@/components/quiz/ProduceQuestion";
+
+/**
+ * SOLO SVILUPPO — la porta di prova dei gradini.
+ * Con `format=3` (oppure 1 o 2) nell'indirizzo del quiz, ogni parola viene
+ * interrogata con quel formato, senza aspettare giorni che ci salga.
+ * In questa modalità le risposte NON entrano nella scala: si prova, non si
+ * impara, e i dati veri restano puliti.
+ * In produzione import.meta.env.DEV è false e la funzione rende sempre null.
+ */
+function forcedFormat(): AnswerFormat | null {
+  if (!import.meta.env.DEV || typeof window === "undefined") return null;
+  const v = new URLSearchParams(window.location.search).get("format");
+  return v === "1" || v === "2" || v === "3" ? (Number(v) as AnswerFormat) : null;
+}
 // I ritardi di rivelazione appartengono al formato, non all'orchestratore:
 // se cambia la durata del vortice devono cambiare da soli.
 
@@ -156,7 +171,7 @@ export default function QuizScreen() {
    */
   const currentFormat: AnswerFormat = useMemo(() => {
     if (!currentWord) return 1;
-    const f = formatForWord(currentWord.id);
+    const f = forcedFormat() ?? formatForWord(currentWord.id);
     // Ripiego: se la parola non ha i dati del gradino 2, si interroga con quello
     // che c'è. Un formato senza dati deve degradare a una domanda che funziona,
     // mai a una schermata vuota. Il gradino registrato è quello EFFETTIVO.
@@ -172,7 +187,8 @@ export default function QuizScreen() {
     setSelectedOption(option);
     setIsAnswered(true);
     setIsCorrect(correct);
-    recordAnswer(currentWord.id, correct, currentFormat);
+    // modalità prova (solo sviluppo, vedi forcedFormat): la scala non si tocca
+    if (!forcedFormat()) recordAnswer(currentWord.id, correct, currentFormat);
     if (correct) {
       playCorrectSound();
     } else {
@@ -315,14 +331,22 @@ export default function QuizScreen() {
       <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", flex: 1, alignItems: "center", justifyContent: "flex-start", padding: "0 20px 120px", gap: 16 }}>
 
         {/*
-          Selettore di formato. Oggi MAX_AVAILABLE_LEVEL = 1 in wordStats.ts,
-          quindi formatForWord() restituisce sempre 1 e passa sempre di qui.
+          Selettore di formato. Ogni gradino ha il suo componente; quale usare
+          lo decide formatForWord() in wordStats.ts, tetto compreso.
           Il gradino 2 (ContextQuestion) e il 3 (ProduceQuestion) si aggiungono
           come rami accanto a questo, senza toccare la logica di sessione.
           Il default resta Recognize: un formato non ancora costruito deve
           degradare a una domanda che funziona, mai a una schermata vuota.
         */}
-        {currentFormat === 2 ? (
+        {currentFormat === 3 ? (
+          <ProduceQuestion
+            word={currentWord}
+            isAnswered={isAnswered}
+            selectedOption={selectedOption}
+            onSelect={handleSelect}
+            animKey={wordKey}
+          />
+        ) : currentFormat === 2 ? (
           <ContextQuestion
             word={currentWord}
             isAnswered={isAnswered}

@@ -40,12 +40,12 @@ const LAPSE_DAYS = 1;
 
 /**
  * Gradino più alto che l'app sa davvero interrogare.
- * ⚠️ OGGI VALE 2: esistono Recognize e Recall in context.
+ * ⚠️ OGGI VALE 3: esistono Recognize e Recall in context.
  * Portare a 3 con il gradino 3.
  * Una parola che satura il tetto resta ferma con il contatore pieno e un
  * intervallo di attesa, invece di salire in un gradino che non esiste.
  */
-export const MAX_AVAILABLE_LEVEL: MasteryLevel = 2;
+export const MAX_AVAILABLE_LEVEL: MasteryLevel = 3;
 
 /** Intervallo di parcheggio per una parola che ha saturato il tetto. */
 const SATURATED_HOLD_DAYS = 7;
