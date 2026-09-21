@@ -343,13 +343,15 @@ export default function ProgressScreen() {
                   <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                     <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 23, color: AMBER_SOFT }}>{snap.dueCount}</span>
                     <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: AMBER_SOFT }}>words to review</span>
-                    <button
+                    <motion.button
                       onClick={(e) => { e.stopPropagation(); setInfoOpen((o) => !o); }}
+                      whileTap={tapScale("icon")}
+                      transition={TAP_SPRING}
                       aria-label="What is this?"
                       style={{ background: "none", border: "none", padding: 14, margin: "-14px -10px -14px -6px", display: "inline-flex", alignItems: "center", cursor: "pointer", color: infoOpen ? "rgba(248,184,78,0.95)" : "rgba(248,184,78,0.5)" }}
                     >
                       <Info size={14} />
-                    </button>
+                    </motion.button>
                   </div>
                   <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(248,184,78,0.7)", lineHeight: 1.5, marginTop: 5 }}>
                     Resurfaced right before you'd forget them — review to make them stick.
@@ -376,13 +378,15 @@ export default function ProgressScreen() {
                 <div style={{ background: "rgba(255,255,255,0.02)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: "15px 16px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                     <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.55)", flex: 1 }}>You're all caught up — no words due right now.</span>
-                    <button
+                    <motion.button
                       onClick={() => setInfoOpen((o) => !o)}
+                      whileTap={tapScale("icon")}
+                      transition={TAP_SPRING}
                       aria-label="What is this?"
                       style={{ background: "none", border: "none", padding: 14, margin: "-14px -10px -14px -6px", display: "inline-flex", alignItems: "center", cursor: "pointer", color: infoOpen ? "rgba(248,184,78,0.95)" : "rgba(248,184,78,0.5)" }}
                     >
                       <Info size={14} />
-                    </button>
+                    </motion.button>
                   </div>
                 </div>
                 {infoOpen && (
