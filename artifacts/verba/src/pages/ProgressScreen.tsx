@@ -10,6 +10,14 @@ import { dismissTrouble } from "@/lib/troubleDismiss";
 import WordHistorySheet from "@/components/WordHistorySheet";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 
+// Alzata da onDragStart, azzerata a ogni onPointerDown. Serve a impedire che
+// la fine di uno swipe apra lo storico. Sta a livello di modulo e non dentro il
+// componente di proposito: i gesti del puntatore sono esclusivi, due righe non
+// possono essere trascinate insieme, e così l'edit non deve toccare la firma di
+// TroubleRow. NON usare un setTimeout dopo onDragEnd: il timer può scattare tra
+// il pointerup e il click, e in quel caso lo storico si apre lo stesso.
+let dragGuard = false;
+
 const DECK = "gre";
 const AMBER = "#F59E0B";
 const AMBER_SOFT = "#F8B84E";
@@ -119,21 +127,20 @@ function AttemptStrip({ attempts, seen }: { attempts: Array<"c" | "e">; seen: nu
           // accende al pointerdown, cioè PRIMA che il drag cominci.
           whileDrag={{ scale: 1 }}
           transition={TAP_SPRING}
+          onPointerDown={() => { dragGuard = false; }}
+          onDragStart={() => { dragGuard = true; }}
           onDragEnd={(_, info) => { if (info.offset.x < -64) onDismiss(entry.id); }}
-          style={{ position: "relative", background: "#0B0B0D", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", touchAction: "pan-y", cursor: "grab" }}
+          onClick={() => { if (!dragGuard) onOpen(entry); }}
+          role="button"
+          tabIndex={0}
+          aria-label={`Storico di ${entry.word}`}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(entry); } }}
+          style={{ position: "relative", background: "#0B0B0D", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", touchAction: "pan-y", cursor: "pointer" }}
         >
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 13, color: LAVENDER, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.word}</span>
           <div style={{ display: "flex", alignItems: "center", gap: 11, flexShrink: 0 }}>
             <AttemptStrip attempts={entry.attempts} seen={entry.seen} />
             <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: RED }}>✗ {entry.wrong}</span>
-            <motion.button onClick={(e) => { e.stopPropagation(); onOpen(entry); }}
-              onPointerDown={(e) => e.stopPropagation()}
-              whileTap={tapScale("icon")}
-              transition={TAP_SPRING}
-              style={{ background: "none", border: "none", cursor: "pointer", padding: "3px 1px", display: "flex", alignItems: "center", color: "rgba(255,255,255,0.3)" }}
-              aria-label={`Storico di ${entry.word}`}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M9 6l6 6-6 6" /></svg>
-            </motion.button>
             <motion.button onClick={(e) => { e.stopPropagation(); onToggleStar(entry.id); }} onPointerDown={(e) => e.stopPropagation()} whileTap={tapScale("icon")} transition={TAP_SPRING} style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }} aria-label={starred ? "Remove from My Verba" : "Add to My Verba"}>
               <Star size={15} fill={starred ? AMBER : "none"} stroke={starred ? AMBER : "rgba(255,255,255,0.26)"} />
             </motion.button>
