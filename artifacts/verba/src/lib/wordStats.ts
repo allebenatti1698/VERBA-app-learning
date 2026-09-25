@@ -230,17 +230,40 @@ function emptyStat(): WordStat {
 /* ─────────────── REGISTRAZIONE ─────────────── */
 
 /**
+ * Chi ha fatto la domanda.
+ * · "review"   — la Review: la domanda l'ha scelta l'app. È l'UNICO modo in cui
+ *                una parola sale o scende di gradino.
+ * · "practice" — tutto il resto (set scelti, Next up, Trouble words, My Verba):
+ *                allenamento. Si registra nei totali e nello storico, ma la scala
+ *                non si muove. Unica eccezione: la prima volta che una parola
+ *                viene incontrata entra nella scala dalla base (vedi recordAnswer).
+ */
+export type AnswerMode = "review" | "practice";
+
+/** Nota con cui si riconosce, nello storico, una risposta di allenamento. */
+export const PRACTICE_NOTE = "allenamento";
+
+/**
+ * Dopo quanti giorni torna, nella Review, una parola incontrata per la prima
+ * volta in Contesto o in Produce. Domani: rispondere a una parola vista un'ora
+ * fa non misura niente.
+ */
+const ENTRY_DAYS = 1;
+
+/**
  * Registra UNA risposta. Il chiamante la invoca UNA SOLA VOLTA per parola per
  * sessione, sulla PRIMA risposta: i ritentativi dentro la stessa sessione non
  * vanno registrati.
  *
  * `format` è il gradino del formato con cui è stata data la risposta.
- * Oggi vale sempre 1 perché la scelta multipla è l'unico formato esistente.
+ * `mode` dice chi ha scelto la domanda: vedi AnswerMode. Il valore di default
+ * è "review", così ogni chiamata già esistente continua a comportarsi come prima.
  */
 export function recordAnswer(
   wordId: string,
   correct: boolean,
   format: AnswerFormat = 1,
+  mode: AnswerMode = "review",
 ): WordStat {
   recordStudyToday();
   recordWordsToday(1);
@@ -257,6 +280,23 @@ export function recordAnswer(
   const nowISO = new Date().toISOString();
   s.totalSeen += 1;
   s.lastSeenAt = nowISO;
+
+  // ── ALLENAMENTO: la scala non si muove. ──
+  // Unica eccezione: la prima volta che una parola viene incontrata entra nella
+  // scala dalla base. Se quella prima risposta è in Recognize è esattamente la
+  // domanda che farebbe la Review, quindi NON entra qui: scende al percorso
+  // normale e, se giusta, conta già come primo passo. In Contesto o in Produce
+  // entra qui: gradino 1, contatore a zero, e torna domani nella Review.
+  if (mode === "practice" && (prev || format !== 1)) {
+    if (correct) s.totalCorrect += 1;
+    if (!prev) s.nextReviewAt = isoInDays(ENTRY_DAYS);
+    push(s, correct ? "practice" : "wrong", format, PRACTICE_NOTE);
+    s.status = statusOf(s);
+    s.updatedAt = nowISO;
+    map[wordId] = s;
+    rawWrite(map);
+    return s;
+  }
 
   const requiredFormat: AnswerFormat = s.mastered ? 3 : s.level;
 

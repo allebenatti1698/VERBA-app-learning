@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { getWordStat } from "@/lib/wordStats";
+import { getWordStat, PRACTICE_NOTE } from "@/lib/wordStats";
 
 const GREEN = "#34D399";
 const RED = "#EF4444";
@@ -125,11 +125,14 @@ export default function WordHistorySheet({
                 background: "rgba(255,255,255,0.09)" }} />
               {events.map((e, i) => {
                 const ok = RIGHT.has(e.kind);
+                // non ha mosso la scala: allenamento, oppure risposta in anticipo
+                const prac = e.kind === "practice" || e.note === PRACTICE_NOTE;
                 return (
                   <div key={i} style={{ position: "relative", display: "flex",
                     alignItems: "baseline", gap: 10, padding: "8px 0" }}>
                     <span style={{ position: "absolute", left: -16, top: 13, width: 7, height: 7,
-                      borderRadius: 2, background: ok ? GREEN : RED }} />
+                      borderRadius: 2, background: prac ? "transparent" : ok ? GREEN : RED,
+                      boxShadow: prac ? `inset 0 0 0 1.5px ${ok ? GREEN : RED}` : "none" }} />
                     <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11,
                       color: "rgba(255,255,255,0.42)", width: 84, flexShrink: 0 }}>
                       {whenLabel(e.at)}
@@ -140,7 +143,7 @@ export default function WordHistorySheet({
                     </span>
                     <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9.5,
                       color: "rgba(199,184,232,0.55)", marginLeft: "auto", whiteSpace: "nowrap" }}>
-                      {LEVEL_NAME[e.level] ?? ""}
+                      {LEVEL_NAME[e.format ?? e.level] ?? ""}{prac ? " · practice" : ""}
                     </span>
                   </div>
                 );

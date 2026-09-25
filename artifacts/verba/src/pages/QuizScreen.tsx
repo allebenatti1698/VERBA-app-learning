@@ -187,8 +187,12 @@ export default function QuizScreen() {
     setSelectedOption(option);
     setIsAnswered(true);
     setIsCorrect(correct);
-    // modalità prova (solo sviluppo, vedi forcedFormat): la scala non si tocca
-    if (!forcedFormat()) recordAnswer(currentWord.id, correct, currentFormat);
+    // Solo la Review (source=due) muove la scala: tutto il resto è allenamento,
+    // tranne l'ingresso di una parola mai vista — lo decide recordAnswer.
+    // In modalità prova (solo sviluppo, vedi forcedFormat) la scala non si tocca.
+    if (!forcedFormat()) {
+      recordAnswer(currentWord.id, correct, currentFormat, sourceParam === "due" ? "review" : "practice");
+    }
     if (correct) {
       playCorrectSound();
     } else {

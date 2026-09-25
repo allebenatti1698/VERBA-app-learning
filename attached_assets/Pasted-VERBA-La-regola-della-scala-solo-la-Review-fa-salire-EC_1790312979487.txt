@@ -1,0 +1,201 @@
+VERBA — La regola della scala: solo la Review fa salire.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.45–0.85. Tre file.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+SOLO edit mirati old_string → new_string. NESSUNA sostituzione integrale di file.
+Applica OGNI edit in modo INDIPENDENTE: se una find non combacia ESATTAMENTE,
+SALTA quell'edit e SEGNALALO, ma esegui comunque gli altri.
+
+PRIMA DI TUTTO riporta il numero di righe di:
+  src/lib/wordStats.ts · src/pages/QuizScreen.tsx · src/components/WordHistorySheet.tsx
+
+CONTESTO — la regola decisa
+· La Review (le sessioni con source=due) è l'UNICO posto in cui una parola sale
+  o scende di gradino. Si comporta esattamente come oggi.
+· Ogni altra sessione — set scelti, My Verba, qualunque altra fonte — è
+  ALLENAMENTO: la risposta finisce nei totali e nello storico, ma gradino,
+  contatore, errori e data di ritorno NON cambiano. Nemmeno sbagliando due volte.
+· Unica eccezione: la PRIMA volta che una parola viene incontrata, entra nella
+  scala dalla base e torna domani nella Review. Se quella prima risposta è in
+  Recognize e giusta, conta già come primo passo; negli altri formati entra a zero.
+
+════════════════════════════════════════════════════════════
+1 · src/lib/wordStats.ts — tre edit
+════════════════════════════════════════════════════════════
+
+──── 1a · la modalità, la nota, l'intervallo d'ingresso ────
+TROVA:
+/* ─────────────── REGISTRAZIONE ─────────────── */
+
+SOSTITUISCI CON:
+/* ─────────────── REGISTRAZIONE ─────────────── */
+
+/**
+ * Chi ha fatto la domanda.
+ * · "review"   — la Review: la domanda l'ha scelta l'app. È l'UNICO modo in cui
+ *                una parola sale o scende di gradino.
+ * · "practice" — tutto il resto (set scelti, Next up, Trouble words, My Verba):
+ *                allenamento. Si registra nei totali e nello storico, ma la scala
+ *                non si muove. Unica eccezione: la prima volta che una parola
+ *                viene incontrata entra nella scala dalla base (vedi recordAnswer).
+ */
+export type AnswerMode = "review" | "practice";
+
+/** Nota con cui si riconosce, nello storico, una risposta di allenamento. */
+export const PRACTICE_NOTE = "allenamento";
+
+/**
+ * Dopo quanti giorni torna, nella Review, una parola incontrata per la prima
+ * volta in Contesto o in Produce. Domani: rispondere a una parola vista un'ora
+ * fa non misura niente.
+ */
+const ENTRY_DAYS = 1;
+
+──── 1b · la firma: un parametro in più, con default ────
+Il default "review" fa sì che ogni chiamata esistente si comporti come prima.
+TROVA:
+ * `format` è il gradino del formato con cui è stata data la risposta.
+ * Oggi vale sempre 1 perché la scelta multipla è l'unico formato esistente.
+ */
+export function recordAnswer(
+  wordId: string,
+  correct: boolean,
+  format: AnswerFormat = 1,
+): WordStat {
+
+SOSTITUISCI CON:
+ * `format` è il gradino del formato con cui è stata data la risposta.
+ * `mode` dice chi ha scelto la domanda: vedi AnswerMode. Il valore di default
+ * è "review", così ogni chiamata già esistente continua a comportarsi come prima.
+ */
+export function recordAnswer(
+  wordId: string,
+  correct: boolean,
+  format: AnswerFormat = 1,
+  mode: AnswerMode = "review",
+): WordStat {
+
+──── 1c · il ramo dell'allenamento ────
+Va inserito DOPO l'aggiornamento di totalSeen e lastSeenAt e PRIMA di
+requiredFormat. NON toccare nient'altro della funzione: il percorso della Review
+sotto questo punto resta identico, riga per riga.
+TROVA:
+  const nowISO = new Date().toISOString();
+  s.totalSeen += 1;
+  s.lastSeenAt = nowISO;
+
+  const requiredFormat: AnswerFormat = s.mastered ? 3 : s.level;
+
+SOSTITUISCI CON:
+  const nowISO = new Date().toISOString();
+  s.totalSeen += 1;
+  s.lastSeenAt = nowISO;
+
+  // ── ALLENAMENTO: la scala non si muove. ──
+  // Unica eccezione: la prima volta che una parola viene incontrata entra nella
+  // scala dalla base. Se quella prima risposta è in Recognize è esattamente la
+  // domanda che farebbe la Review, quindi NON entra qui: scende al percorso
+  // normale e, se giusta, conta già come primo passo. In Contesto o in Produce
+  // entra qui: gradino 1, contatore a zero, e torna domani nella Review.
+  if (mode === "practice" && (prev || format !== 1)) {
+    if (correct) s.totalCorrect += 1;
+    if (!prev) s.nextReviewAt = isoInDays(ENTRY_DAYS);
+    push(s, correct ? "practice" : "wrong", format, PRACTICE_NOTE);
+    s.status = statusOf(s);
+    s.updatedAt = nowISO;
+    map[wordId] = s;
+    rawWrite(map);
+    return s;
+  }
+
+  const requiredFormat: AnswerFormat = s.mastered ? 3 : s.level;
+
+════════════════════════════════════════════════════════════
+2 · src/pages/QuizScreen.tsx — un edit
+════════════════════════════════════════════════════════════
+Questa stringa deve comparire UNA VOLTA SOLA. Se ne trovi più di una, o nessuna,
+non modificare niente e riporta tutte le righe che contengono `recordAnswer(`.
+TROVA:
+    // modalità prova (solo sviluppo, vedi forcedFormat): la scala non si tocca
+    if (!forcedFormat()) recordAnswer(currentWord.id, correct, currentFormat);
+
+SOSTITUISCI CON:
+    // Solo la Review (source=due) muove la scala: tutto il resto è allenamento,
+    // tranne l'ingresso di una parola mai vista — lo decide recordAnswer.
+    // In modalità prova (solo sviluppo, vedi forcedFormat) la scala non si tocca.
+    if (!forcedFormat()) {
+      recordAnswer(currentWord.id, correct, currentFormat, sourceParam === "due" ? "review" : "practice");
+    }
+
+════════════════════════════════════════════════════════════
+3 · src/components/WordHistorySheet.tsx — quattro edit
+════════════════════════════════════════════════════════════
+Lo storico deve mostrare il FORMATO con cui hai risposto (oggi mostra il gradino,
+e scriverebbe "Recognize" su una parola che hai digitato) e riconoscere a colpo
+d'occhio le risposte che non hanno mosso la scala: quadratino vuoto invece che
+pieno, e la parola "practice" accanto al formato.
+Ogni find deve comparire UNA VOLTA SOLA nel file; se no, salta quell'edit.
+
+──── 3a ────
+TROVA:
+import { getWordStat } from "@/lib/wordStats";
+
+SOSTITUISCI CON:
+import { getWordStat, PRACTICE_NOTE } from "@/lib/wordStats";
+
+──── 3b ────
+TROVA:
+const ok = RIGHT.has(e.kind);
+
+SOSTITUISCI CON:
+const ok = RIGHT.has(e.kind);
+                // non ha mosso la scala: allenamento, oppure risposta in anticipo
+                const prac = e.kind === "practice" || e.note === PRACTICE_NOTE;
+
+──── 3c ────
+TROVA:
+borderRadius: 2, background: ok ? GREEN : RED }} />
+
+SOSTITUISCI CON:
+borderRadius: 2, background: prac ? "transparent" : ok ? GREEN : RED,
+                      boxShadow: prac ? `inset 0 0 0 1.5px ${ok ? GREEN : RED}` : "none" }} />
+
+──── 3d ────
+TROVA:
+{LEVEL_NAME[e.level] ?? ""}
+
+SOSTITUISCI CON:
+{LEVEL_NAME[e.format ?? e.level] ?? ""}{prac ? " · practice" : ""}
+
+════════════════════════════════════════════════════════════
+4 · SOLO LETTURA — nessuna modifica
+════════════════════════════════════════════════════════════
+4a) Cerca in tutto src/ le chiamate a `recordAnswer(`. Riporta file e riga di
+    ognuna. Atteso: la definizione in wordStats.ts e UNA chiamata in QuizScreen.
+4b) In src/pages/ProgressScreen.tsx trova la funzione AttemptStrip e riporta
+    verbatim le righe che decidono il colore di ogni casella a partire da
+    `kind`. Serve a sapere come mostra gli eventi di allenamento.
+
+════════════════════════════════════════════════════════════
+VERIFICA — rispondi VOCE PER VOCE, non in prosa
+════════════════════════════════════════════════════════════
+a) Righe PRIMA e DOPO dei tre file. Attesi: wordStats +40, QuizScreen +4,
+   WordHistorySheet +3. Differenze oltre ±2 vanno spiegate.
+b) Se un conteggio è RADDOPPIATO o più: FERMATI e dillo per primo.
+c) 1a, 1b, 1c, 2, 3a, 3b, 3c, 3d: sì/no per ciascuno.
+d) Stampa la funzione recordAnswer intera COSÌ COM'È ADESSO, dalla firma alla
+   graffa di chiusura. Controlla tu, prima di stamparla, che il blocco
+   `if (mode === "practice" && (prev || format !== 1))` stia DOPO
+   `s.lastSeenAt = nowISO;` e PRIMA di `const requiredFormat`.
+e) Punto 4a e 4b per intero.
+f) Typecheck: pulito sì/no, errori riportati per intero se ce ne sono.
+g) Edit saltati e motivo.
+
+NON FARE
+· Nessun altro file. NON toccare ProgressScreen.tsx (solo lettura), FeedbackCard,
+  i componenti del quiz, typoMatch.ts, attached_assets/.
+· NON cambiare le costanti esistenti di wordStats.ts (soglie, intervalli, tetto).
+· NON rimuovere forcedFormat né la sua condizione.
+· NON avviare il dev server, NON testare.
+· NON riscrivere nessun file per intero.
