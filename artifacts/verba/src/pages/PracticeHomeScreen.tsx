@@ -76,7 +76,7 @@ function dayLabel(i: number): string {
 
 const tile: React.CSSProperties = {
   position: "relative", display: "flex", flexDirection: "column", textAlign: "left", width: "100%",
-  borderRadius: 22, padding: "12px 12px 14px", minHeight: 236, color: "#fff",
+  borderRadius: 22, padding: "14px 14px 16px", minHeight: 244, color: "#fff",
   border: "1px solid rgba(255,255,255,0.09)", background: "#111013", cursor: "pointer", outline: "none",
 };
 const stage: React.CSSProperties = {
@@ -94,11 +94,11 @@ const who: React.CSSProperties = {
 };
 const label: React.CSSProperties = {
   fontFamily: "'Inter', sans-serif", fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: "0.14em",
-  textTransform: "uppercase", margin: "0 0 10px",
+  textTransform: "uppercase", margin: "0 0 14px",
 };
 const row: React.CSSProperties = {
-  display: "flex", alignItems: "center", gap: 14, width: "100%", textAlign: "left", minHeight: 72,
-  padding: "12px 14px 12px 12px", marginBottom: 8, borderRadius: 16, cursor: "pointer", color: "#fff", outline: "none",
+  display: "flex", alignItems: "center", gap: 16, width: "100%", textAlign: "left", minHeight: 80,
+  padding: "14px 16px 14px 14px", marginBottom: 14, borderRadius: 18, cursor: "pointer", color: "#fff", outline: "none",
   background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.08)",
 };
 const emblem: React.CSSProperties = {
@@ -123,7 +123,13 @@ export default function PracticeHomeScreen() {
   const dueIds = useMemo(() => getDueWordIds(), []);
   const due = dueIds.length;
   const week = useMemo(() => weekAhead(due), [due]);
-  const weekMax = Math.max(12, ...week.map((v) => Math.min(v, 60)));
+  // Scala a radice quadrata: con un arretrato di centinaia di parole oggi, una
+  // scala lineare schiaccerebbe gli altri giorni a zero. I numeri esatti sono
+  // sul retro della card. Un giorno con poche parole resta comunque visibile
+  // (almeno 6px); un giorno vuoto è una linea sottile.
+  const weekPeak = Math.max(12, ...week.map((v) => Math.min(v, 60)));
+  const barH = (v: number, max: number) =>
+    v <= 0 ? 3 : Math.max(6, (Math.sqrt(Math.min(v, 60)) / Math.sqrt(weekPeak)) * max);
 
   useEffect(() => {
     let active = true;
@@ -201,9 +207,9 @@ export default function PracticeHomeScreen() {
       `}</style>
       <div style={{ position: "absolute", top: -40, left: -30, width: 240, height: 210, background: "radial-gradient(circle, rgba(167,139,250,0.14), transparent 70%)", pointerEvents: "none" }} />
 
-      <div style={{ position: "relative", zIndex: 10, padding: "18px 18px 28px", maxWidth: 640, margin: "0 auto" }}>
+      <div style={{ position: "relative", zIndex: 10, padding: "20px 20px 40px", maxWidth: 640, margin: "0 auto" }}>
         {/* intestazione: la stessa di Study e Progress */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", marginBottom: 22 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", marginBottom: 26 }}>
           <span />
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 13, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em" }}>Verba</span>
           <motion.button
@@ -218,7 +224,7 @@ export default function PracticeHomeScreen() {
         </div>
 
         {/* le due card gemelle */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <motion.button
             whileTap={tapScale("card")} transition={TAP_SPRING}
             onClick={() => navigate(`/difficulty?deck=${DECK}`)}
@@ -249,10 +255,10 @@ export default function PracticeHomeScreen() {
                 <div data-week className="verba-week" style={{ ...stage, cursor: "pointer" }} aria-label="See your week">
                   <span style={{ position: "absolute", top: 6, left: 9, fontFamily: "'Inter', sans-serif", fontSize: 8.5, letterSpacing: "0.12em",
                     textTransform: "uppercase", color: "rgba(255,255,255,0.35)", zIndex: 1 }}>your week</span>
-                  <div style={{ position: "absolute", left: 10, right: 10, bottom: 10, top: 12, display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, alignItems: "end" }}>
+                  <div style={{ position: "absolute", left: 10, right: 10, bottom: 10, top: 24, display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, alignItems: "end" }}>
                     {week.map((v, i) => (
                       <i key={i} style={{ display: "block", minHeight: 3, borderRadius: "3px 3px 2px 2px", transformOrigin: "bottom", transition: "transform 0.15s",
-                        height: Math.max(3, (Math.min(v, 60) / weekMax) * 54),
+                        height: barH(v, 40),
                         background: i === 0 && v > 0 ? `linear-gradient(180deg, ${AMBER_SOFT}, ${AMBER})` : "rgba(199,184,232,0.3)",
                         boxShadow: i === 0 && v > 0 ? "0 0 8px rgba(245,158,11,0.5)" : "none" }} />
                     ))}
@@ -280,7 +286,7 @@ export default function PracticeHomeScreen() {
                   {week.map((v, i) => (
                     <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%", gap: 4 }}>
                       <b style={{ fontFamily: "'Inter', sans-serif", fontSize: 8.5, fontWeight: 500, height: 10, color: i === 1 ? LAVENDER : "rgba(255,255,255,0.55)" }}>{v || ""}</b>
-                      <i style={{ width: "100%", borderRadius: 3, minHeight: 3, height: Math.max(3, (Math.min(v, 60) / weekMax) * 58),
+                      <i style={{ width: "100%", borderRadius: 3, minHeight: 3, height: barH(v, 58),
                         background: i === 1 ? LAVENDER : "rgba(199,184,232,0.32)" }} />
                       <em style={{ fontStyle: "normal", fontFamily: "'Inter', sans-serif", fontSize: 8, color: i === 1 ? LAVENDER : "rgba(255,255,255,0.35)" }}>{dayLabel(i)}</em>
                     </div>
@@ -293,7 +299,7 @@ export default function PracticeHomeScreen() {
         </div>
 
         {!hintSeen && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "14px 2px 0",
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "18px 2px 0",
             fontFamily: "'Inter', sans-serif", fontSize: 12, lineHeight: 1.45, color: VIOLET }}>
             <span>New words you meet in Practice join Review the next day.</span>
             <button onClick={closeHint} style={{ flex: "0 0 auto", background: "none", border: "none", color: "rgba(255,255,255,0.45)", fontSize: 11.5, cursor: "pointer" }}>Got it</button>
@@ -302,7 +308,7 @@ export default function PracticeHomeScreen() {
 
         {/* Quick start: un tocco e parte */}
         {(nextUp || trouble.length > 0 || saved.length > 0) && (
-          <div style={{ marginTop: 26 }}>
+          <div style={{ marginTop: 40 }}>
             <p style={label}>Quick start</p>
 
             {nextUp && (

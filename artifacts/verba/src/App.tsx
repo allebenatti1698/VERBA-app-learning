@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,23 +23,55 @@ import BottomNav, { TAB_PATHS } from "@/components/BottomNav";
 const queryClient = new QueryClient();
 
 const SLIDE = {
-  initial: { x: "100%" },
-  animate: { x: 0 },
-  exit:    { x: "-100%" },
   transition: { duration: 0.38, ease: [0.4, 0, 0.2, 1] as [number,number,number,number] },
+};
+
+/**
+ * Ordine delle schede nella barra in basso. Decide da che lato scorre la pagina:
+ * verso una scheda più a destra la pagina nuova entra da destra, verso una più
+ * a sinistra entra da sinistra. Entrata e uscita vanno sempre nello stesso verso.
+ */
+const TAB_ORDER = ["/study", "/decks", "/progress", "/profile"];
+
+/** 1 = avanti (entra da destra), -1 = indietro (entra da sinistra). */
+function slideDirection(from: string | null, to: string): 1 | -1 {
+  // la scelta del deck si apre dalla pillola di Practice: tornarci è tornare indietro
+  if (from === "/choose-deck" && to === "/decks") return -1;
+  const a = from ? TAB_ORDER.indexOf(from) : -1;
+  const b = TAB_ORDER.indexOf(to);
+  if (a >= 0 && b >= 0 && a !== b) return b > a ? 1 : -1;
+  // tutto il resto (setup, quiz, risultati…) va avanti, come prima
+  return 1;
+}
+
+const slideVariants = {
+  enter: (d: number) => ({ x: d > 0 ? "100%" : "-100%" }),
+  center: { x: 0 },
+  exit: (d: number) => ({ x: d > 0 ? "-100%" : "100%" }),
 };
 
 function Router() {
   const [location] = useLocation();
   const showNav = TAB_PATHS.includes(location);
+  // Calcolata una volta per cambio di pagina e tenuta ferma: AnimatePresence la
+  // passa anche alla pagina che esce, così le due scorrono nello stesso verso.
+  const prevRef = useRef<string | null>(null);
+  const dirRef = useRef<1 | -1>(1);
+  if (prevRef.current !== location) {
+    dirRef.current = slideDirection(prevRef.current, location);
+    prevRef.current = location;
+  }
+  const dir = dirRef.current;
   return (
     <div style={{ position: "relative", overflow: "hidden", height: "100dvh", width: "100%", background: "#0A0A0A" }}>
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={false} custom={dir}>
         <motion.div
           key={location}
-          initial={SLIDE.initial}
-          animate={SLIDE.animate}
-          exit={SLIDE.exit}
+          custom={dir}
+          variants={slideVariants}
+          initial="enter"
+          animate="center"
+          exit="exit"
           transition={SLIDE.transition}
           style={{
             position: "absolute",
