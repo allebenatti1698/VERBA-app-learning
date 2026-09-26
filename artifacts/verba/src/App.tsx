@@ -19,6 +19,7 @@ import ProfileScreen from "@/pages/ProfileScreen";
 import MyVerbaScreen from "@/pages/MyVerbaScreen";
 import HowItWorksScreen from "@/pages/HowItWorksScreen";
 import BottomNav, { TAB_PATHS } from "@/components/BottomNav";
+import TabPager from "@/components/TabPager";
 
 const queryClient = new QueryClient();
 
@@ -62,11 +63,15 @@ function Router() {
     prevRef.current = location;
   }
   const dir = dirRef.current;
+  // Le quattro schede vivono in una striscia sola (TabPager): passando da una
+  // all'altra la pagina NON cambia, scorre la striscia. TAB_ORDER qui e in
+  // TabPager.tsx devono restare uguali.
+  const isTabPage = TAB_ORDER.includes(location);
   return (
     <div style={{ position: "relative", overflow: "hidden", height: "100dvh", width: "100%", background: "#0A0A0A" }}>
       <AnimatePresence initial={false} custom={dir}>
         <motion.div
-          key={location}
+          key={isTabPage ? "tabs" : location}
           custom={dir}
           variants={slideVariants}
           initial="enter"
@@ -80,6 +85,9 @@ function Router() {
             paddingBottom: showNav ? "calc(64px + env(safe-area-inset-bottom))" : 0,
           }}
         >
+          {isTabPage ? (
+            <TabPager location={location} />
+          ) : (
           <Switch>
             <Route path="/" component={WelcomeScreen} />
             <Route path="/study" component={StudyScreen} />
@@ -96,6 +104,7 @@ function Router() {
             <Route path="/how-it-works" component={HowItWorksScreen} />
             <Route component={NotFound} />
           </Switch>
+          )}
         </motion.div>
       </AnimatePresence>
       <BottomNav />

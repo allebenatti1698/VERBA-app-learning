@@ -1,0 +1,424 @@
+VERBA — Schede che si sfogliano col dito, e la tendina dei deck.
+ECONOMY MODE, Claude Sonnet 5, Effort Medium. Stima ~$1.00–1.80.
+Un file NUOVO, due modificati.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Il file nuovo si CREA; i file esistenti si toccano SOLO con edit mirati
+old_string → new_string. NESSUNA sostituzione integrale di file esistenti.
+Applica OGNI edit in modo INDIPENDENTE: se una find non combacia ESATTAMENTE,
+SALTA quell'edit e SEGNALALO, ma esegui comunque gli altri.
+Ogni find deve comparire UNA VOLTA SOLA nel suo file; se no, salta quell'edit.
+
+PRIMA DI TUTTO riporta il numero di righe di:
+  src/App.tsx · src/pages/PracticeHomeScreen.tsx
+e conferma che src/components/TabPager.tsx NON esiste ancora.
+Se esiste già, FERMATI e dimmelo senza creare né modificare nulla.
+
+CONTESTO
+Oggi ogni scheda (Study, Practice, Progress, Profile) è una pagina separata: al
+tocco la vecchia esce e la nuova entra, ma niente segue il dito. Le quattro
+schede diventano una STRISCIA sola, affiancate, dentro una finestra larga quanto
+lo schermo: il dito la trascina, al rilascio una molla porta alla scheda giusta
+partendo dalla velocità del dito. La barra in basso usa la stessa molla.
+Le altre pagine (setup, quiz, risultati, scelta dei deck…) restano come sono.
+
+════════════════════════════════════════════════════════════
+1 · FILE NUOVO — src/components/TabPager.tsx
+════════════════════════════════════════════════════════════
+Crea il file con ESATTAMENTE questo contenuto. Deve risultare di 189 righe.
+
+import { useEffect, useLayoutEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { motion, animate, useMotionValue, useTransform, type MotionValue } from "framer-motion";
+import { useLocation } from "wouter";
+import StudyScreen from "@/pages/StudyScreen";
+import PracticeHomeScreen from "@/pages/PracticeHomeScreen";
+import ProgressScreen from "@/pages/ProgressScreen";
+import ProfileScreen from "@/pages/ProfileScreen";
+
+// Le quattro schede come una striscia sola, affiancate.
+//
+// · Il dito trascina la striscia: mentre sfogli vedi la scheda nuova entrare e
+//   la vecchia uscire.
+// · Al rilascio decide la fisica: oltre un quarto dello schermo, oppure con un
+//   colpo veloce, si va alla scheda accanto; altrimenti si torna. La molla parte
+//   dalla velocità del dito, quindi fra trascinamento e animazione non c'è scatto.
+// · I bottoni della barra in basso usano la stessa molla.
+// · Il gesto si blocca su una direzione dopo pochi pixel: in verticale scorri la
+//   pagina, in orizzontale sfogli. Ogni scheda ha il suo scroll e lo ricorda.
+// · Un gesto orizzontale che appartiene già a qualcos'altro (uno swipe per
+//   togliere una riga, un carosello, uno slider) NON viene rubato.
+
+export const TAB_ORDER = ["/study", "/decks", "/progress", "/profile"];
+const SCREENS: ComponentType[] = [StudyScreen, PracticeHomeScreen, ProgressScreen, ProfileScreen];
+
+/* ── numeri da tarare a occhio ── */
+const SPRING = { type: "spring" as const, stiffness: 260, damping: 32, mass: 0.9 };
+const LOCK_PX = 10;          // pixel prima di decidere la direzione del gesto
+const COMMIT_RATIO = 0.22;   // quota di schermo oltre la quale si cambia scheda
+const FLICK_V = 0.45;        // px/ms: un colpo veloce cambia scheda anche se corto
+const EDGE_RESIST = 0.3;     // quanto cede l'elastico ai bordi
+const DEPTH_SCALE = 0.04;    // di quanto rimpicciolisce la scheda che si allontana
+const DEPTH_DIM = 0.45;      // quanto si scurisce
+
+/** Il gesto parte su qualcosa che ha già un suo significato orizzontale? */
+function ownsHorizontalGesture(target: EventTarget | null, stop: HTMLElement | null): boolean {
+  for (let n = target as HTMLElement | null; n && n !== stop; n = n.parentElement) {
+    if (n.dataset && n.dataset.pagerIgnore !== undefined) return true;
+    // gli elementi trascinabili in orizzontale di framer-motion (drag="x")
+    // dichiarano touch-action pan-y; lo fanno anche le righe delle trouble words
+    const ta = n.style ? n.style.touchAction : "";
+    if (ta === "pan-y" || ta === "none") return true;
+    if (n.tagName === "INPUT" && (n as HTMLInputElement).type === "range") return true;
+    if (n.scrollWidth > n.clientWidth + 1) {
+      const ox = getComputedStyle(n).overflowX;
+      if (ox === "auto" || ox === "scroll") return true;
+    }
+  }
+  return false;
+}
+
+function Panel({ i, x, width, reduce, children }: { i: number; x: MotionValue<number>; width: number; reduce: boolean; children: ReactNode }) {
+  // 0 quando la scheda è al centro, 1 quando è un'intera larghezza più in là
+  const dist = useTransform(x, (v) => (width ? Math.min(1, Math.abs(v + i * width) / width) : 0));
+  const scale = useTransform(dist, (d) => (reduce ? 1 : 1 - d * DEPTH_SCALE));
+  const dim = useTransform(dist, (d) => (reduce ? 0 : d * DEPTH_DIM));
+  return (
+    <motion.div style={{ position: "absolute", top: 0, bottom: 0, left: `${i * 100}%`, width: "100%", scale, transformOrigin: "50% 45%" }}>
+      <div
+        style={{
+          position: "absolute", inset: 0, overflowY: "auto", overflowX: "hidden",
+          overscrollBehaviorY: "contain", WebkitOverflowScrolling: "touch",
+          paddingBottom: "calc(64px + env(safe-area-inset-bottom))",
+        }}
+      >
+        {children}
+      </div>
+      <motion.div aria-hidden style={{ position: "absolute", inset: 0, background: "#000", opacity: dim, pointerEvents: "none" }} />
+    </motion.div>
+  );
+}
+
+type Drag = { id: number; x0: number; y0: number; base: number; lock: "x" | null; lastX: number; lastT: number; v: number };
+
+export default function TabPager({ location }: { location: string }) {
+  const [, navigate] = useLocation();
+  const index = Math.max(0, TAB_ORDER.indexOf(location));
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(0);
+  const x = useMotionValue(0);
+  const drag = useRef<Drag | null>(null);
+  const justDragged = useRef(0);          // istante dell'ultimo sfoglio
+  const indexRef = useRef(index);
+  indexRef.current = index;
+  const [reduce] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+
+  // larghezza della finestra: al primo disegno la striscia è già al posto giusto
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.clientWidth;
+      setWidth(w);
+      if (!drag.current) x.set(-indexRef.current * w);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [x]);
+
+  // cambio di scheda (dal dito o dalla barra): la molla parte dalla velocità attuale
+  useEffect(() => {
+    if (!width || drag.current?.lock === "x") return;
+    const controls = animate(x, -index * width, reduce ? { duration: 0.12 } : { ...SPRING, velocity: x.getVelocity() });
+    return () => controls.stop();
+  }, [index, width, reduce, x]);
+
+  function onPointerDown(e: React.PointerEvent) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    if (ownsHorizontalGesture(e.target, ref.current)) return;
+    const now = performance.now();
+    drag.current = { id: e.pointerId, x0: e.clientX, y0: e.clientY, base: x.get(), lock: null, lastX: e.clientX, lastT: now, v: 0 };
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const dx = e.clientX - d.x0;
+    const dy = e.clientY - d.y0;
+    if (!d.lock) {
+      if (Math.abs(dx) > LOCK_PX && Math.abs(dx) > Math.abs(dy) * 1.3) {
+        d.lock = "x";
+        x.stop();
+        d.base = x.get() - dx;               // la striscia segue il dito da dov'è adesso
+        try { ref.current?.setPointerCapture(e.pointerId); } catch { /* */ }
+      } else if (Math.abs(dy) > LOCK_PX) {
+        drag.current = null;                 // è uno scroll verticale: non è affar nostro
+        return;
+      } else {
+        return;
+      }
+    }
+    const min = -(TAB_ORDER.length - 1) * width;
+    let nx = d.base + dx;
+    if (nx > 0) nx *= EDGE_RESIST;
+    if (nx < min) nx = min + (nx - min) * EDGE_RESIST;
+    x.set(nx);
+    const now = performance.now();
+    const dt = now - d.lastT;
+    if (dt > 0) d.v = 0.8 * ((e.clientX - d.lastX) / dt) + 0.2 * d.v;
+    d.lastX = e.clientX;
+    d.lastT = now;
+  }
+
+  function onPointerEnd(e: React.PointerEvent) {
+    const d = drag.current;
+    drag.current = null;
+    if (!d || d.id !== e.pointerId || d.lock !== "x") return;
+    justDragged.current = performance.now(); // il click che segue il rilascio non deve aprire niente
+    const dx = e.clientX - d.x0;
+    const cur = indexRef.current;
+    let target = cur;
+    if (dx < -width * COMMIT_RATIO || d.v < -FLICK_V) target = Math.min(TAB_ORDER.length - 1, cur + 1);
+    else if (dx > width * COMMIT_RATIO || d.v > FLICK_V) target = Math.max(0, cur - 1);
+    if (target !== cur) navigate(TAB_ORDER[target]);
+    else animate(x, -cur * width, reduce ? { duration: 0.12 } : { ...SPRING, velocity: d.v * 1000 });
+  }
+
+  function onClickCapture(e: React.MouseEvent) {
+    // solo il click che arriva subito dopo uno sfoglio: un tocco vero, più tardi, passa
+    if (performance.now() - justDragged.current > 350) return;
+    justDragged.current = 0;
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  return (
+    <div
+      ref={ref}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerEnd}
+      onPointerCancel={onPointerEnd}
+      onClickCapture={onClickCapture}
+      style={{ position: "absolute", inset: 0, overflow: "hidden", touchAction: "pan-y", background: "#0A0A0A" }}
+    >
+      <motion.div style={{ position: "absolute", inset: 0, x }}>
+        {SCREENS.map((Screen, i) => (
+          <Panel key={TAB_ORDER[i]} i={i} x={x} width={width} reduce={reduce}>
+            <Screen />
+          </Panel>
+        ))}
+      </motion.div>
+    </div>
+  );
+}
+
+════════════════════════════════════════════════════════════
+2 · src/pages/PracticeHomeScreen.tsx — sei edit: la tendina dei deck
+════════════════════════════════════════════════════════════
+La pillola "GRE" in alto non cambia più pagina: apre una tendina sotto di sé.
+
+──── D1 · AnimatePresence per la tendina ────
+TROVA:
+import { motion } from "framer-motion";
+
+SOSTITUISCI CON:
+import { motion, AnimatePresence } from "framer-motion";
+
+──── D2 · le icone dei deck ────
+TROVA:
+import { GraduationCap, ChevronDown, Play } from "lucide-react";
+
+SOSTITUISCI CON:
+import { GraduationCap, ChevronDown, Play, BookOpen, Library, Check } from "lucide-react";
+
+──── D3 · i deck della tendina ────
+TROVA:
+const REVIEW_DUE_KEY = "verba_review_due";
+
+SOSTITUISCI CON:
+/**
+ * I deck della tendina, con le stesse sezioni, icone e colori della schermata
+ * dei deck. Per ora scegliere un deck diverso porta alla sua scelta dei set,
+ * come faceva la schermata dei deck: diventerà un cambio di deck vero quando
+ * esisterà il deck corrente unico.
+ */
+const DECKS = [
+  { id: "essential", sec: "Foundations", name: "Essential English", line: "Words you need to know", color: "#60A5FA", Icon: BookOpen },
+  { id: "advanced", sec: "Foundations", name: "Advanced English", line: "Read newspapers and books fluently", color: "#60A5FA", Icon: Library },
+  { id: "gre", sec: "Test prep", name: "GRE Vocabulary", line: "Advanced words for the GRE exam", color: "#A78BFA", Icon: GraduationCap },
+];
+
+const REVIEW_DUE_KEY = "verba_review_due";
+
+──── D4 · lo stato della tendina, e Esc per chiuderla ────
+TROVA:
+  const [hintSeen, setHintSeen] = useState(true);
+
+SOSTITUISCI CON:
+  const [hintSeen, setHintSeen] = useState(true);
+  const [deckOpen, setDeckOpen] = useState(false);
+
+  useEffect(() => {
+    if (!deckOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDeckOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [deckOpen]);
+
+──── D5 · la pillola apre la tendina invece di cambiare pagina ────
+TROVA:
+            onClick={() => navigate("/choose-deck")}
+            aria-label="Choose a deck"
+
+SOSTITUISCI CON:
+            onClick={() => setDeckOpen((o) => !o)}
+            aria-label="Choose a deck"
+            aria-expanded={deckOpen}
+
+──── D6 · la tendina, sotto la pillola ────
+TROVA:
+        {/* le due card gemelle */}
+
+SOSTITUISCI CON:
+        {/* la tendina dei deck: cresce dall'angolo della pillola, si chiude toccando fuori */}
+        <AnimatePresence>
+          {deckOpen && (
+            <motion.div key="deck-scrim" onClick={() => setDeckOpen(false)}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              style={{ position: "fixed", inset: 0, zIndex: 20 }} />
+          )}
+          {deckOpen && (
+              <motion.div
+                key="deck-menu"
+                role="menu"
+                initial={{ opacity: 0, scale: 0.92, y: -6 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                style={{ position: "absolute", top: 58, right: 20, zIndex: 21, width: 280, transformOrigin: "top right", borderRadius: 18, padding: 6,
+                  background: "rgba(22,20,28,0.96)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 18px 50px rgba(0,0,0,0.55)",
+                  backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
+              >
+                {DECKS.map((d, k) => {
+                  const current = d.id === DECK;
+                  return (
+                    <div key={d.id}>
+                      {(k === 0 || DECKS[k - 1].sec !== d.sec) && (
+                        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase",
+                          color: d.color, opacity: 0.8, margin: k === 0 ? "8px 10px 6px" : "12px 10px 6px" }}>{d.sec}</p>
+                      )}
+                      <motion.button
+                        role="menuitemradio" aria-checked={current}
+                        whileTap={tapScale("row")} transition={TAP_SPRING}
+                        onClick={() => { setDeckOpen(false); if (!current) navigate(`/difficulty?deck=${d.id}`); }}
+                        style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", padding: 10, borderRadius: 12,
+                          border: "none", cursor: "pointer", color: "#fff", outline: "none",
+                          background: current ? "rgba(167,139,250,0.10)" : "transparent" }}
+                      >
+                        <span style={{ flex: "0 0 auto", width: 34, height: 34, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+                          background: `${d.color}1A`, border: `1px solid ${d.color}40` }}>
+                          <d.Icon size={16} color={d.color} />
+                        </span>
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 14 }}>{d.name}</span>
+                          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{d.line}</span>
+                        </span>
+                        {current && <Check size={16} color={VIOLET} />}
+                      </motion.button>
+                    </div>
+                  );
+                })}
+              </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* le due card gemelle */}
+
+════════════════════════════════════════════════════════════
+3 · src/App.tsx — cinque edit: le schede nella striscia
+════════════════════════════════════════════════════════════
+Le rotte delle schede restano nel <Switch> (NON rimuoverle): semplicemente,
+quando la pagina è una scheda, al posto del <Switch> si disegna la striscia.
+
+──── T1 · importa la striscia ────
+TROVA:
+import BottomNav, { TAB_PATHS } from "@/components/BottomNav";
+
+SOSTITUISCI CON:
+import BottomNav, { TAB_PATHS } from "@/components/BottomNav";
+import TabPager from "@/components/TabPager";
+
+──── T2 · le schede vivono nella striscia ────
+TROVA:
+  const dir = dirRef.current;
+
+SOSTITUISCI CON:
+  const dir = dirRef.current;
+  // Le quattro schede vivono in una striscia sola (TabPager): passando da una
+  // all'altra la pagina NON cambia, scorre la striscia. TAB_ORDER qui e in
+  // TabPager.tsx devono restare uguali.
+  const isTabPage = TAB_ORDER.includes(location);
+
+──── T3 · una sola pagina per tutte le schede ────
+TROVA:
+          key={location}
+
+SOSTITUISCI CON:
+          key={isTabPage ? "tabs" : location}
+
+──── T4 · sulle schede, la striscia al posto delle rotte ────
+TROVA:
+          <Switch>
+
+SOSTITUISCI CON:
+          {isTabPage ? (
+            <TabPager location={location} />
+          ) : (
+          <Switch>
+
+──── T5 · chiusura ────
+TROVA:
+          </Switch>
+
+SOSTITUISCI CON:
+          </Switch>
+          )}
+
+════════════════════════════════════════════════════════════
+4 · SOLO LETTURA — nessuna modifica
+════════════════════════════════════════════════════════════
+In src/pages/StudyScreen.tsx riporta, con numero di riga, ogni riga che contiene
+`drag`, `onPointer`, `onTouch` o `touchAction`. Serve a sapere se lo sfoglio
+delle carte in Study usa un gesto orizzontale che la striscia potrebbe rubare.
+
+════════════════════════════════════════════════════════════
+VERIFICA — rispondi VOCE PER VOCE, non in prosa
+════════════════════════════════════════════════════════════
+a) Righe PRIMA e DOPO: App.tsx (atteso +9), PracticeHomeScreen.tsx (atteso +73).
+b) Righe di TabPager.tsx: devono essere 189.
+c) Se un conteggio è RADDOPPIATO o più: FERMATI e dillo per primo.
+d) D1…D6 e T1…T5: sì/no per ciascuno.
+e) In App.tsx stampa la funzione Router per intero, com'è ADESSO. Deve contenere
+   `isTabPage`, `key={isTabPage ? "tabs" : location}`, `<TabPager location={location} />`,
+   e il <Switch> con TUTTE le rotte di prima.
+f) Confronta l'array TAB_ORDER in App.tsx con quello in TabPager.tsx: devono
+   essere identici. Riportali entrambi.
+g) In PracticeHomeScreen.tsx: `navigate("/choose-deck")` deve comparire ZERO volte.
+h) Punto 4 per intero.
+i) Typecheck: pulito sì/no, errori riportati PER INTERO. Se l'errore è dentro
+   TabPager.tsx NON correggerlo: riportalo.
+j) Edit saltati e motivo.
+
+NON FARE
+· NON modificare StudyScreen, ProgressScreen, ProfileScreen, BottomNav.tsx,
+  DeckSelectionScreen, attached_assets/.
+· NON modificare TabPager.tsx dopo averlo creato.
+· NON togliere nessuna <Route> dal <Switch>.
+· NON avviare il dev server, NON testare.
+· NON riscrivere nessun file esistente per intero.

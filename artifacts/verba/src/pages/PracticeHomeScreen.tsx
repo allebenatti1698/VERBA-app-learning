@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
-import { GraduationCap, ChevronDown, Play } from "lucide-react";
+import { GraduationCap, ChevronDown, Play, BookOpen, Library, Check } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 import { computeProgress, type ProgressSnapshot } from "@/lib/progressStats";
@@ -33,6 +33,18 @@ const TIERS = [
   { difficulty: "medium", label: "Uncommon" },
   { difficulty: "hard", label: "Rare" },
 ] as const;
+
+/**
+ * I deck della tendina, con le stesse sezioni, icone e colori della schermata
+ * dei deck. Per ora scegliere un deck diverso porta alla sua scelta dei set,
+ * come faceva la schermata dei deck: diventerà un cambio di deck vero quando
+ * esisterà il deck corrente unico.
+ */
+const DECKS = [
+  { id: "essential", sec: "Foundations", name: "Essential English", line: "Words you need to know", color: "#60A5FA", Icon: BookOpen },
+  { id: "advanced", sec: "Foundations", name: "Advanced English", line: "Read newspapers and books fluently", color: "#60A5FA", Icon: Library },
+  { id: "gre", sec: "Test prep", name: "GRE Vocabulary", line: "Advanced words for the GRE exam", color: "#A78BFA", Icon: GraduationCap },
+];
 
 const REVIEW_DUE_KEY = "verba_review_due";
 const MY_WORDS_KEY = "verba_my_words";
@@ -119,6 +131,14 @@ export default function PracticeHomeScreen() {
   const [savedPreview, setSavedPreview] = useState<string[]>([]);
   const [flipped, setFlipped] = useState(false);
   const [hintSeen, setHintSeen] = useState(true);
+  const [deckOpen, setDeckOpen] = useState(false);
+
+  useEffect(() => {
+    if (!deckOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDeckOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [deckOpen]);
 
   const dueIds = useMemo(() => getDueWordIds(), []);
   const due = dueIds.length;
@@ -214,14 +234,67 @@ export default function PracticeHomeScreen() {
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 13, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em" }}>Verba</span>
           <motion.button
             whileTap={tapScale("chip")} transition={TAP_SPRING}
-            onClick={() => navigate("/choose-deck")}
+            onClick={() => setDeckOpen((o) => !o)}
             aria-label="Choose a deck"
+            aria-expanded={deckOpen}
             style={{ justifySelf: "end", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontSize: 12, color: VIOLET,
               border: "0.5px solid rgba(167,139,250,0.45)", borderRadius: 20, padding: "5px 11px", background: "rgba(167,139,250,0.07)", cursor: "pointer" }}
           >
             <GraduationCap size={14} color={VIOLET} /> GRE <ChevronDown size={14} color={VIOLET} />
           </motion.button>
         </div>
+
+        {/* la tendina dei deck: cresce dall'angolo della pillola, si chiude toccando fuori */}
+        <AnimatePresence>
+          {deckOpen && (
+            <motion.div key="deck-scrim" onClick={() => setDeckOpen(false)}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              style={{ position: "fixed", inset: 0, zIndex: 20 }} />
+          )}
+          {deckOpen && (
+              <motion.div
+                key="deck-menu"
+                role="menu"
+                initial={{ opacity: 0, scale: 0.92, y: -6 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                style={{ position: "absolute", top: 58, right: 20, zIndex: 21, width: 280, transformOrigin: "top right", borderRadius: 18, padding: 6,
+                  background: "rgba(22,20,28,0.96)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 18px 50px rgba(0,0,0,0.55)",
+                  backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
+              >
+                {DECKS.map((d, k) => {
+                  const current = d.id === DECK;
+                  return (
+                    <div key={d.id}>
+                      {(k === 0 || DECKS[k - 1].sec !== d.sec) && (
+                        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase",
+                          color: d.color, opacity: 0.8, margin: k === 0 ? "8px 10px 6px" : "12px 10px 6px" }}>{d.sec}</p>
+                      )}
+                      <motion.button
+                        role="menuitemradio" aria-checked={current}
+                        whileTap={tapScale("row")} transition={TAP_SPRING}
+                        onClick={() => { setDeckOpen(false); if (!current) navigate(`/difficulty?deck=${d.id}`); }}
+                        style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", padding: 10, borderRadius: 12,
+                          border: "none", cursor: "pointer", color: "#fff", outline: "none",
+                          background: current ? "rgba(167,139,250,0.10)" : "transparent" }}
+                      >
+                        <span style={{ flex: "0 0 auto", width: 34, height: 34, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+                          background: `${d.color}1A`, border: `1px solid ${d.color}40` }}>
+                          <d.Icon size={16} color={d.color} />
+                        </span>
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 14 }}>{d.name}</span>
+                          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{d.line}</span>
+                        </span>
+                        {current && <Check size={16} color={VIOLET} />}
+                      </motion.button>
+                    </div>
+                  );
+                })}
+              </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* le due card gemelle */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
