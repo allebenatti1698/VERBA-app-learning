@@ -121,14 +121,15 @@ export default function QuizScreen() {
       catch { dueIds = []; }
     }
     let myVerbaIds: string[] = [];
-    if (sourceParam === "myverba") {
-      try { myVerbaIds = JSON.parse(sessionStorage.getItem("verba_myverba_ids") || "[]") as string[]; }
+    if (sourceParam === "myverba" || sourceParam === "trouble") {
+      const idsKey = sourceParam === "trouble" ? "verba_trouble_ids" : "verba_myverba_ids";
+      try { myVerbaIds = JSON.parse(sessionStorage.getItem(idsKey) || "[]") as string[]; }
       catch { myVerbaIds = []; }
     }
     const loader =
       sourceParam === "due"
         ? fetchWordsByIds(dueIds.slice(0, requestedWords)).then((ws) => shuffleArray(ws))
-        : sourceParam === "myverba"
+        : sourceParam === "myverba" || sourceParam === "trouble"
           ? fetchWordsByIds(myVerbaIds).then((ws) => shuffleArray(ws).slice(0, requestedWords))
           : hasSets
             ? getWordIdsForSelection(deckParam || "gre", selection)

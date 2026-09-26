@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { BookOpen, Target, LineChart, User } from "lucide-react";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 
-export const TAB_PATHS = ["/study", "/decks", "/progress", "/profile"];
+export const TAB_PATHS = ["/study", "/decks", "/progress", "/profile", "/choose-deck"];
 
 const TABS = [
   { path: "/study", label: "Study", Icon: BookOpen },
@@ -40,7 +40,7 @@ export default function BottomNav() {
       }}
     >
       {TABS.map(({ path, label, Icon }) => {
-        const active = location === path;
+        const active = location === path || (path === "/decks" && location === "/choose-deck");
         return (
           <motion.button
             key={path}

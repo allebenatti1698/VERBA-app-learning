@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import WelcomeScreen from "@/pages/WelcomeScreen";
 import DeckSelectionScreen from "@/pages/DeckSelectionScreen";
+import PracticeHomeScreen from "@/pages/PracticeHomeScreen";
 import DifficultyScreen from "@/pages/DifficultyScreen";
 import PreQuizSetup from "@/pages/PreQuizSetup";
 import QuizScreen from "@/pages/QuizScreen";
@@ -49,7 +50,8 @@ function Router() {
           <Switch>
             <Route path="/" component={WelcomeScreen} />
             <Route path="/study" component={StudyScreen} />
-            <Route path="/decks" component={DeckSelectionScreen} />
+            <Route path="/decks" component={PracticeHomeScreen} />
+            <Route path="/choose-deck" component={DeckSelectionScreen} />
             <Route path="/progress" component={ProgressScreen} />
             <Route path="/profile" component={ProfileScreen} />
             <Route path="/difficulty" component={DifficultyScreen} />
