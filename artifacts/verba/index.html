@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <title>Verba</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- aggiunta alla schermata Home: si apre a tutto schermo, senza i gesti di Safari -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Verba" />
+    <meta name="theme-color" content="#0A0A0A" />
+    <!-- niente rimbalzo della pagina intera: lo scroll resta dentro le schede -->
+    <style>html, body { overscroll-behavior: none; background: #0A0A0A; }</style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
