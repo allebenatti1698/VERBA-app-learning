@@ -1,0 +1,54 @@
+VERBA — Study: dentro un set, lo swipe sfoglia le carte, non le schede.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.15–0.30. Un file.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+UN SOLO edit: l'aggiunta di un attributo. NESSUNA sostituzione integrale.
+
+PRIMA DI TUTTO riporta il numero di righe di src/pages/StudyScreen.tsx.
+
+CONTESTO
+Le quattro schede si sfogliano col dito (src/components/TabPager.tsx). La striscia
+lascia stare ogni gesto che parte dentro un elemento con l'attributo
+`data-pager-ignore`. Nella vista delle carte di Study oggi lo fa solo il
+rettangolo della carta: lo spazio sotto la carta, la scritta "swipe to flip", il
+contatore e l'intestazione NON sono marcati, quindi uno swipe lì — sul telefono
+succede spesso, il pollice lavora in basso — sfoglia le schede invece delle carte.
+Correzione: TUTTA la vista delle carte possiede i gesti orizzontali.
+
+════════════════════════════════════════════════════════════
+1 · src/pages/StudyScreen.tsx — un attributo
+════════════════════════════════════════════════════════════
+Nella funzione `BrowseView`, trova l'elemento RADICE del JSX restituito: il primo
+elemento subito dopo `return (` dentro `function BrowseView`. È il div che
+contiene `<AppBackground` ed è la radice di tutta la vista (intestazione, carte,
+piede).
+
+Aggiungi al SUO tag di apertura questo attributo, subito dopo `<div`:
+
+    data-pager-ignore=""
+
+Non cambiare nient'altro di quel tag: né lo style né gli altri attributi.
+
+Esempio di forma (lo style reale sarà diverso, lascialo com'è):
+    PRIMA:  <div style={{ ... }}>
+    DOPO:   <div data-pager-ignore="" style={{ ... }}>
+
+Se la radice NON è un <div>, o se `function BrowseView` non esiste con questo
+nome, FERMATI e riporta le prime 5 righe del suo `return (` senza modificare.
+
+════════════════════════════════════════════════════════════
+VERIFICA — rispondi VOCE PER VOCE
+════════════════════════════════════════════════════════════
+a) Righe PRIMA e DOPO di StudyScreen.tsx. Atteso: invariato.
+b) Se il conteggio è RADDOPPIATO o più: FERMATI e dillo per primo.
+c) Riporta il tag di apertura della radice di BrowseView PRIMA e DOPO, verbatim.
+d) Conferma che `data-pager-ignore` compare UNA SOLA volta in StudyScreen.tsx.
+e) Conferma che in src/components/TabPager.tsx esiste la riga con
+   `n.dataset.pagerIgnore` (solo lettura, non modificare).
+f) Typecheck: pulito sì/no.
+
+NON FARE
+· Nessun altro file. NON toccare TabPager.tsx, ParallaxPager.tsx, la vista
+  elenco dei set di Study.
+· NON avviare il dev server, NON testare.

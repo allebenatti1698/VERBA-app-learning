@@ -422,7 +422,7 @@ function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; la
   const FILTERS: Array<["all" | "learn" | "mast" | "new", string]> = [["all", "All"], ["new", "Unpracticed"], ["learn", "Learning"], ["mast", "Mastered"]];
 
   return (
-    <div style={{ minHeight: "100%", height: "100%", display: "flex", flexDirection: "column", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
+    <div data-pager-ignore="" style={{ minHeight: "100%", height: "100%", display: "flex", flexDirection: "column", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
       <AppBackground showWords={false} />
       <div style={{ position: "relative", zIndex: 10, padding: "18px 18px 0", maxWidth: 640, margin: "0 auto", width: "100%", flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", overflowY: "auto", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
