@@ -127,6 +127,10 @@ export default function ParallaxPager({ index, total, onIndexChange, renderBands
         position: "relative",
         width: "100%",
         clipPath: "inset(-2000px 0 -2000px 0)",
+        // la carta precedente e la successiva stanno a ±100%: clip-path le nasconde
+        // ma non toglie il loro spazio, e su iPhone la pagina scorreva di lato.
+        // "clip" taglia in orizzontale senza creare un contenitore scorribile.
+        overflowX: "clip",
         touchAction: "pan-y",
       }}
     >

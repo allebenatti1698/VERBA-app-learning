@@ -1,0 +1,76 @@
+VERBA — Study su iPhone: la pagina delle carte non deve scorrere di lato.
+ECONOMY MODE, Claude Sonnet 5, Effort Low. Stima ~$0.20–0.40. Due file.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+SOLO edit mirati: ciascuno AGGIUNGE una proprietà di stile. NESSUNA sostituzione integrale.
+Applica OGNI edit in modo INDIPENDENTE: se non trovi esattamente ciò che descrivo,
+SALTA quell'edit e SEGNALALO, ma esegui comunque l'altro.
+
+PRIMA DI TUTTO riporta il numero di righe di:
+  src/components/ParallaxPager.tsx · src/pages/StudyScreen.tsx
+
+CONTESTO
+Su iPhone, facendo swipe sulle carte di Study, la pagina scorre di LATO (compare
+una barra di scorrimento orizzontale e il testo resta tagliato a sinistra).
+Causa: ParallaxPager tiene disegnate la carta precedente e la successiva a
+left: -100% e +100%, nascoste con clip-path. clip-path le rende invisibili ma NON
+toglie lo spazio che occupano. Il contenitore della vista carte in BrowseView ha
+overflowY: "auto", e per le regole CSS diventa scorribile anche in orizzontale:
+col dito Safari lo fa scorrere di lato.
+Correzione: (1) alla fonte, il contenitore di ParallaxPager taglia ciò che sborda
+in orizzontale con overflow-x: clip (che, a differenza di hidden, NON crea un
+contenitore scorribile e NON taglia in verticale, quindi la parallasse resta);
+(2) per sicurezza, il contenitore scorribile di BrowseView non può scorrere di lato.
+
+════════════════════════════════════════════════════════════
+1 · src/components/ParallaxPager.tsx
+════════════════════════════════════════════════════════════
+TROVA:
+        clipPath: "inset(-2000px 0 -2000px 0)",
+        touchAction: "pan-y",
+
+SOSTITUISCI CON:
+        clipPath: "inset(-2000px 0 -2000px 0)",
+        // la carta precedente e la successiva stanno a ±100%: clip-path le nasconde
+        // ma non toglie il loro spazio, e su iPhone la pagina scorreva di lato.
+        // "clip" taglia in orizzontale senza creare un contenitore scorribile.
+        overflowX: "clip",
+        touchAction: "pan-y",
+
+Queste due righe devono comparire UNA SOLA volta nel file. Se no, salta e segnala.
+
+════════════════════════════════════════════════════════════
+2 · src/pages/StudyScreen.tsx
+════════════════════════════════════════════════════════════
+Dentro la funzione `BrowseView`, trova l'elemento il cui style contiene
+`overflowY: "auto"` — è la colonna che scorre in verticale e contiene
+intestazione, carte e piede.
+
+Nel SUO oggetto style, aggiungi subito PRIMA di `overflowY: "auto"`:
+
+    overflowX: "hidden",
+
+Non cambiare nient'altro di quello style.
+
+Se dentro BrowseView più di un elemento ha `overflowY: "auto"`, NON scegliere:
+riportali tutti con il loro style completo e salta questo edit.
+Se non ce n'è nessuno, salta e riporta lo style della colonna che contiene
+<ParallaxPager.
+
+════════════════════════════════════════════════════════════
+VERIFICA — rispondi VOCE PER VOCE
+════════════════════════════════════════════════════════════
+a) Righe PRIMA e DOPO: ParallaxPager.tsx (atteso +4), StudyScreen.tsx (atteso
+   invariato, oppure +1 se lo style va a capo).
+b) Se un conteggio è RADDOPPIATO o più: FERMATI e dillo per primo.
+c) Edit 1 e 2: sì/no.
+d) Riporta verbatim lo style del contenitore di ParallaxPager e lo style della
+   colonna di BrowseView, così come sono ADESSO.
+e) Typecheck: pulito sì/no, errori per intero se ce ne sono.
+
+NON FARE
+· Nessun altro file. NON toccare TabPager.tsx, il clipPath, touchAction, la
+  logica di trascinamento, la vista elenco.
+· NON avviare il dev server, NON testare.
+· NON riscrivere nessun file per intero.
