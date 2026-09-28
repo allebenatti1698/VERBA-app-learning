@@ -27,6 +27,43 @@ function forcedFormat(): AnswerFormat | null {
   const v = new URLSearchParams(window.location.search).get("format");
   return v === "1" || v === "2" || v === "3" ? (Number(v) as AnswerFormat) : null;
 }
+/** "1,2,3" → [1, 2, 3]. Niente di valido → null: decide la scala, come prima. */
+function parseFormats(v: string | null): AnswerFormat[] | null {
+  if (!v) return null;
+  const out = Array.from(new Set(v.split(",").map((s) => Number(s.trim()))))
+    .filter((n): n is AnswerFormat => n === 1 || n === 2 || n === 3)
+    .sort((a, b) => a - b);
+  return out.length ? out : null;
+}
+
+/**
+ * Il mix calibrato di Practice: per ogni parola, la domanda che le serve.
+ * · Parola mai incontrata → Recognize, se è fra i formati scelti: scrivere una
+ *   parola mai vista è impossibile. Se l'utente ha escluso Recognize, si
+ *   rispetta la sua scelta.
+ * · Altrimenti il bersaglio è il formato UN GRADINO SOPRA quello in cui sta la
+ *   parola (mastered → Produce): ci si allena per il passo successivo.
+ * · Fra i formati scelti vince il più vicino al bersaglio; a pari distanza, il più basso.
+ * · Una domanda su quattro pesca un altro formato fra quelli scelti, per varietà.
+ *   La scelta dipende dalla parola e dalla sessione: resta la stessa per quella
+ *   parola finché la sessione dura, e cambia alla sessione successiva.
+ */
+function chooseFormat(
+  allowed: AnswerFormat[],
+  stat: { level: number; mastered: boolean } | null,
+  seed: string,
+): AnswerFormat {
+  if (allowed.length === 1) return allowed[0];
+  if (!stat && allowed.includes(1)) return 1;
+  const target = !stat ? 1 : stat.mastered ? 3 : Math.min(stat.level + 1, 3);
+  const byDistance = [...allowed].sort((a, b) => Math.abs(a - target) - Math.abs(b - target) || a - b);
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  h = Math.abs(h);
+  if (h % 4 === 0) return byDistance[1 + ((h >> 2) % (byDistance.length - 1))];
+  return byDistance[0];
+}
+
 // I ritardi di rivelazione appartengono al formato, non all'orchestratore:
 // se cambia la durata del vortice devono cambiare da soli.
 
@@ -89,6 +126,11 @@ export default function QuizScreen() {
   const difficultyParam = params.get("difficulty") ?? null;
   const setsParam = params.get("sets") ?? null;
   const sourceParam = params.get("source") ?? null;
+  // Practice: i formati scelti nel setup (es. "1,2,3"). Assente = decide la scala.
+  const formatsParam = params.get("formats");
+  const allowedFormats = useMemo(() => parseFormats(formatsParam), [formatsParam]);
+  // cambia a ogni sessione: il mix varia da una sessione all'altra, non dentro
+  const sessionSeed = useRef(Math.random().toString(36).slice(2));
 
   // ── Stato di sessione ────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);
@@ -172,14 +214,18 @@ export default function QuizScreen() {
    */
   const currentFormat: AnswerFormat = useMemo(() => {
     if (!currentWord) return 1;
-    const f = forcedFormat() ?? formatForWord(currentWord.id);
+    const f = forcedFormat()
+      ?? (allowedFormats
+        ? chooseFormat(allowedFormats, getWordStat(currentWord.id), `${currentWord.id}:${sessionSeed.current}`)
+        : formatForWord(currentWord.id));
     // Ripiego: se la parola non ha i dati del gradino 2, si interroga con quello
     // che c'è. Un formato senza dati deve degradare a una domanda che funziona,
     // mai a una schermata vuota. Il gradino registrato è quello EFFETTIVO.
-    if (f === 2 && !currentWord.contextStem) return 1;
-    if (f === 2 && (currentWord.contextDistractors ?? []).length < 3) return 1;
+    // In Practice il ripiego resta fra i formati scelti quando possibile.
+    const noContext = !currentWord.contextStem || (currentWord.contextDistractors ?? []).length < 3;
+    if (f === 2 && noContext) return allowedFormats && !allowedFormats.includes(1) && allowedFormats.includes(3) ? 3 : 1;
     return f;
-  }, [currentWord]);
+  }, [currentWord, allowedFormats]);
 
   // ── Risposta ─────────────────────────────────────────────────────────────
   // Unico punto dell'app in cui una risposta del quiz entra nell'SRS.

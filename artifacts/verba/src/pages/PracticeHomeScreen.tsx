@@ -300,7 +300,7 @@ export default function PracticeHomeScreen() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <motion.button
             whileTap={tapScale("card")} transition={TAP_SPRING}
-            onClick={() => navigate(`/difficulty?deck=${DECK}`)}
+            onClick={() => navigate(`/practice?deck=${DECK}`)}
             style={{ ...tile, borderColor: "rgba(167,139,250,0.2)" }}
           >
             <div style={stage}>

@@ -8,6 +8,7 @@ import NotFound from "@/pages/not-found";
 import WelcomeScreen from "@/pages/WelcomeScreen";
 import DeckSelectionScreen from "@/pages/DeckSelectionScreen";
 import PracticeHomeScreen from "@/pages/PracticeHomeScreen";
+import PracticeSetupScreen from "@/pages/PracticeSetupScreen";
 import DifficultyScreen from "@/pages/DifficultyScreen";
 import PreQuizSetup from "@/pages/PreQuizSetup";
 import QuizScreen from "@/pages/QuizScreen";
@@ -36,8 +37,9 @@ const TAB_ORDER = ["/study", "/decks", "/progress", "/profile"];
 
 /** 1 = avanti (entra da destra), -1 = indietro (entra da sinistra). */
 function slideDirection(from: string | null, to: string): 1 | -1 {
-  // la scelta del deck si apre dalla pillola di Practice: tornarci è tornare indietro
-  if (from === "/choose-deck" && to === "/decks") return -1;
+  // tornare a una scheda da una pagina fuori dalle schede (setup, quiz,
+  // risultati, scelta dei deck) è tornare indietro
+  if (from && !TAB_ORDER.includes(from) && TAB_ORDER.includes(to)) return -1;
   const a = from ? TAB_ORDER.indexOf(from) : -1;
   const b = TAB_ORDER.indexOf(to);
   if (a >= 0 && b >= 0 && a !== b) return b > a ? 1 : -1;
@@ -93,6 +95,7 @@ function Router() {
             <Route path="/study" component={StudyScreen} />
             <Route path="/decks" component={PracticeHomeScreen} />
             <Route path="/choose-deck" component={DeckSelectionScreen} />
+            <Route path="/practice" component={PracticeSetupScreen} />
             <Route path="/progress" component={ProgressScreen} />
             <Route path="/profile" component={ProfileScreen} />
             <Route path="/difficulty" component={DifficultyScreen} />
