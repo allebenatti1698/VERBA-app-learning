@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation, useSearch } from "wouter";
-import { ChevronLeft, GraduationCap } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
+import DeckPill from "@/components/DeckPill";
+import { estimateMinutes } from "@/lib/pace";
 import AppBackground from "@/components/AppBackground";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
@@ -24,8 +26,6 @@ const VIOLET = "#A78BFA";
 const LAVENDER = "#C7B8E8";
 const AMBER = "#F59E0B";
 const MAX_WORDS = 50;
-const SECS: Record<number, number> = { 1: 10, 2: 16, 3: 22 };
-
 const TIERS = [
   { difficulty: "easy", label: "Common" },
   { difficulty: "medium", label: "Uncommon" },
@@ -66,7 +66,13 @@ function Mini({ f }: { f: number }) {
 export default function PracticeSetupScreen() {
   const [, navigate] = useLocation();
   const search = useSearch();
-  const deck = new URLSearchParams(search).get("deck") ?? "gre";
+  const query = new URLSearchParams(search);
+  const deck = query.get("deck") ?? "gre";
+  // Dal ponte di Study arrivano i set già letti (?sets=…&from=study) e partono
+  // selezionati. Non si salvano da nessuna parte: rientrando in Practice dalla
+  // strada normale il setup torna al prossimo set.
+  const presetParam = query.get("sets");
+  const fromStudy = query.get("from") === "study";
 
   const [tiers, setTiers] = useState<Tier[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -89,19 +95,27 @@ export default function PracticeSetupScreen() {
         }));
         setTiers(built);
         // il prossimo set: il primo, in ordine di fascia, con parole mai incontrate
-        for (let t = 0; t < built.length; t++) {
+        let next: { k: string; t: number } | null = null;
+        for (let t = 0; t < built.length && !next; t++) {
           const i = built[t].met.findIndex((m) => m < 1);
-          if (i >= 0) {
-            const k = key(TIERS[t].difficulty, built[t].sets[i].setNumber);
-            setNextKey(k); setSelected(new Set([k])); setTier(t);
-            return;
-          }
+          if (i >= 0) next = { k: key(TIERS[t].difficulty, built[t].sets[i].setNumber), t };
         }
+        if (next) setNextKey(next.k);
+        // i set arrivati dal ponte di Study, solo se esistono davvero in questo deck
+        const valid = new Set<string>();
+        built.forEach((tb, t) => tb.sets.forEach((s) => valid.add(key(TIERS[t].difficulty, s.setNumber))));
+        const preset = (presetParam ?? "").split(",").map((x) => x.trim()).filter((x) => valid.has(x));
+        if (preset.length) {
+          setSelected(new Set(preset));
+          setTier(Math.max(0, TIERS.findIndex((t) => preset[0].startsWith(t.difficulty + ":"))));
+          return;
+        }
+        if (next) { setSelected(new Set([next.k])); setTier(next.t); return; }
         if (built[0].sets[0]) setSelected(new Set([key(TIERS[0].difficulty, built[0].sets[0].setNumber)]));
       })
       .catch((e: unknown) => { if (active) setError(e instanceof Error ? e.message : "Couldn't load the sets"); });
     return () => { active = false; };
-  }, [deck]);
+  }, [deck, presetParam]);
 
   const pool = useMemo(() => {
     if (!tiers) return 0;
@@ -112,8 +126,15 @@ export default function PracticeSetupScreen() {
   const maxWords = Math.min(MAX_WORDS, pool);
   const minWords = Math.min(5, maxWords);
   const count = Math.max(minWords, Math.min(words, maxWords));
-  const perQ = [...formats].reduce((a, f) => a + SECS[f], 0) / Math.max(1, formats.size);
-  const minutes = Math.max(1, Math.round((count * perQ) / 60));
+  // dal ritmo misurato nelle sessioni passate, o da una stima di partenza (vedi pace.ts)
+  const minutes = estimateMinutes([...formats], count);
+
+  const bridgeLabel = useMemo(() => {
+    if (!fromStudy || !presetParam) return null;
+    const nums = presetParam.split(",").map((x) => Number(x.split(":")[1])).filter((n) => Number.isFinite(n));
+    if (!nums.length) return null;
+    return nums.length === 1 ? `set ${nums[0]}` : `sets ${nums.slice(0, -1).join(", ")} and ${nums[nums.length - 1]}`;
+  }, [fromStudy, presetParam]);
 
   function shake(k: string) { setNope(k); window.setTimeout(() => setNope(null), 340); }
   function toggleSet(k: string) {
@@ -171,19 +192,26 @@ export default function PracticeSetupScreen() {
       <div style={{ position: "absolute", top: -40, left: -30, width: 240, height: 210, background: "radial-gradient(circle, rgba(167,139,250,0.12), transparent 70%)", pointerEvents: "none" }} />
 
       <div style={{ position: "relative", zIndex: 10, maxWidth: 640, margin: "0 auto", padding: "20px 20px 140px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-          <motion.button whileTap={tapScale("icon")} transition={TAP_SPRING} onClick={() => navigate("/decks")} aria-label="Back"
-            style={{ width: 34, height: 34, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.6)",
+        {/* pagina dentro Practice: indietro a sinistra, la pillola del deck a destra, poi il titolo */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 40 }}>
+          <motion.button whileTap={tapScale("icon")} transition={TAP_SPRING} onClick={() => navigate(fromStudy ? "/study" : "/decks")} aria-label="Back"
+            style={{ width: 34, height: 34, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.65)",
               display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
             <ChevronLeft size={17} />
           </motion.button>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontSize: 12, color: VIOLET,
-            border: "0.5px solid rgba(167,139,250,0.45)", borderRadius: 20, padding: "5px 11px", background: "rgba(167,139,250,0.07)" }}>
-            <GraduationCap size={14} color={VIOLET} /> {deck === "gre" ? "GRE" : deck}
-          </span>
+          <DeckPill current={deck} />
         </div>
-        <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 28, letterSpacing: "-0.6px", color: "#fff", margin: "4px 0 4px" }}>Set up your practice</h1>
-        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.45)", margin: "0 0 26px" }}>Pick your sets and the questions you want.</p>
+        <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 26, letterSpacing: "-0.6px", color: "#fff", margin: "18px 0 4px" }}>Set up your practice</h1>
+        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.5)", margin: "0 0 22px" }}>Pick your sets and the questions you want.</p>
+        {bridgeLabel && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 0 20px", padding: "10px 12px", borderRadius: 14,
+            background: "rgba(199,184,232,0.07)", border: "1px solid rgba(199,184,232,0.22)", fontFamily: "'Inter', sans-serif", fontSize: 12.5, color: "rgba(255,255,255,0.8)" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={LAVENDER} strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+              <rect x="5" y="3" width="14" height="18" rx="3" /><path d="M8.5 9h7M8.5 12.5h7M8.5 16h4.5" />
+            </svg>
+            <span>From Study — <b style={{ fontWeight: 600, color: LAVENDER }}>{bridgeLabel}</b>, ready to practice</span>
+          </div>
+        )}
 
         {/* ── i set ── */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
@@ -284,10 +312,13 @@ export default function PracticeSetupScreen() {
 
       {/* Begin: la stessa barra fissa in fondo del Next del quiz */}
       <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 30, padding: "18px 16px calc(18px + env(safe-area-inset-bottom))",
-        display: "flex", justifyContent: "center", background: "linear-gradient(to top, #0A0A0A 62%, transparent)", pointerEvents: "none" }}>
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 8, background: "linear-gradient(to top, #0A0A0A 62%, transparent)", pointerEvents: "none" }}>
+        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: "rgba(255,255,255,0.5)", margin: 0, pointerEvents: "none" }}>
+          {count} words · about {minutes} min
+        </p>
         <motion.button onClick={begin} whileTap={count > 0 ? tapScale() : undefined} transition={TAP_SPRING} disabled={count < 1}
           style={{ ...primaryButtonStyle, pointerEvents: "auto", touchAction: "manipulation", opacity: count < 1 ? 0.4 : 1 }}>
-          Begin · {count} words · ≈ {minutes} min
+          Begin
         </motion.button>
       </div>
     </div>

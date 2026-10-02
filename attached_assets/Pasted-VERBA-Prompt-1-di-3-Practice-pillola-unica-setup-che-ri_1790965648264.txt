@@ -1,0 +1,512 @@
+VERBA — Prompt 1 di 3 · Practice: pillola unica, setup che riceve i set dal ponte, durata sul tuo ritmo.
+ECONOMY MODE, Claude Sonnet 5, Effort Medium. Stima ~$1.00–1.80.
+Due file NUOVI, tre modificati.
+
+⚠ Questo prompt SOSTITUISCE "VERBA-pillola-ritmo-prompt.md". Se quello non è stato
+applicato, NON applicarlo mai: tutto ciò che conteneva è qui dentro.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+I file nuovi si CREANO; i file esistenti si toccano SOLO con edit mirati
+old_string → new_string. NESSUNA sostituzione integrale di file esistenti.
+Applica OGNI edit in modo INDIPENDENTE: se una find non combacia ESATTAMENTE,
+SALTA quell'edit e SEGNALALO, ma esegui comunque gli altri.
+Ogni find deve comparire UNA VOLTA SOLA nel suo file; se no, salta quell'edit.
+Negli edit "TROVA E ELIMINA" il testo va rimosso per intero.
+
+PRIMA DI TUTTO riporta il numero di righe di:
+  src/pages/PracticeHomeScreen.tsx · src/pages/PracticeSetupScreen.tsx · src/pages/QuizScreen.tsx
+e conferma che src/components/DeckPill.tsx e src/lib/pace.ts NON esistono ancora.
+Se uno dei due esiste già, FERMATI e dimmelo senza creare né modificare nulla.
+Atteso oggi: PracticeHomeScreen 466 righe, PracticeSetupScreen 295. Se i numeri
+sono diversi, dimmelo PRIMA di modificare qualunque cosa.
+
+CONTESTO
+1. La pillola "GRE ▾" sta sempre in alto a destra ed è la STESSA ovunque, con la
+   sua tendina. La tendina esce da PracticeHomeScreen e diventa un componente,
+   DeckPill, usato in Practice e nel setup.
+2. Il setup è una pagina DENTRO Practice: in alto il tasto indietro e la pillola,
+   sotto il titolo "Set up your practice" e la sua frase.
+3. Il setup può ricevere dei set dall'indirizzo (?sets=easy:9,easy:10&from=study):
+   arriveranno dal ponte di Study (prompt 3). Partono selezionati, compare la riga
+   "From Study — sets 9 and 10, ready to practice", e il tasto indietro torna a
+   Study. NON si salvano: entrando dalla strada normale il setup seleziona il
+   prossimo set, come oggi. Set inesistenti nell'indirizzo vengono ignorati.
+4. La durata stimata usa il ritmo reale: il quiz, a fine sessione, salva i secondi
+   a domanda per combinazione di formati (pace.ts); senza dati parte da 14/22/30 s.
+5. "Begin" non va più a capo: dice solo "Begin" (200px come tutti i bottoni
+   principali) e il dettaglio "16 words · about 6 min" sta su una riga sopra.
+
+════════════════════════════════════════════════════════════
+1 · FILE NUOVO — src/components/DeckPill.tsx  (96 righe)
+════════════════════════════════════════════════════════════
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useLocation } from "wouter";
+import { GraduationCap, ChevronDown, BookOpen, Library, Check } from "lucide-react";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+
+// La pillola del deck, sempre in alto a destra, identica in ogni schermata.
+// Toccandola si apre la tendina con i deck: cresce dall'angolo della pillola e
+// si chiude toccando fuori, con Esc, o scegliendo.
+//
+// Per ora scegliere un deck diverso porta alla sua scelta dei set. Quando
+// esisterà il deck corrente unico, qui cambierà solo cosa succede alla scelta.
+
+const DECKS = [
+  { id: "essential", short: "Essential", sec: "Foundations", name: "Essential English", line: "Words you need to know", color: "#60A5FA", Icon: BookOpen },
+  { id: "advanced", short: "Advanced", sec: "Foundations", name: "Advanced English", line: "Read newspapers and books fluently", color: "#60A5FA", Icon: Library },
+  { id: "gre", short: "GRE", sec: "Test prep", name: "GRE Vocabulary", line: "Advanced words for the GRE exam", color: "#A78BFA", Icon: GraduationCap },
+];
+
+export default function DeckPill({ current }: { current: string }) {
+  const [, navigate] = useLocation();
+  const [open, setOpen] = useState(false);
+  const deck = DECKS.find((d) => d.id === current) ?? DECKS[2];
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  return (
+    <div style={{ position: "relative" }}>
+      <motion.button
+        whileTap={tapScale("chip")} transition={TAP_SPRING}
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Choose a deck" aria-expanded={open}
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontSize: 12, color: deck.color,
+          border: `0.5px solid ${deck.color}73`, borderRadius: 20, padding: "5px 11px", background: `${deck.color}12`, cursor: "pointer" }}
+      >
+        <deck.Icon size={14} color={deck.color} /> {deck.short} <ChevronDown size={14} color={deck.color} />
+      </motion.button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div key="deck-scrim" onClick={() => setOpen(false)}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+        )}
+        {open && (
+          <motion.div
+            key="deck-menu"
+            role="menu"
+            initial={{ opacity: 0, scale: 0.92, y: -6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+            transition={{ type: "spring", stiffness: 420, damping: 32 }}
+            style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 41, width: 280, transformOrigin: "top right", borderRadius: 18, padding: 6,
+              background: "rgba(22,20,28,0.96)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 18px 50px rgba(0,0,0,0.55)",
+              backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
+          >
+            {DECKS.map((d, k) => {
+              const isCurrent = d.id === deck.id;
+              return (
+                <div key={d.id}>
+                  {(k === 0 || DECKS[k - 1].sec !== d.sec) && (
+                    <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase",
+                      color: d.color, opacity: 0.8, margin: k === 0 ? "8px 10px 6px" : "12px 10px 6px" }}>{d.sec}</p>
+                  )}
+                  <motion.button
+                    role="menuitemradio" aria-checked={isCurrent}
+                    whileTap={tapScale("row")} transition={TAP_SPRING}
+                    onClick={() => { setOpen(false); if (!isCurrent) navigate(`/difficulty?deck=${d.id}`); }}
+                    style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", padding: 10, borderRadius: 12,
+                      border: "none", cursor: "pointer", color: "#fff", outline: "none",
+                      background: isCurrent ? `${d.color}1A` : "transparent" }}
+                  >
+                    <span style={{ flex: "0 0 auto", width: 34, height: 34, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+                      background: `${d.color}1A`, border: `1px solid ${d.color}40` }}>
+                      <d.Icon size={16} color={d.color} />
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 14 }}>{d.name}</span>
+                      <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{d.line}</span>
+                    </span>
+                    {isCurrent && <Check size={16} color={d.color} />}
+                  </motion.button>
+                </div>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+════════════════════════════════════════════════════════════
+2 · FILE NUOVO — src/lib/pace.ts  (52 righe)
+════════════════════════════════════════════════════════════
+// Il ritmo di chi usa l'app: quanti secondi impiega, in media, per domanda.
+//
+// Il quiz lo registra a fine sessione (sa già quanto è durata: la misura per i
+// risultati), separatamente per ogni combinazione di formati — scrivere una
+// parola richiede più tempo che riconoscerla. Il setup lo usa per stimare la
+// durata di una sessione. Finché non ci sono abbastanza sessioni con quella
+// combinazione, usa valori di partenza che includono la lettura della scheda
+// quando sbagli e il tocco su Next.
+
+const PACE_KEY = "verba_pace";
+
+/** Secondi a domanda prima di avere dati propri. */
+const DEFAULT_SECS: Record<number, number> = { 1: 14, 2: 22, 3: 30 };
+
+/** Peso della sessione più recente nella media: il ritmo cambia con l'esperienza. */
+const ALPHA = 0.3;
+
+/** Sessioni necessarie prima di fidarsi del ritmo misurato. */
+const MIN_SESSIONS = 2;
+
+type Pace = Record<string, { secs: number; n: number }>;
+
+const keyOf = (formats: readonly number[] | null): string =>
+  formats && formats.length ? [...formats].sort((a, b) => a - b).join(",") : "auto";
+
+function read(): Pace {
+  try { return JSON.parse(localStorage.getItem(PACE_KEY) ?? "{}") as Pace; } catch { return {}; }
+}
+
+/** Da chiamare UNA volta a fine sessione. `formats` null = la scala ha scelto da sola. */
+export function recordPace(formats: readonly number[] | null, elapsedMs: number, questions: number): void {
+  if (questions < 3) return;
+  const per = elapsedMs / 1000 / questions;
+  // una sessione lasciata a metà (telefono in tasca) o finita troppo di corsa non insegna niente
+  if (!Number.isFinite(per) || per < 3 || per > 120) return;
+  const pace = read();
+  const k = keyOf(formats);
+  const prev = pace[k];
+  pace[k] = prev ? { secs: prev.secs * (1 - ALPHA) + per * ALPHA, n: prev.n + 1 } : { secs: per, n: 1 };
+  try { localStorage.setItem(PACE_KEY, JSON.stringify(pace)); } catch { /* resta la stima di partenza */ }
+}
+
+export function secondsPerQuestion(formats: readonly number[]): number {
+  const measured = read()[keyOf(formats)];
+  if (measured && measured.n >= MIN_SESSIONS) return measured.secs;
+  if (!formats.length) return 20;
+  return formats.reduce((a, f) => a + (DEFAULT_SECS[f] ?? 20), 0) / formats.length;
+}
+
+export function estimateMinutes(formats: readonly number[], count: number): number {
+  return Math.max(1, Math.round((count * secondsPerQuestion(formats)) / 60));
+}
+
+════════════════════════════════════════════════════════════
+3 · src/pages/PracticeHomeScreen.tsx — sei edit (la tendina esce, entra la pillola)
+════════════════════════════════════════════════════════════
+
+──── E1 · import: niente più AnimatePresence qui ────
+TROVA:
+import { motion, AnimatePresence } from "framer-motion";
+
+SOSTITUISCI CON:
+import { motion } from "framer-motion";
+
+──── E2 · import: le icone dei deck passano alla pillola ────
+TROVA:
+import { GraduationCap, ChevronDown, Play, BookOpen, Library, Check } from "lucide-react";
+
+SOSTITUISCI CON:
+import { Play } from "lucide-react";
+import DeckPill from "@/components/DeckPill";
+
+──── E3 · i deck vivono ora nella pillola ────
+TROVA E ELIMINA (sostituisci con NIENTE, stringa vuota):
+/**
+ * I deck della tendina, con le stesse sezioni, icone e colori della schermata
+ * dei deck. Per ora scegliere un deck diverso porta alla sua scelta dei set,
+ * come faceva la schermata dei deck: diventerà un cambio di deck vero quando
+ * esisterà il deck corrente unico.
+ */
+const DECKS = [
+  { id: "essential", sec: "Foundations", name: "Essential English", line: "Words you need to know", color: "#60A5FA", Icon: BookOpen },
+  { id: "advanced", sec: "Foundations", name: "Advanced English", line: "Read newspapers and books fluently", color: "#60A5FA", Icon: Library },
+  { id: "gre", sec: "Test prep", name: "GRE Vocabulary", line: "Advanced words for the GRE exam", color: "#A78BFA", Icon: GraduationCap },
+];
+
+
+
+──── E4 · lo stato della tendina vive ora nella pillola ────
+TROVA E ELIMINA (sostituisci con NIENTE, stringa vuota):
+
+  const [deckOpen, setDeckOpen] = useState(false);
+
+  useEffect(() => {
+    if (!deckOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDeckOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [deckOpen]);
+
+──── E5 · la pillola unica ────
+TROVA:
+          <motion.button
+            whileTap={tapScale("chip")} transition={TAP_SPRING}
+            onClick={() => setDeckOpen((o) => !o)}
+            aria-label="Choose a deck"
+            aria-expanded={deckOpen}
+            style={{ justifySelf: "end", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontSize: 12, color: VIOLET,
+              border: "0.5px solid rgba(167,139,250,0.45)", borderRadius: 20, padding: "5px 11px", background: "rgba(167,139,250,0.07)", cursor: "pointer" }}
+          >
+            <GraduationCap size={14} color={VIOLET} /> GRE <ChevronDown size={14} color={VIOLET} />
+          </motion.button>
+
+SOSTITUISCI CON:
+          <div style={{ justifySelf: "end" }}><DeckPill current={DECK} /></div>
+
+──── E6 · la tendina vive ora nella pillola ────
+TROVA E ELIMINA (sostituisci con NIENTE, stringa vuota):
+        {/* la tendina dei deck: cresce dall'angolo della pillola, si chiude toccando fuori */}
+        <AnimatePresence>
+          {deckOpen && (
+            <motion.div key="deck-scrim" onClick={() => setDeckOpen(false)}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              style={{ position: "fixed", inset: 0, zIndex: 20 }} />
+          )}
+          {deckOpen && (
+              <motion.div
+                key="deck-menu"
+                role="menu"
+                initial={{ opacity: 0, scale: 0.92, y: -6 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                style={{ position: "absolute", top: 58, right: 20, zIndex: 21, width: 280, transformOrigin: "top right", borderRadius: 18, padding: 6,
+                  background: "rgba(22,20,28,0.96)", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 18px 50px rgba(0,0,0,0.55)",
+                  backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
+              >
+                {DECKS.map((d, k) => {
+                  const current = d.id === DECK;
+                  return (
+                    <div key={d.id}>
+                      {(k === 0 || DECKS[k - 1].sec !== d.sec) && (
+                        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, letterSpacing: "0.14em", textTransform: "uppercase",
+                          color: d.color, opacity: 0.8, margin: k === 0 ? "8px 10px 6px" : "12px 10px 6px" }}>{d.sec}</p>
+                      )}
+                      <motion.button
+                        role="menuitemradio" aria-checked={current}
+                        whileTap={tapScale("row")} transition={TAP_SPRING}
+                        onClick={() => { setDeckOpen(false); if (!current) navigate(`/difficulty?deck=${d.id}`); }}
+                        style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", padding: 10, borderRadius: 12,
+                          border: "none", cursor: "pointer", color: "#fff", outline: "none",
+                          background: current ? "rgba(167,139,250,0.10)" : "transparent" }}
+                      >
+                        <span style={{ flex: "0 0 auto", width: 34, height: 34, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+                          background: `${d.color}1A`, border: `1px solid ${d.color}40` }}>
+                          <d.Icon size={16} color={d.color} />
+                        </span>
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 14 }}>{d.name}</span>
+                          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{d.line}</span>
+                        </span>
+                        {current && <Check size={16} color={VIOLET} />}
+                      </motion.button>
+                    </div>
+                  );
+                })}
+              </motion.div>
+          )}
+        </AnimatePresence>
+
+
+
+════════════════════════════════════════════════════════════
+4 · src/pages/PracticeSetupScreen.tsx — nove edit
+════════════════════════════════════════════════════════════
+
+──── S1 · import: la pillola unica e il ritmo ────
+TROVA:
+import { ChevronLeft, GraduationCap } from "lucide-react";
+
+SOSTITUISCI CON:
+import { ChevronLeft } from "lucide-react";
+import DeckPill from "@/components/DeckPill";
+import { estimateMinutes } from "@/lib/pace";
+
+──── S2 · via le stime inventate ────
+TROVA E ELIMINA (sostituisci con NIENTE, stringa vuota):
+const SECS: Record<number, number> = { 1: 10, 2: 16, 3: 22 };
+
+
+──── S3 · i set suggeriti dal ponte di Study, solo per questa visita ────
+TROVA:
+  const deck = new URLSearchParams(search).get("deck") ?? "gre";
+
+SOSTITUISCI CON:
+  const query = new URLSearchParams(search);
+  const deck = query.get("deck") ?? "gre";
+  // Dal ponte di Study arrivano i set già letti (?sets=…&from=study) e partono
+  // selezionati. Non si salvano da nessuna parte: rientrando in Practice dalla
+  // strada normale il setup torna al prossimo set.
+  const presetParam = query.get("sets");
+  const fromStudy = query.get("from") === "study";
+
+──── S4 · la selezione iniziale: dal ponte, altrimenti il prossimo set ────
+TROVA:
+        // il prossimo set: il primo, in ordine di fascia, con parole mai incontrate
+        for (let t = 0; t < built.length; t++) {
+          const i = built[t].met.findIndex((m) => m < 1);
+          if (i >= 0) {
+            const k = key(TIERS[t].difficulty, built[t].sets[i].setNumber);
+            setNextKey(k); setSelected(new Set([k])); setTier(t);
+            return;
+          }
+        }
+        if (built[0].sets[0]) setSelected(new Set([key(TIERS[0].difficulty, built[0].sets[0].setNumber)]));
+
+SOSTITUISCI CON:
+        // il prossimo set: il primo, in ordine di fascia, con parole mai incontrate
+        let next: { k: string; t: number } | null = null;
+        for (let t = 0; t < built.length && !next; t++) {
+          const i = built[t].met.findIndex((m) => m < 1);
+          if (i >= 0) next = { k: key(TIERS[t].difficulty, built[t].sets[i].setNumber), t };
+        }
+        if (next) setNextKey(next.k);
+        // i set arrivati dal ponte di Study, solo se esistono davvero in questo deck
+        const valid = new Set<string>();
+        built.forEach((tb, t) => tb.sets.forEach((s) => valid.add(key(TIERS[t].difficulty, s.setNumber))));
+        const preset = (presetParam ?? "").split(",").map((x) => x.trim()).filter((x) => valid.has(x));
+        if (preset.length) {
+          setSelected(new Set(preset));
+          setTier(Math.max(0, TIERS.findIndex((t) => preset[0].startsWith(t.difficulty + ":"))));
+          return;
+        }
+        if (next) { setSelected(new Set([next.k])); setTier(next.t); return; }
+        if (built[0].sets[0]) setSelected(new Set([key(TIERS[0].difficulty, built[0].sets[0].setNumber)]));
+
+──── S5 · l'effetto dipende anche dai set suggeriti ────
+TROVA:
+  }, [deck]);
+
+SOSTITUISCI CON:
+  }, [deck, presetParam]);
+
+──── S6 · la durata dal ritmo dell'utente, e la riga del ponte ────
+TROVA:
+  const perQ = [...formats].reduce((a, f) => a + SECS[f], 0) / Math.max(1, formats.size);
+  const minutes = Math.max(1, Math.round((count * perQ) / 60));
+
+SOSTITUISCI CON:
+  // dal ritmo misurato nelle sessioni passate, o da una stima di partenza (vedi pace.ts)
+  const minutes = estimateMinutes([...formats], count);
+
+  const bridgeLabel = useMemo(() => {
+    if (!fromStudy || !presetParam) return null;
+    const nums = presetParam.split(",").map((x) => Number(x.split(":")[1])).filter((n) => Number.isFinite(n));
+    if (!nums.length) return null;
+    return nums.length === 1 ? `set ${nums[0]}` : `sets ${nums.slice(0, -1).join(", ")} and ${nums[nums.length - 1]}`;
+  }, [fromStudy, presetParam]);
+
+──── S7 · l'intestazione: pagina dentro Practice ────
+TROVA:
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <motion.button whileTap={tapScale("icon")} transition={TAP_SPRING} onClick={() => navigate("/decks")} aria-label="Back"
+            style={{ width: 34, height: 34, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.6)",
+              display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <ChevronLeft size={17} />
+          </motion.button>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontSize: 12, color: VIOLET,
+            border: "0.5px solid rgba(167,139,250,0.45)", borderRadius: 20, padding: "5px 11px", background: "rgba(167,139,250,0.07)" }}>
+            <GraduationCap size={14} color={VIOLET} /> {deck === "gre" ? "GRE" : deck}
+          </span>
+        </div>
+        <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 28, letterSpacing: "-0.6px", color: "#fff", margin: "4px 0 4px" }}>Set up your practice</h1>
+        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.45)", margin: "0 0 26px" }}>Pick your sets and the questions you want.</p>
+
+SOSTITUISCI CON:
+        {/* pagina dentro Practice: indietro a sinistra, la pillola del deck a destra, poi il titolo */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 40 }}>
+          <motion.button whileTap={tapScale("icon")} transition={TAP_SPRING} onClick={() => navigate(fromStudy ? "/study" : "/decks")} aria-label="Back"
+            style={{ width: 34, height: 34, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.65)",
+              display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <ChevronLeft size={17} />
+          </motion.button>
+          <DeckPill current={deck} />
+        </div>
+        <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 26, letterSpacing: "-0.6px", color: "#fff", margin: "18px 0 4px" }}>Set up your practice</h1>
+        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.5)", margin: "0 0 22px" }}>Pick your sets and the questions you want.</p>
+        {bridgeLabel && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 0 20px", padding: "10px 12px", borderRadius: 14,
+            background: "rgba(199,184,232,0.07)", border: "1px solid rgba(199,184,232,0.22)", fontFamily: "'Inter', sans-serif", fontSize: 12.5, color: "rgba(255,255,255,0.8)" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={LAVENDER} strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+              <rect x="5" y="3" width="14" height="18" rx="3" /><path d="M8.5 9h7M8.5 12.5h7M8.5 16h4.5" />
+            </svg>
+            <span>From Study — <b style={{ fontWeight: 600, color: LAVENDER }}>{bridgeLabel}</b>, ready to practice</span>
+          </div>
+        )}
+
+──── S8 · la barra in fondo: dettaglio sopra, bottone sotto ────
+TROVA:
+        display: "flex", justifyContent: "center", background: "linear-gradient(to top, #0A0A0A 62%, transparent)", pointerEvents: "none" }}>
+
+SOSTITUISCI CON:
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 8, background: "linear-gradient(to top, #0A0A0A 62%, transparent)", pointerEvents: "none" }}>
+
+──── S9 · Begin come tutti gli altri bottoni principali ────
+TROVA:
+        <motion.button onClick={begin} whileTap={count > 0 ? tapScale() : undefined} transition={TAP_SPRING} disabled={count < 1}
+          style={{ ...primaryButtonStyle, pointerEvents: "auto", touchAction: "manipulation", opacity: count < 1 ? 0.4 : 1 }}>
+          Begin · {count} words · ≈ {minutes} min
+        </motion.button>
+
+SOSTITUISCI CON:
+        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: "rgba(255,255,255,0.5)", margin: 0, pointerEvents: "none" }}>
+          {count} words · about {minutes} min
+        </p>
+        <motion.button onClick={begin} whileTap={count > 0 ? tapScale() : undefined} transition={TAP_SPRING} disabled={count < 1}
+          style={{ ...primaryButtonStyle, pointerEvents: "auto", touchAction: "manipulation", opacity: count < 1 ? 0.4 : 1 }}>
+          Begin
+        </motion.button>
+
+════════════════════════════════════════════════════════════
+5 · src/pages/QuizScreen.tsx — due edit
+════════════════════════════════════════════════════════════
+
+──── Q1 · il ritmo si registra a fine sessione ────
+TROVA:
+        const elapsedMs = Date.now() - startTimeRef.current;
+
+SOSTITUISCI CON:
+        const elapsedMs = Date.now() - startTimeRef.current;
+        // il ritmo di chi studia, per stimare la durata nel setup (vedi pace.ts)
+        recordPace(allowedFormats, elapsedMs, quizWords.length);
+
+──── Q2 · import ────
+TROVA:
+import { undismissTrouble } from "@/lib/troubleDismiss";
+
+SOSTITUISCI CON:
+import { undismissTrouble } from "@/lib/troubleDismiss";
+import { recordPace } from "@/lib/pace";
+
+Per Q1: la riga `const elapsedMs = Date.now() - startTimeRef.current;` deve
+comparire UNA volta sola. `allowedFormats` è già dichiarato in cima al componente:
+NON dichiararlo di nuovo.
+
+════════════════════════════════════════════════════════════
+VERIFICA — rispondi VOCE PER VOCE, non in prosa
+════════════════════════════════════════════════════════════
+a) Righe PRIMA e DOPO: PracticeHomeScreen.tsx (atteso -80), PracticeSetupScreen.tsx
+   (atteso +32), QuizScreen.tsx (atteso +3).
+b) Righe dei file nuovi: DeckPill.tsx 96, pace.ts 52.
+c) Se un conteggio è RADDOPPIATO o più: FERMATI e dillo per primo.
+d) E1…E6, S1…S9, Q1, Q2: sì/no per ciascuno.
+e) In PracticeHomeScreen.tsx devono comparire ZERO volte: `deckOpen`, `DECKS`,
+   `AnimatePresence`, `menuitemradio`. `<DeckPill` UNA volta.
+f) In PracticeSetupScreen.tsx: `SECS` ZERO volte, `GraduationCap` ZERO volte,
+   `<DeckPill` UNA volta, `presetParam` almeno 4 volte, `fromStudy` almeno 3 volte.
+   Stampa l'intestazione (dal commento "pagina dentro Practice" alla fine del
+   blocco della riga "From Study") e la barra fissa in fondo, come sono ADESSO.
+g) In QuizScreen.tsx stampa le 4 righe attorno a `recordPace(`.
+h) Typecheck: pulito sì/no, errori riportati PER INTERO. Se l'errore è in un file
+   nuovo NON correggerlo: riportalo.
+i) Edit saltati e motivo.
+
+NON FARE
+· NON modificare wordStats.ts, TabPager.tsx, App.tsx, BottomNav.tsx, StudyScreen,
+  DeckSelectionScreen, primaryButtonStyle.ts, attached_assets/.
+· NON modificare DeckPill.tsx né pace.ts dopo averli creati.
+· NON avviare il dev server, NON testare.
+· NON riscrivere nessun file esistente per intero.

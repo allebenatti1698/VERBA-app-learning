@@ -9,6 +9,7 @@ import { parseSetsParam, getWordIdsForSelection } from "@/lib/studySets";
 import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
 import { recordAnswer, getWordStat, formatForWord, type AnswerFormat } from "@/lib/wordStats";
 import { undismissTrouble } from "@/lib/troubleDismiss";
+import { recordPace } from "@/lib/pace";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 import RecognizeQuestion from "@/components/quiz/RecognizeQuestion";
 import ContextQuestion from "@/components/quiz/ContextQuestion";
@@ -257,6 +258,8 @@ export default function QuizScreen() {
     setTimeout(() => {
       if (currentIndex + 1 >= quizWords.length) {
         const elapsedMs = Date.now() - startTimeRef.current;
+        // il ritmo di chi studia, per stimare la durata nel setup (vedi pace.ts)
+        recordPace(allowedFormats, elapsedMs, quizWords.length);
 
         if (sourceParam === "due") {
           const summary = quizWords.map((w, idx) => ({
