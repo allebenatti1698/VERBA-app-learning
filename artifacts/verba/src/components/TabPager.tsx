@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { motion, animate, useMotionValue, useTransform, type MotionValue } from "framer-motion";
 import { useLocation } from "wouter";
-import StudyScreen from "@/pages/StudyScreen";
+import StudyHomeScreen from "@/pages/StudyHomeScreen";
 import PracticeHomeScreen from "@/pages/PracticeHomeScreen";
 import ProgressScreen from "@/pages/ProgressScreen";
 import ProfileScreen from "@/pages/ProfileScreen";
@@ -20,7 +20,7 @@ import ProfileScreen from "@/pages/ProfileScreen";
 //   togliere una riga, un carosello, uno slider) NON viene rubato.
 
 export const TAB_ORDER = ["/study", "/decks", "/progress", "/profile"];
-const SCREENS: ComponentType[] = [StudyScreen, PracticeHomeScreen, ProgressScreen, ProfileScreen];
+const SCREENS: ComponentType[] = [StudyHomeScreen, PracticeHomeScreen, ProgressScreen, ProfileScreen];
 
 /* ── numeri da tarare a occhio ── */
 const SPRING = { type: "spring" as const, stiffness: 260, damping: 32, mass: 0.9 };

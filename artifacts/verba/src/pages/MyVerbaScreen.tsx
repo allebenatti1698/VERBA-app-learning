@@ -54,7 +54,7 @@ export default function MyVerbaScreen() {
       <div style={{ position: "relative", zIndex: 10, maxWidth: SCREEN_MAX, margin: "0 auto", padding: "18px 16px 36px", boxSizing: "border-box" }}>
 
         <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 18 }}>
-          <button onClick={() => navigate("/profile")} aria-label="Go back" style={{ position: "absolute", left: 0, background: "none", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 24, color: "rgba(245,158,11,0.8)", padding: "2px 8px", lineHeight: 1, outline: "none" }}>‹</button>
+          <button onClick={() => navigate("/study")} aria-label="Go back" style={{ position: "absolute", left: 0, background: "none", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif", fontSize: 24, color: "rgba(245,158,11,0.8)", padding: "2px 8px", lineHeight: 1, outline: "none" }}>‹</button>
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 13, color: "rgba(245,158,11,0.8)" }}>Verba</span>
         </div>
 

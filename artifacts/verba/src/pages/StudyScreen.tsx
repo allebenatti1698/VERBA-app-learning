@@ -300,7 +300,7 @@ function ContinueCard({ setsByDiff, onOpen }: { setsByDiff: SetsByDifficulty; on
   );
 }
 
-function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; label: string; set?: StudySet; onBack: () => void }) {
+export function BrowseView({ difficulty, label, set, onBack }: { difficulty: string; label: string; set?: StudySet; onBack: () => void }) {
   const [words, setWords] = useState<QuizWord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

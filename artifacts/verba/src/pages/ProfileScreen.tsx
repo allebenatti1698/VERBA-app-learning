@@ -100,7 +100,7 @@ export default function ProfileScreen() {
       <AppBackground showWords={false} />
       <div style={{ position: "relative", zIndex: 10, maxWidth: SCREEN_MAX, margin: "0 auto", padding: "18px 16px 32px", boxSizing: "border-box" }}>
 
-        <TabHeader tab="profile" subtitle="Your streak, your words, your settings." right={null} />
+        <TabHeader tab="profile" subtitle="Your account, your streak, your settings." right={null} />
 
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 18 }}>
           <div style={{ width: 52, height: 52, borderRadius: "50%", border: "2px solid rgba(199,184,232,0.55)", background: "rgba(167,139,250,0.1)", display: "flex", alignItems: "center", justifyContent: "center", color: LAV }}>
@@ -132,11 +132,6 @@ export default function ProfileScreen() {
               </div>
             ))}
           </div>
-        </div>
-
-        <GroupLabel>Library</GroupLabel>
-        <div style={groupCard}>
-          <Row icon={<Star size={16} color={AMBER_SOFT} />} label="My Verba" value={`${myCount} ${myCount === 1 ? "word" : "words"}`} onClick={() => navigate("/my-verba")} />
         </div>
 
         <GroupLabel>Support</GroupLabel>
