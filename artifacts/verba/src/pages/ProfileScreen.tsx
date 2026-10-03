@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useLocation } from "wouter";
 import { User, Flame, Star, HelpCircle, ThumbsUp, Mail, RotateCcw, Trash2, Lock, ChevronRight, Check } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
+import TabHeader from "@/components/TabHeader";
 import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { getMomentum, getBestStreak, getWeekStrip } from "@/lib/studyActivity";
 

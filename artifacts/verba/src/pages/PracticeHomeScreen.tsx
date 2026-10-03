@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { Play } from "lucide-react";
-import DeckPill from "@/components/DeckPill";
+import TabHeader from "@/components/TabHeader";
 import AppBackground from "@/components/AppBackground";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 import { computeProgress, type ProgressSnapshot } from "@/lib/progressStats";
@@ -208,12 +208,8 @@ export default function PracticeHomeScreen() {
       <div style={{ position: "absolute", top: -40, left: -30, width: 240, height: 210, background: "radial-gradient(circle, rgba(167,139,250,0.14), transparent 70%)", pointerEvents: "none" }} />
 
       <div style={{ position: "relative", zIndex: 10, padding: "20px 20px 40px", maxWidth: 640, margin: "0 auto" }}>
-        {/* intestazione: la stessa di Study e Progress */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", marginBottom: 26 }}>
-          <span />
-          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 13, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em" }}>Verba</span>
-          <div style={{ justifySelf: "end" }}><DeckPill current={DECK} /></div>
-        </div>
+        {/* intestazione comune delle schede: icona animata, titolo, pillola, a cosa serve */}
+        <TabHeader tab="practice" subtitle="Meet new words and keep the ones you know." />
 
         {/* le due card gemelle */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>

@@ -1,0 +1,353 @@
+VERBA — Prompt 2 di 3 · L'identità delle schede: icone animate e intestazioni comuni.
+ECONOMY MODE, Claude Sonnet 5, Effort Medium. Stima ~$0.90–1.60.
+Due file NUOVI, quattro modificati.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+I file nuovi si CREANO; i file esistenti si toccano SOLO con edit mirati
+old_string → new_string. NESSUNA sostituzione integrale di file esistenti.
+Applica OGNI edit in modo INDIPENDENTE: se una find non combacia ESATTAMENTE,
+SALTA quell'edit e SEGNALALO, ma esegui comunque gli altri.
+Ogni find deve comparire UNA VOLTA SOLA nel suo file; se no, salta quell'edit.
+
+PRIMA DI TUTTO riporta il numero di righe di:
+  src/components/BottomNav.tsx · src/pages/PracticeHomeScreen.tsx ·
+  src/pages/ProgressScreen.tsx · src/pages/ProfileScreen.tsx
+e conferma che src/components/TabIcon.tsx e src/components/TabHeader.tsx NON
+esistono ancora. Se uno dei due esiste già, FERMATI senza creare né modificare nulla.
+Conferma anche che src/components/DeckPill.tsx ESISTE (prompt 1). Se non esiste, FERMATI.
+
+CONTESTO
+· Ogni scheda ha un'icona disegnata su misura (TabIcon) che fa il suo gesto, una
+  volta, quando la scheda diventa attiva: Study scrive le sue righe, Practice fa
+  girare il punto sull'orbita, Progress accende i gradini salendo, Profile
+  allarga un alone. La stessa icona sta nella barra in basso e accanto al titolo.
+· In cima a ogni scheda, al posto della firma "Verba" centrata, un'intestazione
+  comune (TabHeader): icona e titolo a sinistra, pillola del deck a destra, sotto
+  una riga che dice a cosa serve la scheda. In Profile niente pillola.
+· La serie di giorni (StreakChip) esce dall'intestazione di Progress: la stessa
+  informazione vive, completa, nella card Momentum di Profile.
+· Study NON si tocca in questo prompt: la sua intestazione cambia nel prompt 3.
+
+════════════════════════════════════════════════════════════
+1 · FILE NUOVO — src/components/TabIcon.tsx  (106 righe)
+════════════════════════════════════════════════════════════
+import { useEffect, useRef, useState } from "react";
+
+// Le icone delle quattro schede, disegnate con lo stesso tratto.
+// Quando una scheda diventa attiva la sua icona fa il suo gesto UNA volta:
+//   Study    — le tre righe della pagina si scrivono
+//   Practice — il punto fa il giro dell'orbita
+//   Progress — i gradini si accendono salendo
+//   Profile  — un alone si allarga e svanisce
+// La stessa icona sta nella barra in basso e accanto al titolo della scheda:
+// le due partono nello stesso istante, perché seguono lo stesso cambio di pagina.
+
+export type TabKey = "study" | "practice" | "progress" | "profile";
+
+/** Durata del gesto. Sotto i due secondi: un saluto, non un richiamo. */
+const ICON_MS = 1600;
+
+const CSS = `
+.vti-play .vti-ln { stroke-dasharray: 8; stroke-dashoffset: 8; animation: vtiLn ${ICON_MS * 0.45}ms cubic-bezier(.3,.7,.2,1) forwards; }
+.vti-play .vti-ln:nth-of-type(2) { animation-delay: ${ICON_MS * 0.15}ms; }
+.vti-play .vti-ln:nth-of-type(3) { animation-delay: ${ICON_MS * 0.3}ms; }
+@keyframes vtiLn { to { stroke-dashoffset: 0; } }
+.vti-play .vti-orb { transform-origin: 12px 12px; animation: vtiOrb ${ICON_MS}ms cubic-bezier(.45,.05,.25,1); }
+@keyframes vtiOrb { to { transform: rotate(360deg); } }
+.vti-play .vti-sp { opacity: .3; animation: vtiSp ${ICON_MS * 0.5}ms ease forwards; }
+.vti-play .vti-sp:nth-of-type(2) { animation-delay: ${ICON_MS * 0.17}ms; }
+.vti-play .vti-sp:nth-of-type(3) { animation-delay: ${ICON_MS * 0.34}ms; }
+.vti-play .vti-sp:nth-of-type(4) { animation-delay: ${ICON_MS * 0.5}ms; }
+@keyframes vtiSp { 0% { opacity: .3; } 50% { opacity: 1; filter: drop-shadow(0 0 4px #F59E0B); } 100% { opacity: 1; } }
+.vti-halo { opacity: 0; }
+.vti-play .vti-halo { transform-origin: 12px 12px; animation: vtiHalo ${ICON_MS}ms cubic-bezier(.2,.8,.2,1); }
+@keyframes vtiHalo { 0% { opacity: .8; transform: scale(.6); } 100% { opacity: 0; transform: scale(1.6); } }
+@media (prefers-reduced-motion: reduce) {
+  .vti-play * { animation: none !important; }
+  .vti-play .vti-ln { stroke-dashoffset: 0; }
+  .vti-play .vti-sp { opacity: 1; }
+}
+`;
+
+// le regole delle animazioni entrano nella pagina una volta sola
+if (typeof document !== "undefined" && !document.getElementById("verba-tab-icons")) {
+  const el = document.createElement("style");
+  el.id = "verba-tab-icons";
+  el.textContent = CSS;
+  document.head.appendChild(el);
+}
+
+function Paths({ tab }: { tab: TabKey }) {
+  if (tab === "study") return (
+    <>
+      <rect x="5" y="3" width="14" height="18" rx="3" />
+      <path className="vti-ln" d="M8.5 9h7" />
+      <path className="vti-ln" d="M8.5 12.5h7" />
+      <path className="vti-ln" d="M8.5 16h4.5" />
+    </>
+  );
+  if (tab === "practice") return (
+    <>
+      <circle cx="12" cy="12" r="7.5" opacity="0.55" />
+      <g className="vti-orb"><circle cx="18.6" cy="8.5" r="2.4" fill="currentColor" stroke="none" /></g>
+    </>
+  );
+  if (tab === "progress") return (
+    <>
+      <path className="vti-sp" d="M4 20h4.5" />
+      <path className="vti-sp" d="M8.5 20v-5H13" />
+      <path className="vti-sp" d="M13 15v-5h4.5" />
+      <path className="vti-sp" d="M17.5 10V5H20" />
+    </>
+  );
+  return (
+    <>
+      <circle className="vti-halo" cx="12" cy="12" r="9.5" strokeWidth="1.2" />
+      <circle cx="12" cy="9" r="3.6" />
+      <path d="M5.5 19.5c1.4-3 3.8-4.4 6.5-4.4s5.1 1.4 6.5 4.4" />
+    </>
+  );
+}
+
+export default function TabIcon({ tab, active, size = 22 }: { tab: TabKey; active: boolean; size?: number }) {
+  // ogni volta che la scheda diventa attiva, l'icona si ridisegna e il gesto riparte
+  const [run, setRun] = useState(0);
+  const wasActive = useRef(false);
+  useEffect(() => {
+    if (active && !wasActive.current) setRun((r) => r + 1);
+    wasActive.current = active;
+  }, [active]);
+
+  return (
+    <svg
+      key={run}
+      className={run > 0 ? "vti-play" : undefined}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={tab === "progress" ? 1.8 : 1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ overflow: "visible", display: "block" }}
+    >
+      <Paths tab={tab} />
+    </svg>
+  );
+}
+
+════════════════════════════════════════════════════════════
+2 · FILE NUOVO — src/components/TabHeader.tsx  (53 righe)
+════════════════════════════════════════════════════════════
+import type { ReactNode } from "react";
+import { useLocation } from "wouter";
+import TabIcon, { type TabKey } from "@/components/TabIcon";
+import DeckPill from "@/components/DeckPill";
+
+// L'intestazione di ogni scheda, identica ovunque:
+//   [icona] Titolo                         [pillola del deck]
+//   una riga che dice a cosa serve la scheda
+// L'icona fa il suo gesto quando la scheda diventa quella attiva, nello stesso
+// istante dell'icona nella barra in basso.
+// Le pagine DENTRO una scheda (setup, scelta dei set…) non usano questa
+// intestazione: hanno il tasto indietro e un titolo loro.
+
+const META: Record<TabKey, { path: string; title: string; color: string }> = {
+  study: { path: "/study", title: "Study", color: "#C7B8E8" },
+  practice: { path: "/decks", title: "Practice", color: "#A78BFA" },
+  progress: { path: "/progress", title: "Progress", color: "#F59E0B" },
+  profile: { path: "/profile", title: "Profile", color: "#E5E7EB" },
+};
+
+export default function TabHeader({
+  tab,
+  subtitle,
+  right,
+}: {
+  tab: TabKey;
+  subtitle: string;
+  /** Cosa sta a destra del titolo. Assente = la pillola del deck; null = niente. */
+  right?: ReactNode;
+}) {
+  const [location] = useLocation();
+  const m = META[tab];
+  const active = location === m.path || (tab === "practice" && location === "/choose-deck");
+
+  return (
+    <>
+      <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 40 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+          <span style={{ color: m.color, display: "flex" }}>
+            <TabIcon tab={tab} active={active} size={28} />
+          </span>
+          <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 30, letterSpacing: "-0.8px", color: "#fff", margin: 0 }}>
+            {m.title}
+          </h1>
+        </div>
+        {right === undefined ? <DeckPill current="gre" /> : right}
+      </div>
+      <p style={{ position: "relative", fontFamily: "'Inter', sans-serif", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.5)", margin: "6px 0 24px" }}>
+        {subtitle}
+      </p>
+    </>
+  );
+}
+
+════════════════════════════════════════════════════════════
+3 · src/components/BottomNav.tsx — quattro edit
+════════════════════════════════════════════════════════════
+
+──── N1 · le icone disegnate al posto di quelle generiche ────
+TROVA:
+import { BookOpen, Target, LineChart, User } from "lucide-react";
+
+SOSTITUISCI CON:
+import TabIcon, { type TabKey } from "@/components/TabIcon";
+
+──── N2 · ogni scheda con la sua icona ────
+TROVA:
+const TABS = [
+  { path: "/study", label: "Study", Icon: BookOpen },
+  { path: "/decks", label: "Practice", Icon: Target },
+  { path: "/progress", label: "Progress", Icon: LineChart },
+  { path: "/profile", label: "Profile", Icon: User },
+];
+
+SOSTITUISCI CON:
+const TABS: { path: string; label: string; tab: TabKey }[] = [
+  { path: "/study", label: "Study", tab: "study" },
+  { path: "/decks", label: "Practice", tab: "practice" },
+  { path: "/progress", label: "Progress", tab: "progress" },
+  { path: "/profile", label: "Profile", tab: "profile" },
+];
+
+──── N3 ────
+TROVA:
+      {TABS.map(({ path, label, Icon }) => {
+
+SOSTITUISCI CON:
+      {TABS.map(({ path, label, tab }) => {
+
+──── N4 · l'icona fa il suo gesto quando la scheda diventa attiva ────
+TROVA:
+            <Icon size={22} strokeWidth={active ? 2 : 1.6} color={active ? ACTIVE : INACTIVE} />
+
+SOSTITUISCI CON:
+            <span style={{ display: "flex", color: active ? ACTIVE : INACTIVE }}>
+              <TabIcon tab={tab} active={active} size={22} />
+            </span>
+
+════════════════════════════════════════════════════════════
+4 · src/pages/PracticeHomeScreen.tsx — due edit
+════════════════════════════════════════════════════════════
+
+──── H1 · import ────
+TROVA:
+import DeckPill from "@/components/DeckPill";
+
+SOSTITUISCI CON:
+import TabHeader from "@/components/TabHeader";
+
+──── H2 · l'intestazione comune ────
+TROVA:
+        {/* intestazione: la stessa di Study e Progress */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", marginBottom: 26 }}>
+          <span />
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 13, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em" }}>Verba</span>
+          <div style={{ justifySelf: "end" }}><DeckPill current={DECK} /></div>
+        </div>
+
+SOSTITUISCI CON:
+        {/* intestazione comune delle schede: icona animata, titolo, pillola, a cosa serve */}
+        <TabHeader tab="practice" subtitle="Meet new words and keep the ones you know." />
+
+════════════════════════════════════════════════════════════
+5 · src/pages/ProgressScreen.tsx — tre edit, più la pulizia degli import
+════════════════════════════════════════════════════════════
+
+──── R1 · import ────
+TROVA:
+import AppBackground from "@/components/AppBackground";
+
+SOSTITUISCI CON:
+import AppBackground from "@/components/AppBackground";
+import TabHeader from "@/components/TabHeader";
+
+──── R2 · l'intestazione comune al posto della firma Verba ────
+TROVA:
+        <div style={{ textAlign: "center", marginBottom: 18 }}>
+          <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 13, fontWeight: 400, color: "rgba(245,158,11,0.8)", letterSpacing: "0.04em" }}>Verba</span>
+        </div>
+
+SOSTITUISCI CON:
+        <TabHeader tab="progress" subtitle="What you know, and how it's moving." />
+
+──── R3 · la serie di giorni e la pillola finta escono dall'alto ────
+TROVA E ELIMINA (sostituisci con NIENTE, stringa vuota):
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <StreakChip />
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'Inter', sans-serif", fontSize: 12, color: VIOLET, border: "0.5px solid rgba(167,139,250,0.45)", borderRadius: 20, padding: "5px 11px", background: "rgba(167,139,250,0.07)" }}>
+            <GraduationCap size={14} color={VIOLET} /> GRE <ChevronDown size={14} color={VIOLET} />
+          </span>
+        </div>
+
+Se R3 non combacia esattamente: trova il <div> che contiene `<StreakChip />` e,
+subito dopo, lo <span> statico con "GRE" e GraduationCap/ChevronDown; rimuovi quel
+<div> INTERO (dall'apertura alla sua chiusura) e riporta verbatim cosa hai rimosso.
+Se non sei sicuro di quale <div> sia, NON rimuovere niente e riporta le 15 righe
+che seguono `<TabHeader tab="progress"`.
+
+──── R4 · pulizia degli import ────
+Dopo R3, controlla in ProgressScreen.tsx se `StreakChip`, `GraduationCap` e
+`ChevronDown` sono ancora usati da qualche parte OLTRE alla riga di import.
+Rimuovi dall'import SOLO quelli che non sono più usati. Non toccare altri import.
+Riporta quali hai rimosso e quali sono rimasti perché ancora usati.
+
+════════════════════════════════════════════════════════════
+6 · src/pages/ProfileScreen.tsx — due edit
+════════════════════════════════════════════════════════════
+
+──── F1 · import ────
+TROVA:
+import AppBackground from "@/components/AppBackground";
+
+SOSTITUISCI CON:
+import AppBackground from "@/components/AppBackground";
+import TabHeader from "@/components/TabHeader";
+
+──── F2 · l'intestazione comune; in Profile niente pillola, il deck qui non c'entra ────
+TROVA:
+        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontStyle: "italic", fontSize: 13, color: "rgba(245,158,11,0.8)" }}>Verba</div>
+
+SOSTITUISCI CON:
+        <TabHeader tab="profile" subtitle="Your streak, your words, your settings." right={null} />
+
+════════════════════════════════════════════════════════════
+VERIFICA — rispondi VOCE PER VOCE, non in prosa
+════════════════════════════════════════════════════════════
+a) Righe PRIMA e DOPO: BottomNav (atteso +2), PracticeHomeScreen (atteso -4),
+   ProgressScreen (atteso circa -7, meno le righe di import eventualmente
+   accorciate), ProfileScreen (atteso +1).
+b) Righe dei file nuovi: TabIcon.tsx 106, TabHeader.tsx 53.
+c) Se un conteggio è RADDOPPIATO o più: FERMATI e dillo per primo.
+d) N1…N4, H1, H2, R1, R2, R3, R4, F1, F2: sì/no per ciascuno.
+e) Cerca nei quattro file modificati la stringa `>Verba<`: deve comparire ZERO
+   volte in BottomNav, PracticeHomeScreen, ProgressScreen e ProfileScreen.
+   (Resta in StudyScreen: è giusto, cambia nel prompt 3.)
+f) In BottomNav.tsx: `lucide-react` ZERO volte, `<TabIcon` UNA volta.
+g) Stampa le prime 25 righe del JSX restituito da ProgressScreen e da
+   ProfileScreen, a partire da `return (`.
+h) Typecheck: pulito sì/no, errori riportati PER INTERO. Se l'errore è in un file
+   nuovo NON correggerlo: riportalo.
+i) Edit saltati e motivo.
+
+NON FARE
+· NON modificare StudyScreen.tsx, StreakChip.tsx, TabPager.tsx, App.tsx,
+  DeckPill.tsx, attached_assets/.
+· NON cancellare il file StreakChip.tsx: Study lo usa ancora.
+· NON modificare TabIcon.tsx né TabHeader.tsx dopo averli creati.
+· NON avviare il dev server, NON testare.
+· NON riscrivere nessun file esistente per intero.

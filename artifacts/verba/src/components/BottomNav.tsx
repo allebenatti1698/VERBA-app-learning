@@ -1,15 +1,15 @@
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { BookOpen, Target, LineChart, User } from "lucide-react";
+import TabIcon, { type TabKey } from "@/components/TabIcon";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 
 export const TAB_PATHS = ["/study", "/decks", "/progress", "/profile", "/choose-deck"];
 
-const TABS = [
-  { path: "/study", label: "Study", Icon: BookOpen },
-  { path: "/decks", label: "Practice", Icon: Target },
-  { path: "/progress", label: "Progress", Icon: LineChart },
-  { path: "/profile", label: "Profile", Icon: User },
+const TABS: { path: string; label: string; tab: TabKey }[] = [
+  { path: "/study", label: "Study", tab: "study" },
+  { path: "/decks", label: "Practice", tab: "practice" },
+  { path: "/progress", label: "Progress", tab: "progress" },
+  { path: "/profile", label: "Profile", tab: "profile" },
 ];
 
 const ACTIVE = "#F59E0B";
@@ -39,7 +39,7 @@ export default function BottomNav() {
         paddingBottom: "calc(12px + env(safe-area-inset-bottom))",
       }}
     >
-      {TABS.map(({ path, label, Icon }) => {
+      {TABS.map(({ path, label, tab }) => {
         const active = location === path || (path === "/decks" && location === "/choose-deck");
         return (
           <motion.button
@@ -59,7 +59,9 @@ export default function BottomNav() {
               outline: "none",
             }}
           >
-            <Icon size={22} strokeWidth={active ? 2 : 1.6} color={active ? ACTIVE : INACTIVE} />
+            <span style={{ display: "flex", color: active ? ACTIVE : INACTIVE }}>
+              <TabIcon tab={tab} active={active} size={22} />
+            </span>
             <span
               style={{
                 fontFamily: "'Inter', sans-serif",
