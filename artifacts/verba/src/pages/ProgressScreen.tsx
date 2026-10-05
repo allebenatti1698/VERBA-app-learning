@@ -285,7 +285,7 @@ export default function ProgressScreen() {
   function startReview(ids: string[]) {
     if (ids.length === 0) return;
     try { sessionStorage.setItem(REVIEW_DUE_KEY, JSON.stringify(ids)); } catch { /* */ }
-    navigate("/setup?source=due");
+    navigate(`/quiz?source=due&words=${Math.min(50, ids.length)}`);
   }
 
   function toggleStar(id: string) {

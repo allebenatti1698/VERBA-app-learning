@@ -1,0 +1,256 @@
+VERBA — Le card che si allargano: Review e Practice nascono dalla loro card.
+ECONOMY MODE, Claude Sonnet 5, Effort Medium. Stima ~$0.70–1.30.
+Un file NUOVO, tre modificati.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Il file nuovo si CREA; i file esistenti si toccano SOLO con edit mirati
+old_string → new_string. NESSUNA sostituzione integrale di file esistenti.
+Applica OGNI edit in modo INDIPENDENTE: se una find non combacia ESATTAMENTE,
+SALTA quell'edit e SEGNALALO, ma esegui comunque gli altri.
+Ogni find deve comparire UNA VOLTA SOLA nel suo file; se no, salta quell'edit.
+
+PRIMA DI TUTTO riporta il numero di righe di:
+  src/pages/PracticeHomeScreen.tsx · src/App.tsx · src/pages/ProgressScreen.tsx
+e conferma che src/lib/pageTransition.ts NON esiste ancora (se esiste, FERMATI).
+
+CONTESTO
+· Toccando la card Review (fuori dal grafico) la card si allarga fino a coprire lo
+  schermo, il numero grande sale e svanisce verso il contatore, e la sessione
+  compare in dissolvenza SOPRA la card allargata. La Review parte SUBITO: niente
+  pagina che chiede quante parole fare; al massimo 50, le più in ritardo per prime
+  (getDueWordIds le restituisce già in quest'ordine e il quiz prende le prime N).
+· La card Practice si allarga allo stesso modo e si apre il setup.
+· Per evitare che la pagina nuova entri scorrendo da destra come le altre, la
+  schermata manda al Router un segnale "niente scorrimento" (pageTransition.ts).
+· Chi ha "riduci movimento" attivo salta l'allargamento: cambio di pagina normale.
+· Anche da Progress la Review parte subito, con le stesse regole (senza allargamento).
+· La pagina /setup?source=due (PreQuizSetup) NON si cancella: semplicemente nessuno
+  ci porta più. Resta nel codice.
+
+════════════════════════════════════════════════════════════
+1 · FILE NUOVO — src/lib/pageTransition.ts  (19 righe)
+════════════════════════════════════════════════════════════
+// Un segnale da una schermata al Router: "la prossima pagina non deve scorrere".
+//
+// Quando una card si allarga fino a coprire lo schermo, la pagina che segue
+// (la sessione di Review, il setup di Practice) nasce da lì: deve comparire in
+// dissolvenza sopra la card allargata, non entrare scorrendo da destra come le
+// altre. La schermata chiama skipNextSlide() subito prima di navigare; il
+// Router lo legge una volta sola al cambio di pagina con takeSkipSlide().
+
+let skip = false;
+
+export function skipNextSlide(): void {
+  skip = true;
+}
+
+export function takeSkipSlide(): boolean {
+  const s = skip;
+  skip = false;
+  return s;
+}
+
+════════════════════════════════════════════════════════════
+2 · src/pages/PracticeHomeScreen.tsx — otto edit
+════════════════════════════════════════════════════════════
+
+──── P1 · import: useRef e il segnale per il Router ────
+TROVA:
+import { useEffect, useMemo, useState } from "react";
+
+SOSTITUISCI CON:
+import { useEffect, useMemo, useRef, useState } from "react";
+
+──── P2 ────
+TROVA:
+import { fetchWordsByIds } from "@/lib/quizQueries";
+
+SOSTITUISCI CON:
+import { fetchWordsByIds } from "@/lib/quizQueries";
+import { skipNextSlide } from "@/lib/pageTransition";
+
+──── P3 · lo stato dell'allargamento ────
+TROVA:
+  const [hintSeen, setHintSeen] = useState(true);
+
+SOSTITUISCI CON:
+  const [hintSeen, setHintSeen] = useState(true);
+  // La card che si allarga fino a coprire lo schermo prima di aprire ciò che contiene.
+  const [expand, setExpand] = useState<{ kind: "review" | "practice"; rect: DOMRect; num?: DOMRect; to: string } | null>(null);
+  const expandDone = useRef(false);
+  const practiceCardRef = useRef<HTMLButtonElement | null>(null);
+  const reviewCardRef = useRef<HTMLButtonElement | null>(null);
+  const reviewNumRef = useRef<HTMLSpanElement | null>(null);
+
+──── P4 · la Review parte subito: niente pagina di setup, al massimo 50 parole, le più in ritardo per prime ────
+TROVA:
+  function startReview() {
+    if (due === 0) { setFlipped(true); return; }
+    try { sessionStorage.setItem(REVIEW_DUE_KEY, JSON.stringify(dueIds)); } catch { /* */ }
+    navigate("/setup?source=due");
+  }
+
+SOSTITUISCI CON:
+  function startReview() {
+    if (due === 0) { setFlipped(true); return; }
+    // getDueWordIds le dà già dalla più in ritardo: il quiz ne prende le prime N
+    try { sessionStorage.setItem(REVIEW_DUE_KEY, JSON.stringify(dueIds)); } catch { /* */ }
+    openFromCard("review", `/quiz?source=due&words=${Math.min(50, due)}`);
+  }
+
+  /** La card si allarga fino a coprire lo schermo, poi si apre ciò che contiene. */
+  function openFromCard(kind: "review" | "practice", to: string) {
+    const card = kind === "review" ? reviewCardRef.current : practiceCardRef.current;
+    const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!card || reduce) { navigate(to); return; }
+    expandDone.current = false;
+    setExpand({ kind, rect: card.getBoundingClientRect(), num: kind === "review" ? reviewNumRef.current?.getBoundingClientRect() : undefined, to });
+  }
+  function finishExpand() {
+    if (!expand || expandDone.current) return;
+    expandDone.current = true;
+    skipNextSlide();                 // la pagina nuova compare sopra la card, senza scorrere
+    navigate(expand.to);
+  }
+
+──── P5 · la card Practice si apre allo stesso modo ────
+TROVA:
+            onClick={() => navigate(`/practice?deck=${DECK}`)}
+            style={{ ...tile, borderColor: "rgba(167,139,250,0.2)" }}
+
+SOSTITUISCI CON:
+            ref={practiceCardRef}
+            onClick={() => openFromCard("practice", `/practice?deck=${DECK}`)}
+            style={{ ...tile, borderColor: "rgba(167,139,250,0.2)" }}
+
+──── P6 ────
+TROVA:
+                onClick={onReviewTap}
+                aria-label={hot ? `Start review, ${due} words due` : "Review: nothing due"}
+
+SOSTITUISCI CON:
+                ref={reviewCardRef}
+                onClick={onReviewTap}
+                aria-label={hot ? `Start review, ${due} words due` : "Review: nothing due"}
+
+──── P7 · il numero che vola verso il contatore della sessione ────
+TROVA:
+                <span style={{ ...bigNum, backgroundImage: hot ? `linear-gradient(180deg, #fff, ${AMBER_SOFT})` : "linear-gradient(180deg,#fff,#fff)" }}>{due}</span>
+
+SOSTITUISCI CON:
+                <span ref={reviewNumRef} style={{ ...bigNum, visibility: expand?.kind === "review" ? "hidden" : "visible", backgroundImage: hot ? `linear-gradient(180deg, #fff, ${AMBER_SOFT})` : "linear-gradient(180deg,#fff,#fff)" }}>{due}</span>
+
+──── P8 · l'allargamento, sopra tutta la schermata ────
+TROVA:
+        <TabHeader tab="practice" subtitle="Meet new words and keep the ones you know." />
+
+SOSTITUISCI CON:
+        <TabHeader tab="practice" subtitle="Meet new words and keep the ones you know." />
+
+        {/* la card che si allarga: stessa tinta della card, fino a coprire lo schermo */}
+        {expand && (
+          <motion.div
+            aria-hidden="true"
+            initial={{ top: expand.rect.top, left: expand.rect.left, width: expand.rect.width, height: expand.rect.height, borderRadius: 22 }}
+            animate={{ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0 }}
+            transition={{ duration: 0.42, ease: [0.2, 0.9, 0.25, 1] }}
+            onAnimationComplete={finishExpand}
+            style={{ position: "fixed", zIndex: 60, pointerEvents: "auto",
+              background: expand.kind === "review" ? "linear-gradient(165deg,#241a0a,#0D0C10 60%)" : "linear-gradient(165deg,#17122a,#0D0C10 60%)",
+              border: `1px solid ${expand.kind === "review" ? "rgba(245,158,11,0.4)" : "rgba(167,139,250,0.3)"}` }}
+          />
+        )}
+        {expand?.kind === "review" && expand.num && (
+          <motion.span
+            aria-hidden="true"
+            initial={{ top: expand.num.top, left: expand.num.left, scale: 1, opacity: 1 }}
+            animate={{ top: 22, left: window.innerWidth / 2 - expand.num.width * 0.18, scale: 0.36, opacity: 0 }}
+            transition={{ duration: 0.42, ease: [0.2, 0.9, 0.25, 1] }}
+            style={{ ...bigNum, position: "fixed", zIndex: 61, margin: 0, transformOrigin: "0 0", pointerEvents: "none",
+              backgroundImage: `linear-gradient(180deg, #fff, ${AMBER_SOFT})` }}
+          >
+            {due}
+          </motion.span>
+        )}
+
+════════════════════════════════════════════════════════════
+3 · src/App.tsx — quattro edit
+════════════════════════════════════════════════════════════
+
+──── X1 · il segnale delle card che si allargano ────
+TROVA:
+import TabPager from "@/components/TabPager";
+
+SOSTITUISCI CON:
+import TabPager from "@/components/TabPager";
+import { takeSkipSlide } from "@/lib/pageTransition";
+
+──── X2 · la direzione può essere anche 0: niente scorrimento ────
+TROVA:
+  const dirRef = useRef<1 | -1>(1);
+
+SOSTITUISCI CON:
+  const dirRef = useRef<1 | -1 | 0>(1);
+
+──── X3 · se la pagina nasce da una card allargata, non scorre ────
+TROVA:
+    dirRef.current = slideDirection(prevRef.current, location);
+
+SOSTITUISCI CON:
+    // 0 = la pagina nasce da una card che si è appena allargata a tutto schermo
+    dirRef.current = takeSkipSlide() ? 0 : slideDirection(prevRef.current, location);
+
+──── X4 · con direzione 0 la pagina nuova compare in dissolvenza, e quella vecchia resta ferma sotto ────
+TROVA:
+const slideVariants = {
+  enter: (d: number) => ({ x: d > 0 ? "100%" : "-100%" }),
+  center: { x: 0 },
+  exit: (d: number) => ({ x: d > 0 ? "-100%" : "100%" }),
+};
+
+SOSTITUISCI CON:
+const slideVariants = {
+  // d = 0: la pagina nuova compare in dissolvenza sopra la card allargata, senza scorrere
+  enter: (d: number) => (d === 0 ? { x: 0, opacity: 0 } : { x: d > 0 ? "100%" : "-100%", opacity: 1 }),
+  center: { x: 0, opacity: 1 },
+  exit: (d: number) => (d === 0 ? { x: 0, opacity: 1 } : { x: d > 0 ? "-100%" : "100%", opacity: 1 }),
+};
+
+════════════════════════════════════════════════════════════
+4 · src/pages/ProgressScreen.tsx — la Review parte subito anche da qui
+════════════════════════════════════════════════════════════
+──── R1 ────
+Trova la funzione che avvia la Review da Progress: scrive gli id nella chiave
+"verba_review_due" di sessionStorage e poi chiama `navigate("/setup?source=due")`.
+Sostituisci SOLO quella chiamata con:
+    navigate(`/quiz?source=due&words=${Math.min(50, ids.length)}`)
+dove `ids` è il nome della lista di id che la funzione ha appena scritto in
+sessionStorage. Se nella funzione la lista ha un altro nome, usa quello.
+Se `navigate("/setup?source=due")` compare zero volte o più di una nel file, NON
+modificare nulla e riporta ogni riga che contiene `/setup`.
+Riporta la funzione intera PRIMA e DOPO.
+
+════════════════════════════════════════════════════════════
+VERIFICA — rispondi VOCE PER VOCE, non in prosa
+════════════════════════════════════════════════════════════
+a) Righe PRIMA e DOPO: PracticeHomeScreen (atteso +51), App.tsx (atteso +3),
+   ProgressScreen (atteso invariato).
+b) Righe di pageTransition.ts: 19.
+c) Se un conteggio è RADDOPPIATO o più: FERMATI e dillo per primo.
+d) P1…P8, X1…X4, R1: sì/no per ciascuno.
+e) In PracticeHomeScreen.tsx: `/setup?source=due` ZERO volte; `skipNextSlide` DUE
+   volte (import e uso); `openFromCard(` TRE volte (definizione e due usi).
+f) In App.tsx stampa, com'è ADESSO, il blocco `const slideVariants` e le righe
+   attorno a `takeSkipSlide()`.
+g) Cerca in tutto src/ `/setup?source=due`: riporta file e riga di ogni occorrenza
+   rimasta (solo lettura).
+h) Typecheck: pulito sì/no, errori riportati PER INTERO.
+i) Edit saltati e motivo.
+
+NON FARE
+· NON cancellare PreQuizSetup né la sua rotta.
+· NON modificare QuizScreen.tsx, TabPager.tsx, BottomNav.tsx, attached_assets/.
+· NON cambiare durata né curva dello scorrimento (SLIDE.transition resta uguale).
+· NON avviare il dev server, NON testare.
+· NON riscrivere nessun file esistente per intero.

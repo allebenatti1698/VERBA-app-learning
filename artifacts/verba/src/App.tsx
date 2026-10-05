@@ -21,6 +21,7 @@ import MyVerbaScreen from "@/pages/MyVerbaScreen";
 import HowItWorksScreen from "@/pages/HowItWorksScreen";
 import BottomNav, { TAB_PATHS } from "@/components/BottomNav";
 import TabPager from "@/components/TabPager";
+import { takeSkipSlide } from "@/lib/pageTransition";
 
 const queryClient = new QueryClient();
 
@@ -48,9 +49,10 @@ function slideDirection(from: string | null, to: string): 1 | -1 {
 }
 
 const slideVariants = {
-  enter: (d: number) => ({ x: d > 0 ? "100%" : "-100%" }),
-  center: { x: 0 },
-  exit: (d: number) => ({ x: d > 0 ? "-100%" : "100%" }),
+  // d = 0: la pagina nuova compare in dissolvenza sopra la card allargata, senza scorrere
+  enter: (d: number) => (d === 0 ? { x: 0, opacity: 0 } : { x: d > 0 ? "100%" : "-100%", opacity: 1 }),
+  center: { x: 0, opacity: 1 },
+  exit: (d: number) => (d === 0 ? { x: 0, opacity: 1 } : { x: d > 0 ? "-100%" : "100%", opacity: 1 }),
 };
 
 function Router() {
@@ -59,9 +61,10 @@ function Router() {
   // Calcolata una volta per cambio di pagina e tenuta ferma: AnimatePresence la
   // passa anche alla pagina che esce, così le due scorrono nello stesso verso.
   const prevRef = useRef<string | null>(null);
-  const dirRef = useRef<1 | -1>(1);
+  const dirRef = useRef<1 | -1 | 0>(1);
   if (prevRef.current !== location) {
-    dirRef.current = slideDirection(prevRef.current, location);
+    // 0 = la pagina nasce da una card che si è appena allargata a tutto schermo
+    dirRef.current = takeSkipSlide() ? 0 : slideDirection(prevRef.current, location);
     prevRef.current = location;
   }
   const dir = dirRef.current;

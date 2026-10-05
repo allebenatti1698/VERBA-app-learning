@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { Play } from "lucide-react";
@@ -9,6 +9,7 @@ import { computeProgress, type ProgressSnapshot } from "@/lib/progressStats";
 import { getDueWordIds, getAllWordStats } from "@/lib/wordStats";
 import { getStudySets, type StudySet } from "@/lib/studySets";
 import { fetchWordsByIds } from "@/lib/quizQueries";
+import { skipNextSlide } from "@/lib/pageTransition";
 
 // La scheda Practice: due card gemelle e Quick start.
 //
@@ -120,6 +121,12 @@ export default function PracticeHomeScreen() {
   const [savedPreview, setSavedPreview] = useState<string[]>([]);
   const [flipped, setFlipped] = useState(false);
   const [hintSeen, setHintSeen] = useState(true);
+  // La card che si allarga fino a coprire lo schermo prima di aprire ciò che contiene.
+  const [expand, setExpand] = useState<{ kind: "review" | "practice"; rect: DOMRect; num?: DOMRect; to: string } | null>(null);
+  const expandDone = useRef(false);
+  const practiceCardRef = useRef<HTMLButtonElement | null>(null);
+  const reviewCardRef = useRef<HTMLButtonElement | null>(null);
+  const reviewNumRef = useRef<HTMLSpanElement | null>(null);
   const dueIds = useMemo(() => getDueWordIds(), []);
   const due = dueIds.length;
   const week = useMemo(() => weekAhead(due), [due]);
@@ -163,8 +170,24 @@ export default function PracticeHomeScreen() {
 
   function startReview() {
     if (due === 0) { setFlipped(true); return; }
+    // getDueWordIds le dà già dalla più in ritardo: il quiz ne prende le prime N
     try { sessionStorage.setItem(REVIEW_DUE_KEY, JSON.stringify(dueIds)); } catch { /* */ }
-    navigate("/setup?source=due");
+    openFromCard("review", `/quiz?source=due&words=${Math.min(50, due)}`);
+  }
+
+  /** La card si allarga fino a coprire lo schermo, poi si apre ciò che contiene. */
+  function openFromCard(kind: "review" | "practice", to: string) {
+    const card = kind === "review" ? reviewCardRef.current : practiceCardRef.current;
+    const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!card || reduce) { navigate(to); return; }
+    expandDone.current = false;
+    setExpand({ kind, rect: card.getBoundingClientRect(), num: kind === "review" ? reviewNumRef.current?.getBoundingClientRect() : undefined, to });
+  }
+  function finishExpand() {
+    if (!expand || expandDone.current) return;
+    expandDone.current = true;
+    skipNextSlide();                 // la pagina nuova compare sopra la card, senza scorrere
+    navigate(expand.to);
   }
   function onReviewTap(e: React.MouseEvent) {
     // il grafico è la settimana: toccarlo gira la card
@@ -211,11 +234,38 @@ export default function PracticeHomeScreen() {
         {/* intestazione comune delle schede: icona animata, titolo, pillola, a cosa serve */}
         <TabHeader tab="practice" subtitle="Meet new words and keep the ones you know." />
 
+        {/* la card che si allarga: stessa tinta della card, fino a coprire lo schermo */}
+        {expand && (
+          <motion.div
+            aria-hidden="true"
+            initial={{ top: expand.rect.top, left: expand.rect.left, width: expand.rect.width, height: expand.rect.height, borderRadius: 22 }}
+            animate={{ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0 }}
+            transition={{ duration: 0.42, ease: [0.2, 0.9, 0.25, 1] }}
+            onAnimationComplete={finishExpand}
+            style={{ position: "fixed", zIndex: 60, pointerEvents: "auto",
+              background: expand.kind === "review" ? "linear-gradient(165deg,#241a0a,#0D0C10 60%)" : "linear-gradient(165deg,#17122a,#0D0C10 60%)",
+              border: `1px solid ${expand.kind === "review" ? "rgba(245,158,11,0.4)" : "rgba(167,139,250,0.3)"}` }}
+          />
+        )}
+        {expand?.kind === "review" && expand.num && (
+          <motion.span
+            aria-hidden="true"
+            initial={{ top: expand.num.top, left: expand.num.left, scale: 1, opacity: 1 }}
+            animate={{ top: 22, left: window.innerWidth / 2 - expand.num.width * 0.18, scale: 0.36, opacity: 0 }}
+            transition={{ duration: 0.42, ease: [0.2, 0.9, 0.25, 1] }}
+            style={{ ...bigNum, position: "fixed", zIndex: 61, margin: 0, transformOrigin: "0 0", pointerEvents: "none",
+              backgroundImage: `linear-gradient(180deg, #fff, ${AMBER_SOFT})` }}
+          >
+            {due}
+          </motion.span>
+        )}
+
         {/* le due card gemelle */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <motion.button
             whileTap={tapScale("card")} transition={TAP_SPRING}
-            onClick={() => navigate(`/practice?deck=${DECK}`)}
+            ref={practiceCardRef}
+            onClick={() => openFromCard("practice", `/practice?deck=${DECK}`)}
             style={{ ...tile, borderColor: "rgba(167,139,250,0.2)" }}
           >
             <div style={stage}>
@@ -235,6 +285,7 @@ export default function PracticeHomeScreen() {
               transition: "transform 0.7s cubic-bezier(.3,1.25,.35,1)", transform: flipped ? "rotateY(180deg)" : "none" }}>
               <motion.button
                 whileTap={tapScale("card")} transition={TAP_SPRING}
+                ref={reviewCardRef}
                 onClick={onReviewTap}
                 aria-label={hot ? `Start review, ${due} words due` : "Review: nothing due"}
                 style={{ ...tile, backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden",
@@ -253,7 +304,7 @@ export default function PracticeHomeScreen() {
                   </div>
                 </div>
                 <span style={cardTitle}>Review</span>
-                <span style={{ ...bigNum, backgroundImage: hot ? `linear-gradient(180deg, #fff, ${AMBER_SOFT})` : "linear-gradient(180deg,#fff,#fff)" }}>{due}</span>
+                <span ref={reviewNumRef} style={{ ...bigNum, visibility: expand?.kind === "review" ? "hidden" : "visible", backgroundImage: hot ? `linear-gradient(180deg, #fff, ${AMBER_SOFT})` : "linear-gradient(180deg,#fff,#fff)" }}>{due}</span>
                 <span style={caption}>
                   {due === 0 ? `nothing due · ${tomorrow} tomorrow` : due > 50 ? "waiting · 50 a day to catch up" : "due today"}
                 </span>
