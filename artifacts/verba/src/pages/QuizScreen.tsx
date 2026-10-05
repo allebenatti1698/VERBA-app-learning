@@ -10,6 +10,7 @@ import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
 import { recordAnswer, getWordStat, formatForWord, type AnswerFormat } from "@/lib/wordStats";
 import { undismissTrouble } from "@/lib/troubleDismiss";
 import { recordPace } from "@/lib/pace";
+import { skipNextSlide, requestCollapse } from "@/lib/pageTransition";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 import RecognizeQuestion from "@/components/quiz/RecognizeQuestion";
 import ContextQuestion from "@/components/quiz/ContextQuestion";
@@ -204,6 +205,17 @@ export default function QuizScreen() {
 
   const handleRetry = useCallback(() => setFetchKey((k) => k + 1), []);
 
+  // ✕: si esce quando si vuole. Ogni risposta è già registrata nel momento in
+  // cui viene data, quindi uscire a metà non fa perdere niente. Dalla Review si
+  // torna dentro la sua card, che si richiude al suo posto.
+  function handleClose() {
+    if (sourceParam === "due") {
+      requestCollapse("review");
+      skipNextSlide();
+    }
+    setLocation("/decks");
+  }
+
   const currentWord: QuizWord | undefined = quizWords[currentIndex];
 
   /**
@@ -379,6 +391,15 @@ export default function QuizScreen() {
         <p style={{ fontFamily: "'Inter', sans-serif", fontWeight: 300, fontSize: "0.72rem", color: "rgba(255,255,255,0.3)", textAlign: "center", marginTop: 8, letterSpacing: "0.08em" }}>
           {counterLabel}
         </p>
+        <button
+          onClick={handleClose}
+          aria-label="Close session"
+          style={{ position: "absolute", top: 10, left: 12, width: 32, height: 32, borderRadius: "50%", border: "none",
+            background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)", display: "flex", alignItems: "center",
+            justifyContent: "center", cursor: "pointer", outline: "none" }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
       </div>
 
       {/* Main content */}

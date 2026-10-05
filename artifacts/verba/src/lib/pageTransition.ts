@@ -17,3 +17,28 @@ export function takeSkipSlide(): boolean {
   skip = false;
   return s;
 }
+
+/*
+ * Il ritorno. Chi esce da una pagina nata da una card (la ✕ della Review, il
+ * tasto indietro del setup) chiama requestCollapse() prima di navigare: la
+ * schermata Practice, appena ricompare, si presenta coperta dalla tinta di
+ * quella card e la richiude al suo posto.
+ * Il segnale si LEGGE senza consumarlo (peekCollapse), perché il primo disegno
+ * può avvenire due volte; lo cancella chi ha finito l'animazione
+ * (clearCollapse), e comunque scade da solo dopo un secondo e mezzo.
+ */
+type CardKind = "review" | "practice";
+let collapse: { kind: CardKind; at: number } | null = null;
+
+export function requestCollapse(kind: CardKind): void {
+  collapse = { kind, at: Date.now() };
+}
+
+export function peekCollapse(): CardKind | null {
+  if (!collapse || Date.now() - collapse.at > 1500) return null;
+  return collapse.kind;
+}
+
+export function clearCollapse(): void {
+  collapse = null;
+}

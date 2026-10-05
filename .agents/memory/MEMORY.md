@@ -1,1 +1,2 @@
 - [Recurring file duplication bug](verba-file-duplication.md) — Verba's FeedbackCard/ContextQuestion/RecognizeQuestion.tsx keep getting re-duplicated (×2 up to ×512); recover via `git checkout HEAD -- <file>`, verify against HEAD before editing.
+- [Economy Mode edits](economy-mode.md) — Follow attached prompts literally: targeted unique replacements, independent skips, no live testing or dev-server starts.

@@ -4,6 +4,7 @@ import { useLocation, useSearch } from "wouter";
 import { ChevronLeft } from "lucide-react";
 import DeckPill from "@/components/DeckPill";
 import { estimateMinutes } from "@/lib/pace";
+import { skipNextSlide, requestCollapse } from "@/lib/pageTransition";
 import AppBackground from "@/components/AppBackground";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
@@ -153,6 +154,13 @@ export default function PracticeSetupScreen() {
     if (next.has(f)) { if (next.size === 1) { shake(`f${f}`); return; } next.delete(f); } else next.add(f);
     setFormats(next);
   }
+  function goBack() {
+    if (fromStudy) { navigate("/study"); return; }
+    // si torna dentro la card Practice, che si richiude al suo posto
+    requestCollapse("practice");
+    skipNextSlide();
+    navigate("/decks");
+  }
   function begin() {
     if (count < 1) return;
     const sets = [...selected].sort().join(",");
@@ -194,7 +202,7 @@ export default function PracticeSetupScreen() {
       <div style={{ position: "relative", zIndex: 10, maxWidth: 640, margin: "0 auto", padding: "20px 20px 140px" }}>
         {/* pagina dentro Practice: indietro a sinistra, la pillola del deck a destra, poi il titolo */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 40 }}>
-          <motion.button whileTap={tapScale("icon")} transition={TAP_SPRING} onClick={() => navigate(fromStudy ? "/study" : "/decks")} aria-label="Back"
+          <motion.button whileTap={tapScale("icon")} transition={TAP_SPRING} onClick={goBack} aria-label="Back"
             style={{ width: 34, height: 34, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.65)",
               display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
             <ChevronLeft size={17} />
