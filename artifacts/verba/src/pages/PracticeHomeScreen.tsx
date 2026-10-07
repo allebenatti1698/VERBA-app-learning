@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { motion } from "framer-motion";
+import { motion, PresenceContext } from "framer-motion";
 import { useLocation } from "wouter";
 import { Play } from "lucide-react";
 import TabHeader from "@/components/TabHeader";
@@ -135,7 +135,8 @@ export default function PracticeHomeScreen() {
   // pieno, e la richiude al suo posto appena la card è misurabile.
   const [collapse, setCollapse] = useState<{ kind: "review" | "practice"; rect: DOMRect | null; num: DOMRect | null; leaving: boolean } | null>(() => {
     const kind = peekCollapse();
-    return kind ? { kind, rect: null, num: null, leaving: false } : null;
+    // solo le due card di questa schermata (la card Chain si richiude in Profile)
+    return kind === "review" || kind === "practice" ? { kind, rect: null, num: null, leaving: false } : null;
   });
   const practiceCardRef = useRef<HTMLButtonElement | null>(null);
   const reviewCardRef = useRef<HTMLButtonElement | null>(null);
@@ -268,7 +269,8 @@ export default function PracticeHomeScreen() {
             più alto della pagina: dentro la striscia delle schede, che è spostata di
             lato, un elemento "fisso" si fisserebbe alla striscia e non allo schermo. */}
         {typeof document !== "undefined" && createPortal(
-          <>
+          // PresenceContext null: la tinta parte sempre dalla card (vedi ProfileScreen)
+          <PresenceContext.Provider value={null}>
             {expand && (
               <motion.div
                 aria-hidden="true"
@@ -319,7 +321,7 @@ export default function PracticeHomeScreen() {
                 {due}
               </motion.span>
             )}
-          </>,
+          </PresenceContext.Provider>,
           document.body,
         )}
 

@@ -1,10 +1,15 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { motion, PresenceContext } from "framer-motion";
 import { useLocation } from "wouter";
-import { User, Flame, Star, HelpCircle, ThumbsUp, Mail, RotateCcw, Trash2, Lock, ChevronRight, Check } from "lucide-react";
+import { User, Star, HelpCircle, ThumbsUp, Mail, RotateCcw, Trash2, Lock, ChevronRight, Check } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
 import TabHeader from "@/components/TabHeader";
 import { SCREEN_MAX } from "@/components/ScreenColumn";
-import { getMomentum, getBestStreak, getWeekStrip } from "@/lib/studyActivity";
+import { CHAIN_CSS, ChainIcon, ChainStrip } from "@/components/ChainLinks";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+import { getChain, lastDays } from "@/lib/chain";
+import { skipNextSlide, peekCollapse, clearCollapse } from "@/lib/pageTransition";
 
 const SUPPORT_EMAIL = "support@verba.app";
 const RATE_URL = "";
@@ -15,13 +20,19 @@ const LAV = "#C7B8E8";
 const GREEN = "#34D399";
 const RED = "#EF4444";
 
+// la card Chain: fondo pieno (non trasparente) perché l'intreccio degli anelli
+// "taglia" con il colore dello sfondo; la stessa tinta si allarga verso la schermata Chain
+const CHAIN_CARD_BG = "linear-gradient(170deg, #1b140a, #121010 55%)";
+const CHAIN_TINT = "linear-gradient(170deg, #1b140a, #0D0C0B 60%)";
+const CHAIN_EDGE = "rgba(245,158,11,0.22)";
+
 function loadMyWordsCount(): number {
   try { return (JSON.parse(localStorage.getItem("verba_my_words") ?? "[]") as string[]).length; }
   catch { return 0; }
 }
 
 // Chiavi "progresso" da azzerare: include my_words e last_session,
-// MA preserva il Momentum (verba_study_days) e i flag-hint.
+// MA preserva la catena (verba_study_days) e i flag-hint.
 const PROGRESS_KEYS = [
   "verba_word_stats",
   "verba_study_progress",
@@ -73,17 +84,19 @@ function Row({ icon, label, value, danger, onClick }: { icon: React.ReactNode; l
 
 export default function ProfileScreen() {
   const [, navigate] = useLocation();
-  const [momentum, setMomentum] = useState<number>(() => getMomentum());
-  const [best, setBest] = useState<number>(() => getBestStreak());
-  const [week, setWeek] = useState(() => getWeekStrip());
+  const [chain, setChain] = useState(() => getChain());
+  const strip = useMemo(() => lastDays(14, chain), [chain]);
+  const chainStatus = chain.todayDone
+    ? "Today's link is forged. See you tomorrow."
+    : chain.current > 0
+      ? "Today's link is still open. Don't break the chain."
+      : "Study today to forge your first link.";
   const [confirm, setConfirm] = useState<null | "hints" | "progress">(null);
   const [done, setDone] = useState<null | "hints" | "progress">(null);
   const [myCount, setMyCount] = useState<number>(() => loadMyWordsCount());
 
   function refresh() {
-    setMomentum(getMomentum());
-    setBest(getBestStreak());
-    setWeek(getWeekStrip());
+    setChain(getChain());
     setMyCount(loadMyWordsCount());
   }
   function flashDone(which: "hints" | "progress") {
@@ -93,14 +106,73 @@ export default function ProfileScreen() {
   function doResetHints() { resetHints(); flashDone("hints"); }
   function doResetProgress() { resetProgress(); refresh(); flashDone("progress"); }
 
-  const active = momentum > 0;
+  // ── la card Chain che si allarga e si richiude ──
+  const chainCardRef = useRef<HTMLButtonElement | null>(null);
+  const [expand, setExpand] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [expandLeaving, setExpandLeaving] = useState(false);
+  const expandDone = useRef(false);
+  // Il ritorno dalla schermata Chain: Profile nasce coperta dalla tinta a schermo
+  // pieno e la richiude sulla card appena la card è misurabile.
+  const [collapse, setCollapse] = useState<{ rect: DOMRect | null; leaving: boolean } | null>(() =>
+    peekCollapse() === "chain" ? { rect: null, leaving: false } : null);
+
+  function openChain() {
+    const card = chainCardRef.current;
+    const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!card || reduce) { navigate("/chain"); return; }
+    const r = card.getBoundingClientRect();
+    expandDone.current = false;
+    setExpandLeaving(false);
+    setExpand({ top: r.top, left: r.left, width: r.width, height: r.height });
+    // i tempi sono tenuti da un timer (440 ms = la durata dell'allargamento), non dalla
+    // fine dell'animazione: così la pagina si apre sempre, anche se l'evento non arriva
+    window.setTimeout(finishExpand, 440);
+  }
+  function finishExpand() {
+    if (expandDone.current) return;
+    expandDone.current = true;
+    skipNextSlide();                 // la schermata Chain compare sopra la card, senza scorrere
+    navigate("/chain");
+    setExpandLeaving(true);
+  }
+  // la card si misura quando la striscia delle schede si è sistemata (due fotogrammi)
+  useEffect(() => {
+    if (!collapse || collapse.rect) return;
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        const card = chainCardRef.current;
+        if (!card) { clearCollapse(); setCollapse(null); return; }
+        setCollapse((c) => c && { ...c, rect: card.getBoundingClientRect() });
+      });
+    });
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+  }, [collapse]);
+  // poi si richiude (420 ms) e sfuma sulla card (180 ms); anche qui tengono il tempo i timer
+  const collapseStage = !collapse ? 0 : !collapse.rect ? 1 : !collapse.leaving ? 2 : 3;
+  useEffect(() => {
+    if (collapseStage === 2) {
+      const t = window.setTimeout(() => setCollapse((c) => c && { ...c, leaving: true }), 420);
+      return () => window.clearTimeout(t);
+    }
+    if (collapseStage === 3) {
+      const t = window.setTimeout(() => { clearCollapse(); setCollapse(null); }, 180);
+      return () => window.clearTimeout(t);
+    }
+    return undefined;
+  }, [collapseStage]);
 
   return (
     <div style={{ minHeight: "100%", width: "100%", background: "#0A0A0A", position: "relative" }}>
       <AppBackground showWords={false} />
+      <style>{`${CHAIN_CSS}
+        .vpf-breathe { animation: vpf-breathe 1.8s ease-in-out infinite; }
+        @keyframes vpf-breathe { 50% { opacity: .35; box-shadow: 0 0 2px #F59E0B; } }
+        @media (prefers-reduced-motion: reduce) { .vpf-breathe { animation: none; } }
+      `}</style>
       <div style={{ position: "relative", zIndex: 10, maxWidth: SCREEN_MAX, margin: "0 auto", padding: "18px 16px 32px", boxSizing: "border-box" }}>
 
-        <TabHeader tab="profile" subtitle="Your account, your streak, your settings." right={null} />
+        <TabHeader tab="profile" subtitle="Your account, your chain, your settings." right={null} />
 
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 18 }}>
           <div style={{ width: 52, height: 52, borderRadius: "50%", border: "2px solid rgba(199,184,232,0.55)", background: "rgba(167,139,250,0.1)", display: "flex", alignItems: "center", justifyContent: "center", color: LAV }}>
@@ -112,27 +184,75 @@ export default function ProfileScreen() {
           </div>
         </div>
 
-        <div style={{ background: active ? "rgba(245,158,11,0.07)" : "rgba(255,255,255,0.03)", border: active ? "0.5px solid rgba(245,158,11,0.25)" : "0.5px solid rgba(255,255,255,0.09)", borderRadius: 16, padding: 15, marginTop: 20 }}>
-          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 500, color: active ? "rgba(248,184,78,0.9)" : "rgba(255,255,255,0.4)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 12 }}>Momentum</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <Flame size={32} color={active ? AMBER : "rgba(255,255,255,0.25)"} strokeWidth={1.8} />
-            <div style={{ flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
-                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 28, fontWeight: 700, color: active ? AMBER_SOFT : "rgba(255,255,255,0.55)", lineHeight: 1 }}>{momentum}</span>
-                <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: active ? "rgba(248,184,78,0.85)" : "rgba(255,255,255,0.4)" }}>{momentum === 1 ? "day" : "days"}</span>
-              </div>
-              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.42)", marginTop: 3 }}>{active ? `Best ${best} · keep it alive` : "Study today to start your momentum"}</div>
-            </div>
+        {/* La catena: tocca la card e si allarga fino a diventare la schermata Chain */}
+        <motion.button
+          ref={chainCardRef}
+          onClick={openChain}
+          whileTap={tapScale("card")}
+          transition={TAP_SPRING}
+          aria-label="Open your chain"
+          style={{ display: "block", width: "100%", textAlign: "left", cursor: "pointer", outline: "none", marginTop: 20, padding: "16px 16px 14px", borderRadius: 20, border: `1px solid ${CHAIN_EDGE}`, background: CHAIN_CARD_BG, color: "#fff", boxSizing: "border-box" }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "'Inter', sans-serif", fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: AMBER, fontWeight: 600 }}>
+              <ChainIcon cut="#1a130a" />Chain
+            </span>
+            {chain.longest > 0 ? (
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: "rgba(255,255,255,0.45)" }}>
+                Longest <b style={{ color: "rgba(255,255,255,0.8)", fontWeight: 500 }}>{chain.longest}</b> {chain.longest === 1 ? "day" : "days"}
+              </span>
+            ) : null}
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 15 }}>
-            {week.map((d, i) => (
-              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{d.weekday}</span>
-                <span style={{ width: 10, height: 10, borderRadius: "50%", background: d.studied ? AMBER : "transparent", border: d.studied ? "none" : `1.5px solid rgba(255,255,255,${d.isFuture ? 0.12 : 0.2})`, boxShadow: d.isToday && d.studied ? "0 0 0 3px rgba(245,158,11,0.25)" : "none" }} />
-              </div>
-            ))}
+          <div style={{ display: "flex", alignItems: "baseline", gap: 9, margin: "10px 0 2px" }}>
+            <b style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 44, letterSpacing: -1.5, lineHeight: 1, backgroundImage: "linear-gradient(180deg, #fff 30%, #FCD34D)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>{chain.current}</b>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.55)" }}>{chain.current === 1 ? "day unbroken" : "days unbroken"}</span>
           </div>
-        </div>
+          {/* gli ultimi 14 giorni, con lo stesso margine ai due lati */}
+          <div style={{ margin: "14px 0 4px" }}>
+            <ChainStrip days={strip} cut="#131110" animate={!collapse} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(255,255,255,0.32)", letterSpacing: "0.04em" }}>
+            <span>2 weeks ago</span>
+            <span style={{ color: "rgba(245,158,11,0.75)", letterSpacing: 0, fontSize: 11.5 }}>See your chain ›</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", fontFamily: "'Inter', sans-serif", fontSize: 12.5, color: "rgba(255,255,255,0.7)" }}>
+            <i className={chain.todayDone ? undefined : "vpf-breathe"} style={{ width: 7, height: 7, borderRadius: "50%", background: AMBER, boxShadow: `0 0 8px ${AMBER}`, flexShrink: 0 }} />
+            <span>{chainStatus}</span>
+          </div>
+        </motion.button>
+
+        {/* La tinta della card che si allarga (verso la schermata Chain) e che, al
+            ritorno, si richiude al suo posto. Portale su document.body: dentro la
+            striscia delle schede, che è spostata di lato, "fixed" si fisserebbe
+            alla striscia e non allo schermo. */}
+        {typeof document !== "undefined" && createPortal(
+          // PresenceContext null: la tinta parte sempre dalla card. Senza, se l'app è
+          // stata aperta direttamente su una scheda, la transizione delle pagine
+          // (AnimatePresence initial={false}) farebbe saltare l'animazione d'ingresso.
+          <PresenceContext.Provider value={null}>
+            {expand && (
+              <motion.div
+                aria-hidden="true"
+                initial={{ top: expand.top, left: expand.left, width: expand.width, height: expand.height, borderRadius: 20, opacity: 1 }}
+                animate={{ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: expandLeaving ? 0 : 1 }}
+                transition={expandLeaving ? { duration: 0.32, ease: "easeOut" } : { duration: 0.44, ease: [0.2, 0.9, 0.25, 1] }}
+                style={{ position: "fixed", zIndex: 60, pointerEvents: "auto", background: CHAIN_TINT, border: `1px solid ${CHAIN_EDGE}` }}
+              />
+            )}
+            {collapse && (
+              <motion.div
+                aria-hidden="true"
+                initial={{ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: 1 }}
+                animate={collapse.rect
+                  ? { top: collapse.rect.top, left: collapse.rect.left, width: collapse.rect.width, height: collapse.rect.height, borderRadius: 20, opacity: collapse.leaving ? 0 : 1 }
+                  : { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: 1 }}
+                transition={collapse.leaving ? { duration: 0.18, ease: "easeOut" } : { duration: 0.42, ease: [0.2, 0.9, 0.25, 1] }}
+                style={{ position: "fixed", zIndex: 60, pointerEvents: "none", background: CHAIN_TINT, border: `1px solid ${CHAIN_EDGE}` }}
+              />
+            )}
+          </PresenceContext.Provider>,
+          document.body,
+        )}
 
         <GroupLabel>Support</GroupLabel>
         <div style={groupCard}>
@@ -160,7 +280,7 @@ export default function ProfileScreen() {
           <Row icon={<Trash2 size={16} />} label="Reset progress" danger onClick={() => { setDone(null); setConfirm((c) => (c === "progress" ? null : "progress")); }} />
           {confirm === "progress" ? (
             <div style={{ padding: "0 14px 14px", borderTop: "0.5px solid rgba(255,255,255,0.06)" }}>
-              <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.5, margin: "11px 0 12px" }}>This erases your learning progress and your saved words (My Verba). Your Momentum stays.</p>
+              <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.5, margin: "11px 0 12px" }}>This erases your learning progress and your saved words (My Verba). Your chain stays.</p>
               <div style={{ display: "flex", gap: 9 }}>
                 <button onClick={() => setConfirm(null)} style={baseBtn}>Cancel</button>
                 <button onClick={doResetProgress} style={dangerBtn}>Reset progress</button>

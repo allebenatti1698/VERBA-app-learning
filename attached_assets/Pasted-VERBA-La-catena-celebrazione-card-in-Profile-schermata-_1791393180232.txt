@@ -1,0 +1,1293 @@
+VERBA — La catena: celebrazione, card in Profile, schermata Chain con il calendario.
+ECONOMY MODE, Claude Sonnet 5, Effort Medium. Stima ~$2–3.5. 4 file nuovi + 7 file con edit mirati.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Tutti i percorsi sono dentro artifacts/verba/.
+
+REGOLE
+· I 4 FILE NUOVI si creano con il contenuto COMPLETO qui sotto, copiato alla lettera.
+  Se uno esiste già: FERMATI e dimmelo prima di fare qualunque cosa.
+· Nei 7 file ESISTENTI: SOLO edit mirati old_string → new_string. NESSUNA
+  sostituzione integrale. Applica ogni edit in modo INDIPENDENTE: se una TROVA non
+  combacia ESATTAMENTE, SALTA quell'edit, SEGNALALO e prosegui con gli altri.
+  Ogni TROVA deve comparire UNA VOLTA SOLA nel suo file; se no, salta.
+· NON cancellare StreakCelebration.tsx né StreakChip.tsx (restano, non più usati
+  dalla Results; li togliamo più avanti).
+
+PRIMA DI TUTTO riporta il numero di righe di:
+  src/lib/pageTransition.ts · src/App.tsx · src/pages/PracticeHomeScreen.tsx ·
+  src/pages/ProfileScreen.tsx · src/pages/ResultsScreen.tsx ·
+  src/pages/ReviewSummaryScreen.tsx · src/pages/HowItWorksScreen.tsx
+Attese oggi: pageTransition.ts 44 · App.tsx 134 · PracticeHomeScreen.tsx 495 · ProfileScreen.tsx 179 · ResultsScreen.tsx 923 · ReviewSummaryScreen.tsx 150 · HowItWorksScreen.tsx 57.
+Se diverse, dimmelo PRIMA di modificare.
+
+CONTESTO
+· La fiamma (copiata da Duolingo) diventa la CATENA: "Don't break the chain".
+  Ogni giorno in cui studi è un anello; i giorni di fila si intrecciano.
+  Si legge dagli stessi dati di oggi (verba_study_days): nessun dato cambia.
+· Celebrazione nuova (ChainCelebration) alla fine della PRIMA sessione del giorno,
+  sia dopo Practice (Results) sia dopo Review (Review summary): l'anello di oggi
+  si scrive con una punta di luce, si aggancia a quello di ieri, la catena scorre
+  di un passo, il numero rotola. Se la catena si era spezzata, la vecchia scivola
+  via e ne comincia una nuova.
+· Profile: la card Momentum diventa la card Chain (ultimi 14 giorni, stesso margine
+  ai due lati). Toccandola si ALLARGA fino a diventare la schermata /chain (come le
+  card di Practice); il tasto indietro la richiude al suo posto.
+· /chain: numero grande, una frase, calendario del mese con gli anelli intrecciati
+  (si sfoglia dal primo mese di studio a oggi), tre numeri, legenda.
+· "Don't break the chain" compare: nella card quando l'anello di oggi è ancora
+  aperto, nella celebrazione dal secondo giorno, in How Verba works.
+· Correzione trovata strada facendo (anche in Practice): se l'app si apre
+  direttamente su una scheda (es. ricarica su /decks), la tinta che si allarga
+  NON partiva dalla card e la pagina non si apriva: la transizione delle pagine
+  (AnimatePresence initial={false}) spegneva l'animazione d'ingresso. Si risolve
+  avvolgendo il portale in <PresenceContext.Provider value={null}>.
+
+════════════════════════════════════════════════════════════
+1 · FILE NUOVO src/lib/chain.ts — i dati della catena (118 righe)
+════════════════════════════════════════════════════════════
+CREA IL FILE CON ESATTAMENTE QUESTO CONTENUTO:
+```ts
+// src/lib/chain.ts
+// La catena: ogni giorno in cui studi è un anello. Legge gli stessi giorni di
+// studio di studyActivity.ts (verba_study_days) e li traduce in quello che
+// serve per disegnarla: la card in Profile, il calendario, la celebrazione.
+import { getStudyDays, getMomentum, getBestStreak } from "@/lib/studyActivity";
+
+/** Lo stato di un giorno nella catena. */
+export type DayState =
+  | "done"       // studiato
+  | "today"      // oggi, già studiato: l'anello di oggi è chiuso
+  | "todayWait"  // oggi, non ancora: l'anello è aperto
+  | "missed"     // un giorno saltato, dopo il primo giorno di studio
+  | "future"     // un giorno che deve ancora venire
+  | "none";      // prima che Verba tenesse il conto
+
+export function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function dayStart(d: Date): Date {
+  const r = new Date(d);
+  r.setHours(0, 0, 0, 0);
+  return r;
+}
+function addDays(d: Date, n: number): Date {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+
+export interface ChainSnapshot {
+  days: Set<string>;
+  first: string | null;      // il primo giorno di studio (YYYY-MM-DD)
+  today: string;
+  todayDone: boolean;
+  current: number;           // anelli di fila fino a oggi (o fino a ieri, se oggi è ancora aperto)
+  currentStart: string | null; // il primo giorno della catena attuale
+  longest: number;
+  total: number;             // giorni studiati in tutto
+}
+
+export function getChain(): ChainSnapshot {
+  const list = getStudyDays();
+  const days = new Set(list);
+  const today = ymd(dayStart(new Date()));
+  const current = getMomentum();
+  let currentStart: string | null = null;
+  if (current > 0) {
+    const end = days.has(today) ? dayStart(new Date()) : addDays(dayStart(new Date()), -1);
+    currentStart = ymd(addDays(end, -(current - 1)));
+  }
+  return {
+    days,
+    first: list.length ? list[0] : null,
+    today,
+    todayDone: days.has(today),
+    current,
+    currentStart,
+    longest: getBestStreak(),
+    total: list.length,
+  };
+}
+
+/** Lo stato di un giorno qualsiasi. */
+export function dayState(date: Date, c: ChainSnapshot): DayState {
+  const k = ymd(date);
+  if (k === c.today) return c.todayDone ? "today" : "todayWait";
+  if (k > c.today) return "future";
+  if (!c.first || k < c.first) return "none";
+  return c.days.has(k) ? "done" : "missed";
+}
+
+/** Il giorno fa parte della catena attuale? (gli anelli più accesi) */
+export function inCurrentChain(date: Date, c: ChainSnapshot): boolean {
+  const k = ymd(date);
+  return !!c.currentStart && k >= c.currentStart && k <= c.today && c.days.has(k);
+}
+
+/** Gli ultimi n giorni, l'ultimo è oggi. */
+export function lastDays(n: number, c: ChainSnapshot): { date: Date; state: DayState; recent: boolean }[] {
+  const base = dayStart(new Date());
+  return Array.from({ length: n }, (_, i) => {
+    const date = addDays(base, -(n - 1 - i));
+    return { date, state: dayState(date, c), recent: inCurrentChain(date, c) };
+  });
+}
+
+/**
+ * Per la celebrazione: la catena spezzata da cui si riparte.
+ * Se oggi la catena è di 1 giorno ma avevi già studiato prima, restituisce
+ * quanti anelli aveva l'ultima catena (quella che si è interrotta); altrimenti 0.
+ */
+export function previousRun(c: ChainSnapshot): number {
+  if (c.current !== 1 || !c.todayDone) return 0;
+  const before = [...c.days].filter((d) => d < c.today).sort();
+  if (before.length === 0) return 0;
+  let run = 1;
+  let cursor = new Date(before[before.length - 1] + "T00:00:00");
+  while (c.days.has(ymd(addDays(cursor, -1)))) {
+    run += 1;
+    cursor = addDays(cursor, -1);
+  }
+  return run;
+}
+
+// ── la celebrazione: una volta al giorno, alla fine della prima sessione ──
+const CELEBRATED_KEY = "verba_streak_celebrated"; // chiave storica, la teniamo
+
+export function shouldCelebrateToday(): boolean {
+  try {
+    const c = getChain();
+    return c.todayDone && localStorage.getItem(CELEBRATED_KEY) !== c.today;
+  } catch {
+    return false;
+  }
+}
+export function markCelebratedToday(): void {
+  try { localStorage.setItem(CELEBRATED_KEY, ymd(dayStart(new Date()))); } catch { /* storage non disponibile */ }
+}
+```
+
+════════════════════════════════════════════════════════════
+2 · FILE NUOVO src/components/ChainLinks.tsx — il disegno: anelli, intreccio, icona, la fila della card (134 righe)
+════════════════════════════════════════════════════════════
+CREA IL FILE CON ESATTAMENTE QUESTO CONTENUTO:
+```tsx
+// src/components/ChainLinks.tsx
+// La catena, disegnata con un tratto solo come le icone delle schede.
+// Ogni anello è il contorno di uno stadio. Due anelli vicini si INTRECCIANO:
+// un quarto di curva del primo passa sopra il secondo e uno del secondo sopra
+// il primo. L'intreccio si ottiene ridisegnando quei due archi sopra il vicino,
+// con sotto un "taglio" del colore dello sfondo.
+import type { CSSProperties } from "react";
+import type { DayState } from "@/lib/chain";
+
+export interface LinkGeom { w: number; r: number }
+
+/** Il contorno di un anello centrato in (cx, cy). */
+export function linkPath(cx: number, cy: number, g: LinkGeom): string {
+  const a = g.w / 2 - g.r;
+  return `M${cx - a},${cy - g.r} H${cx + a} A${g.r},${g.r} 0 0 1 ${cx + a},${cy + g.r} H${cx - a} A${g.r},${g.r} 0 0 1 ${cx - a},${cy - g.r} Z`;
+}
+function arcPt(cx: number, cy: number, r: number, deg: number): [number, number] {
+  return [cx + r * Math.cos((deg * Math.PI) / 180), cy + r * Math.sin((deg * Math.PI) / 180)];
+}
+/** Il quarto di curva in alto a destra: passa SOPRA l'anello successivo. */
+export function overRight(cx: number, cy: number, g: LinkGeom): string {
+  const a = g.w / 2 - g.r;
+  const s = arcPt(cx + a, cy, g.r, -90), e = arcPt(cx + a, cy, g.r, -12);
+  return `M${s[0]},${s[1]} A${g.r},${g.r} 0 0 1 ${e[0]},${e[1]}`;
+}
+/** Il quarto di curva in basso a sinistra: passa SOPRA l'anello precedente. */
+export function overLeft(cx: number, cy: number, g: LinkGeom): string {
+  const a = g.w / 2 - g.r;
+  const s = arcPt(cx - a, cy, g.r, 90), e = arcPt(cx - a, cy, g.r, 168);
+  return `M${s[0]},${s[1]} A${g.r},${g.r} 0 0 1 ${e[0]},${e[1]}`;
+}
+
+/** Animazioni condivise: l'anello che si scrive, l'intreccio che compare, l'anello aperto che respira. */
+export const CHAIN_CSS = `
+.vch-draw { opacity: 0; animation: vch-draw var(--dur, .38s) cubic-bezier(.4,0,.2,1) var(--d, 0s) forwards; }
+@keyframes vch-draw { 0% { stroke-dashoffset: 1; opacity: 0; } 6% { opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 1; } }
+.vch-fade { opacity: 0; animation: vch-fade .14s ease var(--d, 0s) forwards; }
+@keyframes vch-fade { to { opacity: 1; } }
+.vch-wait { animation: vch-wait 1.8s ease-in-out infinite; }
+@keyframes vch-wait { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .vch-draw, .vch-fade { animation: none; opacity: 1; stroke-dashoffset: 0; }
+  .vch-wait { animation: none; opacity: .8; }
+}
+`;
+
+/** Un intreccio fra due anelli vicini. */
+export function Weave({ x1, x2, cy, g, c1, c2, cut, sw, className, style }: {
+  x1: number; x2: number; cy: number; g: LinkGeom; c1: string; c2: string; cut: string; sw: number;
+  className?: string; style?: CSSProperties;
+}) {
+  const parts: [string, string][] = [[overRight(x1, cy, g), c1], [overLeft(x2, cy, g), c2]];
+  return (
+    <g className={className} style={style}>
+      {parts.map(([d, c], i) => (
+        <g key={i}>
+          <path d={d} fill="none" stroke={cut} strokeWidth={sw + 3} strokeLinecap="butt" />
+          <path d={d} fill="none" stroke={c} strokeWidth={sw} strokeLinecap="round" />
+        </g>
+      ))}
+    </g>
+  );
+}
+
+/** La piccola icona: due anelli intrecciati. `cut` = colore dello sfondo sotto l'icona. */
+export function ChainIcon({ size = 22, color = "#F59E0B", cut = "#16120c" }: { size?: number; color?: string; cut?: string }) {
+  const g = { w: 22, r: 7 };
+  return (
+    <svg width={size} height={size * 12 / 22} viewBox="0 0 44 24" aria-hidden="true" style={{ display: "block", flexShrink: 0 }}>
+      <path d={linkPath(13, 12, g)} fill="none" stroke={color} strokeWidth={2.2} />
+      <path d={linkPath(31, 12, g)} fill="none" stroke={color} strokeWidth={2.2} />
+      <Weave x1={13} x2={31} cy={12} g={g} c1={color} c2={color} cut={cut} sw={2.2} />
+    </svg>
+  );
+}
+
+/**
+ * La catena degli ultimi giorni, per la card in Profile. Occupa tutta la
+ * larghezza con lo stesso margine ai due lati. Si scrive da sinistra, anello
+ * dopo anello; l'anello di oggi ancora aperto è tratteggiato e respira.
+ */
+export function ChainStrip({ days, cut, animate = true }: {
+  days: { state: DayState; recent: boolean }[];
+  cut: string;                 // colore dello sfondo della card, per l'intreccio
+  animate?: boolean;
+}) {
+  const N = days.length, VW = 320, VH = 40, M = 4;
+  const g = { w: 30, r: 8 };
+  const pitch = (VW - 2 * M - g.w) / Math.max(1, N - 1);
+  const cy = VH / 2;
+  const xs = days.map((_, i) => M + g.w / 2 + i * pitch);
+  const on = (s: DayState) => s === "done" || s === "today";
+  const col = (i: number) => days[i].state === "today" ? "#FCD34D" : days[i].recent ? "rgba(245,158,11,0.85)" : "rgba(245,158,11,0.38)";
+  const delay = (i: number) => `${(60 + i * 40) / 1000}s`;
+  return (
+    <svg viewBox={`0 0 ${VW} ${VH}`} style={{ display: "block", width: "100%", height: "auto" }} aria-hidden="true">
+      <defs>
+        <filter id="vch-glow-strip" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="2" result="b" />
+          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+      {days.map((d, i) => {
+        const s = d.state;
+        if (on(s)) {
+          return (
+            <path key={i} d={linkPath(xs[i], cy, g)} fill="none" stroke={col(i)} strokeWidth={2} strokeLinecap="round"
+              pathLength={1} strokeDasharray="1 1"
+              filter={s === "today" ? "url(#vch-glow-strip)" : undefined}
+              className={animate ? "vch-draw" : undefined}
+              style={animate ? ({ "--d": delay(i) } as CSSProperties) : { strokeDashoffset: 0 }} />
+          );
+        }
+        // anello vuoto: oggi ancora aperto (ambra, respira) oppure giorno saltato / prima di Verba
+        const wait = s === "todayWait";
+        return (
+          <path key={i} d={linkPath(xs[i], cy, g)} fill="none"
+            stroke={wait ? "rgba(245,158,11,0.7)" : s === "missed" ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.09)"}
+            strokeWidth={1.5} strokeLinecap="round" strokeDasharray="1.6 3.2"
+            className={wait ? "vch-wait" : undefined} />
+        );
+      })}
+      {days.map((d, i) => {
+        const n = days[i + 1];
+        if (!n || !on(d.state) || !on(n.state)) return null;
+        return (
+          <Weave key={`w${i}`} x1={xs[i]} x2={xs[i + 1]} cy={cy} g={g} c1={col(i)} c2={col(i + 1)} cut={cut} sw={2}
+            className={animate ? "vch-fade" : undefined}
+            style={animate ? ({ "--d": `${(60 + (i + 1) * 40 + 340) / 1000}s` } as CSSProperties) : undefined} />
+        );
+      })}
+    </svg>
+  );
+}
+```
+
+════════════════════════════════════════════════════════════
+3 · FILE NUOVO src/components/ChainCelebration.tsx — la celebrazione (276 righe)
+════════════════════════════════════════════════════════════
+CREA IL FILE CON ESATTAMENTE QUESTO CONTENUTO:
+```tsx
+// src/components/ChainCelebration.tsx
+// La celebrazione della catena: overlay a tutto schermo (portale su document.body),
+// alla fine della PRIMA sessione del giorno. Sostituisce la fiamma.
+//
+// Coreografia (~2,5 s):
+//  1. (solo se la catena si era spezzata) la vecchia catena scivola via a sinistra, nel passato
+//  2. l'anello di oggi si scrive con una punta di luce
+//  3. si aggancia all'anello di ieri: l'intreccio scatta, un battito, il bagliore si spegne
+//  4. la catena scorre di un passo con una molla: oggi va al centro
+//  5. un riflesso attraversa tutta la catena
+//  6. il numero rotola dal vecchio al nuovo; poi la frase, la settimana, Continue
+//
+// La scena è disegnata e animata a mano dentro un <svg> (requestAnimationFrame):
+// React la monta una volta, poi non la tocca più.
+import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { linkPath, overRight, overLeft, type LinkGeom } from "@/components/ChainLinks";
+import { getChain, previousRun } from "@/lib/chain";
+import { getWeekStrip } from "@/lib/studyActivity";
+
+interface Props {
+  onDismiss: () => void;
+}
+
+const BG = "#0A0A0A";
+const NS = "http://www.w3.org/2000/svg";
+const G = { w: 74, r: 20, pitch: 52 };   // l'anello grande della scena
+const HS = 3.2;                           // il tratto
+const CY = 100, CENTER = 200;
+const MAX_PAST = 5;                       // quanti anelli del passato si vedono (gli altri sono oltre la sfumatura)
+
+const CSS = `
+.vcc-overlay { position: fixed; inset: 0; z-index: 120; background: ${BG}; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; padding: 24px 0 calc(28px + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.vcc-wash { position: absolute; left: 50%; top: 40%; width: 560px; height: 360px; margin: -180px 0 0 -280px; pointer-events: none; background: radial-gradient(ellipse at center, rgba(245,158,11,0.11), transparent 62%); opacity: .35; }
+.vcc-hero { position: relative; width: 100%; max-width: 400px; aspect-ratio: 2 / 1; overflow: visible; display: block; }
+.vcc-roll { position: relative; height: 96px; overflow: hidden; width: 240px; text-align: center; margin-top: 4px; }
+.vcc-roll span { position: absolute; left: 0; right: 0; top: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 88px; line-height: 96px; letter-spacing: -3px; background: linear-gradient(180deg, #fff 30%, #FCD34D); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.vcc-roll span.vcc-grey { background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.25)); -webkit-background-clip: text; background-clip: text; }
+.vcc-lbl { font-family: 'Inter', sans-serif; font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase; color: #F59E0B; font-weight: 600; margin: 6px 0 0; }
+.vcc-line { font-family: 'Inter', sans-serif; font-size: 14px; line-height: 1.55; color: rgba(255,255,255,0.58); text-align: center; margin: 14px 28px 0; }
+.vcc-line b { color: #fff; font-weight: 500; }
+.vcc-week { margin-top: 34px; }
+.vcc-cta { margin-top: 40px; width: 200px; padding: 12px 32px; border-radius: 9999px; border: none; color: #fff; background: linear-gradient(to right, #F59E0B, #EA580C); font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 500; letter-spacing: 0.04em; box-shadow: 0 0 14px rgba(245,158,11,0.3); cursor: pointer; outline: none; }
+.vcc-cta:active { transform: scale(0.94); }
+.vcc-fade { opacity: 0; transform: translateY(8px); }
+`;
+
+function el(tag: string, attrs: Record<string, string | number>, parent?: Element): SVGElement {
+  const e = document.createElementNS(NS, tag) as SVGElement;
+  for (const k in attrs) e.setAttribute(k, String(attrs[k]));
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function glowFilter(defs: Element, id: string, sd: number) {
+  const f = el("filter", { id, x: "-50%", y: "-50%", width: "200%", height: "200%" }, defs);
+  el("feGaussianBlur", { stdDeviation: sd, result: "b" }, f);
+  const m = el("feMerge", {}, f);
+  el("feMergeNode", { in: "b" }, m);
+  el("feMergeNode", { in: "SourceGraphic" }, m);
+}
+/** Una fila di anelli con gli intrecci fra i vicini veri. Restituisce le x dei centri. */
+function drawRow(parent: Element, x0: number, cy: number, g: LinkGeom & { pitch: number }, states: ("done" | "ghost")[], color: (i: number) => string, stroke: number, cut: string): { cx: number; p: SVGElement }[] {
+  const layer = el("g", {}, parent);
+  const weave = el("g", {}, parent);
+  const out = states.map((s, i) => {
+    const cx = x0 + i * g.pitch;
+    const ghost = s === "ghost";
+    const p = el("path", {
+      d: linkPath(cx, cy, g), fill: "none",
+      stroke: ghost ? "rgba(255,255,255,0.16)" : color(i),
+      "stroke-width": ghost ? stroke * 0.75 : stroke, "stroke-linecap": "round",
+      "stroke-dasharray": ghost ? `${stroke * 1.1} ${stroke * 2.4}` : "none",
+    }, layer);
+    return { cx, p };
+  });
+  states.forEach((s, i) => {
+    if (s !== "done" || states[i + 1] !== "done") return;
+    const cx = x0 + i * g.pitch, nx = cx + g.pitch;
+    for (const [d, c] of [[overRight(cx, cy, g), color(i)], [overLeft(nx, cy, g), color(i + 1)]] as [string, string][]) {
+      el("path", { d, fill: "none", stroke: cut, "stroke-width": stroke + 3.2, "stroke-linecap": "butt" }, weave);
+      el("path", { d, fill: "none", stroke: c, "stroke-width": stroke, "stroke-linecap": "round" }, weave);
+    }
+  });
+  return out;
+}
+
+const easeIO = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+const clamp = (x: number) => Math.max(0, Math.min(1, x));
+const seg = (t: number, a: number, b: number) => clamp((t - a) / (b - a));
+const spring = (u: number) => (u <= 0 ? 0 : 1 - Math.exp(-7 * u) * Math.cos(10.5 * u)); // un passo deciso, un minimo di rimbalzo
+const amberAt = (i: number, n: number) => `rgba(245,158,11,${(0.28 + 0.72 * (n <= 1 ? 1 : i / (n - 1))).toFixed(3)})`; // i vecchi sfumano a sinistra
+
+export default function ChainCelebration({ onDismiss }: Props) {
+  const heroRef = useRef<SVGSVGElement | null>(null);
+  const weekRef = useRef<SVGSVGElement | null>(null);
+  const washRef = useRef<HTMLDivElement | null>(null);
+  const oldRef = useRef<HTMLSpanElement | null>(null);
+  const newRef = useRef<HTMLSpanElement | null>(null);
+  const lblRef = useRef<HTMLParagraphElement | null>(null);
+  const lineRef = useRef<HTMLParagraphElement | null>(null);
+  const weekWrapRef = useRef<HTMLDivElement | null>(null);
+  const ctaRef = useRef<HTMLButtonElement | null>(null);
+
+  // ── i numeri e le parole, letti una volta ──
+  const chain = getChain();
+  const days = Math.max(1, chain.current);
+  const prev = previousRun(chain);            // > 0: la catena si era spezzata, se ne inizia una nuova
+  const broken = prev > 0;
+  const first = days === 1 && !broken;        // il primissimo anello
+  const past = broken ? prev : days - 1;      // gli anelli che c'erano già
+  const from = broken ? prev : days - 1;      // il numero da cui rotola
+  let line: string;
+  if (first) line = "<b>The first link.</b><br>Come back tomorrow for the second.";
+  else if (broken) line = `<b>A new chain begins.</b><br>Your longest held ${chain.longest} ${chain.longest === 1 ? "day" : "days"}.`;
+  else if (days === chain.longest && days >= 3) line = "<b>Your longest chain yet.</b><br>Don't break the chain.";
+  else if (days === 7) line = "<b>A week, unbroken.</b><br>Don't break the chain.";
+  else if (days % 7 === 0) line = `<b>${days / 7} weeks, unbroken.</b><br>Don't break the chain.`;
+  else line = "<b>Another link holds.</b><br>Don't break the chain.";
+
+  useEffect(() => {
+    const hero = heroRef.current, weekSvg = weekRef.current;
+    if (!hero || !weekSvg) return;
+
+    // ═══ la scena ═══
+    hero.innerHTML = "";
+    const defs = el("defs", {}, hero);
+    glowFilter(defs, "vcc-glow", 5);
+    const lg = el("linearGradient", { id: "vcc-today", x1: 0, y1: 0, x2: 1, y2: 1 }, defs);
+    el("stop", { offset: 0, "stop-color": "#FDE68A" }, lg);
+    el("stop", { offset: 1, "stop-color": "#F59E0B" }, lg);
+    const glintGrad = el("linearGradient", { id: "vcc-glint", gradientUnits: "userSpaceOnUse", x1: -80, y1: 0, x2: 0, y2: 0 }, defs);
+    el("stop", { offset: 0, "stop-color": "#fff", "stop-opacity": 0 }, glintGrad);
+    el("stop", { offset: 0.5, "stop-color": "#FFF7E0", "stop-opacity": 1 }, glintGrad);
+    el("stop", { offset: 1, "stop-color": "#fff", "stop-opacity": 0 }, glintGrad);
+    // la catena viene da sinistra, dal passato: una sfumatura ferma sopra la catena che scorre
+    const mk = el("linearGradient", { id: "vcc-mk", x1: 0, x2: 1 }, defs);
+    el("stop", { offset: 0, "stop-color": "#fff", "stop-opacity": 0 }, mk);
+    el("stop", { offset: 0.38, "stop-color": "#fff", "stop-opacity": 1 }, mk);
+    el("stop", { offset: 1, "stop-color": "#fff", "stop-opacity": 1 }, mk);
+    const mask = el("mask", { id: "vcc-fadeL", maskUnits: "userSpaceOnUse", x: -400, y: 0, width: 1200, height: 200 }, defs);
+    el("rect", { x: -400, y: 0, width: 1200, height: 200, fill: "url(#vcc-mk)" }, mask);
+    const masked = el("g", { mask: "url(#vcc-fadeL)" }, hero);
+
+    const slide = el("g", {}, masked);
+    const old = el("g", {}, slide) as SVGGElement;
+    const shown = Math.min(past, MAX_PAST);
+    // l'ultimo anello del passato sta al centro; il posto di oggi è a destra
+    const x0 = CENTER - (shown - 1) * G.pitch;
+    if (shown > 0) drawRow(old, x0, CY, G, Array.from({ length: shown }, () => "done"), (i) => amberAt(i, shown), HS, BG);
+    const tx = shown > 0 && !broken ? CENTER + G.pitch : CENTER;
+    const ghost = el("path", { d: linkPath(tx, CY, G), fill: "none", stroke: "rgba(255,255,255,0.18)", "stroke-width": HS * 0.75, "stroke-dasharray": `${HS * 1.1} ${HS * 2.6}`, "stroke-linecap": "round" }, slide);
+    const today = el("path", { d: linkPath(tx, CY, G), fill: "none", stroke: "url(#vcc-today)", "stroke-width": HS, "stroke-linecap": "round", pathLength: 1, "stroke-dasharray": 1, "stroke-dashoffset": 1, filter: "url(#vcc-glow)" }, slide) as SVGPathElement;
+    const len = today.getTotalLength ? today.getTotalLength() : 400;
+    // l'intreccio con l'anello di ieri
+    const weave = el("g", { opacity: 0 }, slide);
+    if (shown > 0 && !broken) {
+      for (const [d, c] of [[overRight(CENTER, CY, G), amberAt(shown - 1, shown)], [overLeft(tx, CY, G), "#FCD34D"]] as [string, string][]) {
+        el("path", { d, fill: "none", stroke: BG, "stroke-width": HS + 3.4, "stroke-linecap": "butt" }, weave);
+        el("path", { d, fill: "none", stroke: c, "stroke-width": HS, "stroke-linecap": "round" }, weave);
+      }
+    }
+    // la punta di luce che scrive
+    const pen = el("circle", { r: 4.2, fill: "#FFF7E0", filter: "url(#vcc-glow)", opacity: 0 }, slide);
+    // il riflesso che attraversa la catena
+    const glint = el("g", { opacity: 0 }, slide);
+    const allX: number[] = [];
+    if (!broken) for (let i = 0; i < shown; i++) allX.push(x0 + i * G.pitch);
+    allX.push(tx);
+    allX.forEach((cx) => el("path", { d: linkPath(cx, CY, G), fill: "none", stroke: "url(#vcc-glint)", "stroke-width": HS, "stroke-linecap": "round" }, glint));
+
+    // ═══ la settimana: sette anelli, lunedì → domenica ═══
+    weekSvg.innerHTML = "";
+    const wdefs = el("defs", {}, weekSvg);
+    glowFilter(wdefs, "vcc-glow-w", 2.5);
+    const week = getWeekStrip();
+    const wg = { w: 34, r: 9, pitch: 26 };
+    const wx0 = 160 - 3 * wg.pitch;
+    const wNodes = drawRow(weekSvg, wx0, 18, wg, week.map((d) => (d.studied ? "done" : "ghost")),
+      (i) => (week[i].isToday ? "#FCD34D" : "rgba(245,158,11,0.62)"), 2, BG);
+    let weekToday: SVGElement | null = null;
+    wNodes.forEach((n, i) => {
+      if (week[i].isToday && week[i].studied) { n.p.setAttribute("filter", "url(#vcc-glow-w)"); weekToday = n.p; }
+      const t = el("text", { x: n.cx, y: 50, "text-anchor": "middle", "font-size": 9.5, "font-family": "Inter, sans-serif", fill: week[i].isToday ? "#F59E0B" : "rgba(255,255,255,0.38)" }, weekSvg);
+      t.textContent = week[i].weekday;
+    });
+
+    // ═══ i tempi (s) ═══
+    const o = broken ? 0.55 : 0;
+    const T = { drawA: 0.3 + o, drawB: 1.15 + o, lock: 1.15 + o, slideA: 1.22 + o, rollA: 1.35 + o, rollB: 1.95 + o,
+      glintA: 1.75 + o, glintB: 2.75 + o, lbl: 1.75 + o, line: 1.95 + o, week: 2.15 + o, cta: 2.45 + o };
+
+    const show = (node: HTMLElement | null, at: number, t: number) => {
+      if (!node) return;
+      const u = easeOut(seg(t, at, at + 0.5));
+      node.style.opacity = String(u);
+      node.style.transform = `translateY(${(1 - u) * 8}px)`;
+    };
+
+    function frame(t: number) {
+      // 1 · la catena spezzata scivola via
+      if (broken) {
+        const u = easeIO(seg(t, 0.12, 0.8));
+        old.setAttribute("transform", `translate(${-u * 70},0)`);
+        old.style.opacity = (1 - u).toFixed(3);
+        old.style.filter = `grayscale(${u})`;
+      }
+      // 2 · l'anello si scrive
+      const d = easeIO(seg(t, T.drawA, T.drawB));
+      today.setAttribute("stroke-dashoffset", (1 - d).toFixed(4));
+      today.style.visibility = d > 0 ? "visible" : "hidden"; // a zero il tappo tondo lascerebbe un puntino
+      ghost.style.opacity = (1 - seg(t, T.drawA, T.drawA + 0.5)).toFixed(3);
+      if (d > 0 && d < 1 && today.getPointAtLength) {
+        const pt = today.getPointAtLength(d * len);
+        pen.setAttribute("cx", String(pt.x)); pen.setAttribute("cy", String(pt.y)); pen.setAttribute("opacity", "1");
+      } else pen.setAttribute("opacity", "0");
+      // 3 · si aggancia: l'intreccio scatta, un battito, il bagliore si spegne
+      weave.setAttribute("opacity", seg(t, T.lock - 0.02, T.lock + 0.06).toFixed(3));
+      const beat = t > T.lock ? Math.exp(-(t - T.lock) * 6) * Math.sin((t - T.lock) * 20) * 0.05 : 0;
+      const sc = `translate(${tx},${CY}) scale(${1 + beat}) translate(${-tx},${-CY})`;
+      today.setAttribute("transform", sc);
+      weave.setAttribute("transform", sc);
+      const glowK = t < T.lock ? 1 : Math.exp(-(t - T.lock) * 1.6);
+      if (glowK > 0.05) today.setAttribute("filter", "url(#vcc-glow)"); else today.removeAttribute("filter");
+      today.setAttribute("stroke-width", (HS + glowK * 0.6).toFixed(2));
+      // 4 · la catena scorre di un passo: oggi va al centro
+      const sh = (tx - CENTER) * spring(t - T.slideA);
+      slide.setAttribute("transform", `translate(${(-sh).toFixed(2)},0)`);
+      // 5 · il riflesso attraversa la catena, da sinistra fino a oggi
+      const gu = seg(t, T.glintA, T.glintB);
+      glint.setAttribute("opacity", gu > 0 && gu < 1 ? "1" : "0");
+      const gx = allX[0] - 80 + easeIO(gu) * (tx + 120 - (allX[0] - 80));
+      glintGrad.setAttribute("x1", String(gx - 70)); glintGrad.setAttribute("x2", String(gx + 70));
+      // 6 · il numero rotola
+      const r = easeIO(seg(t, T.rollA, T.rollB));
+      if (oldRef.current) { oldRef.current.style.transform = `translateY(${-r * 96}px)`; oldRef.current.style.opacity = (1 - r).toFixed(3); }
+      if (newRef.current) { newRef.current.style.transform = `translateY(${(1 - r) * 96}px)`; newRef.current.style.opacity = (0.2 + 0.8 * r).toFixed(3); }
+      // 7 · il testo
+      show(lblRef.current, T.lbl, t); show(lineRef.current, T.line, t);
+      show(weekWrapRef.current, T.week, t); show(ctaRef.current, T.cta, t);
+      if (washRef.current) washRef.current.style.opacity = (0.35 + 0.65 * seg(t, T.lock - 0.2, T.lock + 0.6)).toFixed(3);
+      // l'anello di oggi nella settimana respira piano
+      if (weekToday) {
+        const w = t > T.cta ? 0.55 + 0.45 * Math.sin((t - T.cta) * 3) : 0;
+        (weekToday as SVGElement).style.opacity = t > T.week ? String(0.6 + 0.4 * w) : "1";
+      }
+    }
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { frame(9); return; }   // tutto già al suo posto, senza movimento
+    const start = performance.now();
+    let raf = 0;
+    const loop = (now: number) => { frame((now - start) / 1000); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return createPortal(
+    <div className="vcc-overlay" role="dialog" aria-label={`Chain: ${days} ${days === 1 ? "day" : "days"} unbroken`}>
+      <style>{CSS}</style>
+      <div className="vcc-wash" ref={washRef} />
+      <svg className="vcc-hero" ref={heroRef} viewBox="0 0 400 200" />
+      <div className="vcc-roll">
+        <span ref={oldRef} className={broken ? "vcc-grey" : undefined}>{from === 0 ? "" : from}</span>
+        <span ref={newRef} style={{ opacity: 0.2, transform: "translateY(96px)" }}>{days}</span>
+      </div>
+      <p className="vcc-lbl vcc-fade" ref={lblRef}>{days === 1 ? "day unbroken" : "days unbroken"}</p>
+      <p className="vcc-line vcc-fade" ref={lineRef} dangerouslySetInnerHTML={{ __html: line }} />
+      <div className="vcc-week vcc-fade" ref={weekWrapRef}>
+        <svg ref={weekRef} width="320" height="54" viewBox="0 0 320 54" aria-hidden="true" />
+      </div>
+      <button className="vcc-cta vcc-fade" ref={ctaRef} onClick={onDismiss}>Continue</button>
+    </div>,
+    document.body,
+  );
+}
+```
+
+════════════════════════════════════════════════════════════
+4 · FILE NUOVO src/pages/ChainScreen.tsx — la schermata Chain con il calendario (240 righe)
+════════════════════════════════════════════════════════════
+CREA IL FILE CON ESATTAMENTE QUESTO CONTENUTO:
+```tsx
+// src/pages/ChainScreen.tsx
+// "Your chain": la catena intera, aperta dalla card Chain di Profile (la card si
+// allarga fino a coprire lo schermo; col tasto indietro si richiude al suo posto).
+//
+// In alto il numero dei giorni di fila, sotto il calendario del mese: ogni
+// giorno studiato è un anello, i giorni di fila sulla stessa riga si
+// intrecciano. Oggi: anello acceso se hai già studiato, tratteggiato che
+// respira se è ancora aperto. I giorni saltati sono tratteggiati grigi.
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useLocation } from "wouter";
+import { ChevronLeft } from "lucide-react";
+import { SCREEN_MAX } from "@/components/ScreenColumn";
+import { CHAIN_CSS, ChainIcon, Weave, linkPath } from "@/components/ChainLinks";
+import { getChain, dayState, inCurrentChain, type DayState } from "@/lib/chain";
+import { requestCollapse, skipNextSlide } from "@/lib/pageTransition";
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const DOW = ["M", "T", "W", "T", "F", "S", "S"];
+const CAL_BG = "#111013";   // lo sfondo del calendario: è anche il colore del "taglio" dell'intreccio
+
+const CSS = `
+${CHAIN_CSS}
+.vcs-nav { width: 30px; height: 30px; border-radius: 50%; border: none; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7); cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; outline: none; }
+.vcs-nav:disabled { opacity: 0.25; cursor: default; }
+.vcs-back:active, .vcs-nav:not(:disabled):active { transform: scale(0.88); }
+`;
+
+const bigNum: CSSProperties = {
+  fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, lineHeight: 1,
+  backgroundImage: "linear-gradient(180deg, #fff 30%, #FCD34D)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",
+};
+
+/** Il numero sale da 0 al valore, con una frenata morbida. */
+function useCountUp(to: number, delayMs: number): number {
+  const [v, setV] = useState(() => (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? to : 0));
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setV(to); return; }
+    let raf = 0;
+    const t0 = performance.now() + delayMs;
+    const step = (now: number) => {
+      const u = Math.max(0, Math.min(1, (now - t0) / 700));
+      setV(Math.round(to * (1 - Math.pow(1 - u, 3))));
+      if (u < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [to, delayMs]);
+  return v;
+}
+
+function Calendar({ year, month, chain }: { year: number; month: number; chain: ReturnType<typeof getChain> }) {
+  const first = new Date(year, month, 1);
+  const lead = (first.getDay() + 6) % 7;                 // lunedì = 0
+  const count = new Date(year, month + 1, 0).getDate();
+  const rows = Math.ceil((lead + count) / 7);
+  const VW = 336, CW = VW / 7, RH = 46, VH = rows * RH;
+  const g = { w: CW + 7, r: 13 };
+  const cells = Array.from({ length: count }, (_, k) => {
+    const d = k + 1, idx = lead + k, r = Math.floor(idx / 7), c = idx % 7;
+    const date = new Date(year, month, d);
+    return { d, r, cx: CW * c + CW / 2, cy: RH * r + RH / 2, s: dayState(date, chain) as DayState, strong: inCurrentChain(date, chain) };
+  });
+  const on = (s: DayState) => s === "done" || s === "today";
+  const color = (x: typeof cells[number]) => x.s === "today" ? "#FCD34D" : x.strong ? "rgba(245,158,11,0.9)" : "rgba(245,158,11,0.5)";
+  // gli anelli si scrivono uno dopo l'altro, nell'ordine dei giorni studiati
+  const order = new Map<number, number>();
+  cells.filter((x) => on(x.s)).forEach((x, i) => order.set(x.d, i));
+  const delay = (d: number) => `${(180 + (order.get(d) ?? 0) * 26) / 1000}s`;
+
+  return (
+    <svg viewBox={`0 0 ${VW} ${VH}`} style={{ display: "block", width: "100%", height: "auto" }} role="img"
+      aria-label={`${MONTHS[month]} ${year}: ${cells.filter((x) => on(x.s)).length} days studied`}>
+      <defs>
+        <filter id="vcs-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="b" />
+          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+      {/* gli anelli */}
+      <g>
+        {cells.map((x) => {
+          if (on(x.s)) {
+            return (
+              <path key={x.d} d={linkPath(x.cx, x.cy, g)} fill="none" stroke={color(x)} strokeWidth={2} strokeLinecap="round"
+                pathLength={1} strokeDasharray="1 1" className="vch-draw"
+                filter={x.s === "today" ? "url(#vcs-glow)" : undefined}
+                style={{ "--d": delay(x.d), "--dur": ".36s" } as CSSProperties} />
+            );
+          }
+          if (x.s === "missed" || x.s === "todayWait") {
+            return (
+              <path key={x.d} d={linkPath(x.cx, x.cy, g)} fill="none"
+                stroke={x.s === "todayWait" ? "rgba(245,158,11,0.75)" : "rgba(255,255,255,0.16)"}
+                strokeWidth={1.3} strokeLinecap="round" strokeDasharray="1.6 3.4"
+                className={x.s === "todayWait" ? "vch-wait" : undefined} />
+            );
+          }
+          return null;
+        })}
+      </g>
+      {/* l'intreccio fra due giorni di fila sulla stessa riga */}
+      <g>
+        {cells.map((a, i) => {
+          const b = cells[i + 1];
+          if (!b || b.r !== a.r || !on(a.s) || !on(b.s)) return null;
+          return (
+            <Weave key={`w${a.d}`} x1={a.cx} x2={b.cx} cy={a.cy} g={g} c1={color(a)} c2={color(b)} cut={CAL_BG} sw={2}
+              className="vch-fade" style={{ "--d": `${(180 + (order.get(b.d) ?? 0) * 26 + 320) / 1000}s` } as CSSProperties} />
+          );
+        })}
+      </g>
+      {/* i numeri */}
+      <g>
+        {cells.map((x) => (
+          <text key={x.d} x={x.cx} y={x.cy + 3.6} textAnchor="middle" fontSize={10.5} fontFamily="Inter, sans-serif"
+            fontWeight={x.s === "today" || x.s === "todayWait" ? 600 : 500}
+            fill={x.s === "today" ? "#fff" : on(x.s) ? "rgba(255,255,255,0.88)" : x.s === "future" ? "rgba(255,255,255,0.18)" : x.s === "todayWait" ? "#FCD34D" : "rgba(255,255,255,0.34)"}>
+            {x.d}
+          </text>
+        ))}
+      </g>
+    </svg>
+  );
+}
+
+export default function ChainScreen() {
+  const [, navigate] = useLocation();
+  const chain = useMemo(() => getChain(), []);
+  const now = new Date();
+  // si sfoglia dal mese del primo giorno di studio fino a questo mese
+  const firstMonth = useMemo(() => {
+    if (!chain.first) return { y: now.getFullYear(), m: now.getMonth() };
+    const [y, m] = chain.first.split("-").map(Number);
+    return { y, m: m - 1 };
+  }, [chain.first]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [view, setView] = useState({ y: now.getFullYear(), m: now.getMonth() });
+  const atFirst = view.y < firstMonth.y || (view.y === firstMonth.y && view.m <= firstMonth.m);
+  const atLast = view.y > now.getFullYear() || (view.y === now.getFullYear() && view.m >= now.getMonth());
+  function shift(n: number) {
+    setView((v) => { const d = new Date(v.y, v.m + n, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
+  }
+
+  const shownN = useCountUp(chain.current, 120);
+
+  // quanti giorni studiati nel mese che stai guardando
+  const monthCount = useMemo(() => {
+    const prefix = `${view.y}-${String(view.m + 1).padStart(2, "0")}-`;
+    let n = 0;
+    chain.days.forEach((d) => { if (d.startsWith(prefix)) n += 1; });
+    return n;
+  }, [chain.days, view]);
+
+  const strong: CSSProperties = { color: "#fff", fontWeight: 500 };
+  let line: ReactNode;
+  if (chain.current === 0) {
+    line = <>Every day you study adds a link.<br /><b style={strong}>One session</b> starts a new chain.</>;
+  } else if (!chain.todayDone) {
+    line = <>Today's link is still open.<br /><b style={strong}>One session</b> keeps your {chain.current}-day chain.</>;
+  } else if (chain.current >= chain.longest) {
+    line = <>Every day you study adds a link.<br /><b style={strong}>Your longest chain yet.</b></>;
+  } else {
+    const gap = chain.longest - chain.current + 1;
+    line = <>Every day you study adds a link.<br /><b style={strong}>{gap} more {gap === 1 ? "day" : "days"}</b> to beat your longest.</>;
+  }
+
+  function goBack() {
+    // si torna dentro la card Chain, che si richiude al suo posto
+    requestCollapse("chain");
+    skipNextSlide();
+    navigate("/profile");
+  }
+
+  return (
+    <div style={{ minHeight: "100%", width: "100%", background: "linear-gradient(180deg, #14100a 0, #0A0A0A 340px)", position: "relative", overflowX: "hidden" }}>
+      <style>{CSS}</style>
+      <div style={{ position: "absolute", left: "50%", top: 40, width: 460, height: 300, marginLeft: -230, pointerEvents: "none", background: "radial-gradient(ellipse at center, rgba(245,158,11,0.10), transparent 65%)" }} />
+      <div style={{ position: "relative", zIndex: 10, maxWidth: SCREEN_MAX, margin: "0 auto", padding: "18px 20px calc(40px + env(safe-area-inset-bottom))", boxSizing: "border-box" }}>
+
+        <div style={{ display: "flex", alignItems: "center", minHeight: 40 }}>
+          <button className="vcs-back" onClick={goBack} aria-label="Back"
+            style={{ width: 34, height: 34, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", outline: "none" }}>
+            <ChevronLeft size={18} />
+          </button>
+        </div>
+
+        {/* il numero */}
+        <div style={{ textAlign: "center", margin: "18px 0 6px" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "'Inter', sans-serif", fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "#F59E0B", fontWeight: 600 }}>
+            <ChainIcon cut="#15110b" />Chain
+          </span>
+          <div><b style={{ ...bigNum, fontSize: 96, letterSpacing: -4, marginTop: 10, display: "inline-block" }}>{shownN}</b></div>
+          <p style={{ margin: "2px 0 0", fontFamily: "'Inter', sans-serif", fontSize: 13.5, color: "rgba(255,255,255,0.55)" }}>{chain.current === 1 ? "day unbroken" : "days unbroken"}</p>
+        </div>
+        <p style={{ textAlign: "center", fontFamily: "'Inter', sans-serif", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.62)", margin: "14px 10px 22px" }}>{line}</p>
+
+        {/* il calendario */}
+        <div style={{ borderRadius: 20, background: CAL_BG, border: "1px solid rgba(255,255,255,0.08)", padding: "14px 12px 12px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px 10px" }}>
+            <b style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 16, color: "#fff" }}>
+              {MONTHS[view.m]} <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 500 }}>{view.y}</span>
+            </b>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button className="vcs-nav" onClick={() => shift(-1)} disabled={atFirst} aria-label="Previous month">‹</button>
+              <button className="vcs-nav" onClick={() => shift(1)} disabled={atLast} aria-label="Next month">›</button>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", fontFamily: "'Inter', sans-serif", fontSize: 9.5, color: "rgba(255,255,255,0.35)", textAlign: "center", letterSpacing: "0.06em", paddingBottom: 6 }}>
+            {DOW.map((d, i) => <span key={i}>{d}</span>)}
+          </div>
+          {/* key: cambiando mese il calendario si ridisegna, anello dopo anello */}
+          <Calendar key={`${view.y}-${view.m}`} year={view.y} month={view.m} chain={chain} />
+        </div>
+
+        {/* tre numeri */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 12 }}>
+          {[
+            { n: monthCount, l: "this month" },
+            { n: chain.longest, l: "longest chain" },
+            { n: chain.total, l: "days studied" },
+          ].map((s) => (
+            <div key={s.l} style={{ padding: "12px 12px 11px", borderRadius: 16, background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <b style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 22, letterSpacing: -0.5, color: "#fff" }}>{s.n}</b>
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 10.5, color: "rgba(255,255,255,0.45)" }}>{s.l}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* legenda */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 18, marginTop: 16, fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="26" height="14" viewBox="0 0 26 14" aria-hidden="true"><rect x="2" y="2" width="22" height="10" rx="5" fill="none" stroke="#F59E0B" strokeWidth="1.6" /></svg>studied
+          </span>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="26" height="14" viewBox="0 0 26 14" aria-hidden="true"><rect x="2" y="2" width="22" height="10" rx="5" fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth="1.3" strokeDasharray="1.6 3" /></svg>missed
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+════════════════════════════════════════════════════════════
+5 · src/lib/pageTransition.ts — la card Chain può richiudersi (1 edit)
+════════════════════════════════════════════════════════════
+──── T1 ────
+TROVA:
+type CardKind = "review" | "practice";
+
+SOSTITUISCI CON:
+type CardKind = "review" | "practice" | "chain";
+
+════════════════════════════════════════════════════════════
+6 · src/App.tsx — la pagina /chain (2 edit)
+════════════════════════════════════════════════════════════
+──── A1 · import ────
+TROVA:
+import HowItWorksScreen from "@/pages/HowItWorksScreen";
+import BottomNav, { TAB_PATHS } from "@/components/BottomNav";
+
+SOSTITUISCI CON:
+import HowItWorksScreen from "@/pages/HowItWorksScreen";
+import ChainScreen from "@/pages/ChainScreen";
+import BottomNav, { TAB_PATHS } from "@/components/BottomNav";
+
+──── A2 · route ────
+TROVA:
+            <Route path="/how-it-works" component={HowItWorksScreen} />
+            <Route component={NotFound} />
+
+SOSTITUISCI CON:
+            <Route path="/how-it-works" component={HowItWorksScreen} />
+            <Route path="/chain" component={ChainScreen} />
+            <Route component={NotFound} />
+
+════════════════════════════════════════════════════════════
+7 · src/pages/PracticeHomeScreen.tsx — ignora il ritorno della card Chain + portale (4 edit)
+════════════════════════════════════════════════════════════
+──── H1 ────
+TROVA:
+import { motion } from "framer-motion";
+
+SOSTITUISCI CON:
+import { motion, PresenceContext } from "framer-motion";
+
+──── H2 ────
+TROVA:
+    return kind ? { kind, rect: null, num: null, leaving: false } : null;
+
+SOSTITUISCI CON:
+    // solo le due card di questa schermata (la card Chain si richiude in Profile)
+    return kind === "review" || kind === "practice" ? { kind, rect: null, num: null, leaving: false } : null;
+
+──── H3 ────
+TROVA:
+          <>
+
+SOSTITUISCI CON:
+          // PresenceContext null: la tinta parte sempre dalla card (vedi ProfileScreen)
+          <PresenceContext.Provider value={null}>
+
+──── H4 ────
+TROVA:
+          </>,
+
+SOSTITUISCI CON:
+          </PresenceContext.Provider>,
+
+════════════════════════════════════════════════════════════
+8 · src/pages/ProfileScreen.tsx — la card Chain (9 edit)
+════════════════════════════════════════════════════════════
+──── P1 ────
+TROVA:
+import React, { useState } from "react";
+import { useLocation } from "wouter";
+import { User, Flame, Star, HelpCircle, ThumbsUp, Mail, RotateCcw, Trash2, Lock, ChevronRight, Check } from "lucide-react";
+import AppBackground from "@/components/AppBackground";
+import TabHeader from "@/components/TabHeader";
+import { SCREEN_MAX } from "@/components/ScreenColumn";
+import { getMomentum, getBestStreak, getWeekStrip } from "@/lib/studyActivity";
+
+SOSTITUISCI CON:
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { motion, PresenceContext } from "framer-motion";
+import { useLocation } from "wouter";
+import { User, Star, HelpCircle, ThumbsUp, Mail, RotateCcw, Trash2, Lock, ChevronRight, Check } from "lucide-react";
+import AppBackground from "@/components/AppBackground";
+import TabHeader from "@/components/TabHeader";
+import { SCREEN_MAX } from "@/components/ScreenColumn";
+import { CHAIN_CSS, ChainIcon, ChainStrip } from "@/components/ChainLinks";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+import { getChain, lastDays } from "@/lib/chain";
+import { skipNextSlide, peekCollapse, clearCollapse } from "@/lib/pageTransition";
+
+──── P2 ────
+TROVA:
+
+function loadMyWordsCount(): number {
+
+SOSTITUISCI CON:
+
+// la card Chain: fondo pieno (non trasparente) perché l'intreccio degli anelli
+// "taglia" con il colore dello sfondo; la stessa tinta si allarga verso la schermata Chain
+const CHAIN_CARD_BG = "linear-gradient(170deg, #1b140a, #121010 55%)";
+const CHAIN_TINT = "linear-gradient(170deg, #1b140a, #0D0C0B 60%)";
+const CHAIN_EDGE = "rgba(245,158,11,0.22)";
+
+function loadMyWordsCount(): number {
+
+──── P3 ────
+TROVA:
+// MA preserva il Momentum (verba_study_days) e i flag-hint.
+
+SOSTITUISCI CON:
+// MA preserva la catena (verba_study_days) e i flag-hint.
+
+──── P4 ────
+TROVA:
+  const [momentum, setMomentum] = useState<number>(() => getMomentum());
+  const [best, setBest] = useState<number>(() => getBestStreak());
+  const [week, setWeek] = useState(() => getWeekStrip());
+
+SOSTITUISCI CON:
+  const [chain, setChain] = useState(() => getChain());
+  const strip = useMemo(() => lastDays(14, chain), [chain]);
+  const chainStatus = chain.todayDone
+    ? "Today's link is forged. See you tomorrow."
+    : chain.current > 0
+      ? "Today's link is still open. Don't break the chain."
+      : "Study today to forge your first link.";
+
+──── P5 ────
+TROVA:
+    setMomentum(getMomentum());
+    setBest(getBestStreak());
+    setWeek(getWeekStrip());
+
+SOSTITUISCI CON:
+    setChain(getChain());
+
+──── P6 ────
+TROVA:
+  const active = momentum > 0;
+
+SOSTITUISCI CON:
+  // ── la card Chain che si allarga e si richiude ──
+  const chainCardRef = useRef<HTMLButtonElement | null>(null);
+  const [expand, setExpand] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [expandLeaving, setExpandLeaving] = useState(false);
+  const expandDone = useRef(false);
+  // Il ritorno dalla schermata Chain: Profile nasce coperta dalla tinta a schermo
+  // pieno e la richiude sulla card appena la card è misurabile.
+  const [collapse, setCollapse] = useState<{ rect: DOMRect | null; leaving: boolean } | null>(() =>
+    peekCollapse() === "chain" ? { rect: null, leaving: false } : null);
+
+  function openChain() {
+    const card = chainCardRef.current;
+    const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!card || reduce) { navigate("/chain"); return; }
+    const r = card.getBoundingClientRect();
+    expandDone.current = false;
+    setExpandLeaving(false);
+    setExpand({ top: r.top, left: r.left, width: r.width, height: r.height });
+    // i tempi sono tenuti da un timer (440 ms = la durata dell'allargamento), non dalla
+    // fine dell'animazione: così la pagina si apre sempre, anche se l'evento non arriva
+    window.setTimeout(finishExpand, 440);
+  }
+  function finishExpand() {
+    if (expandDone.current) return;
+    expandDone.current = true;
+    skipNextSlide();                 // la schermata Chain compare sopra la card, senza scorrere
+    navigate("/chain");
+    setExpandLeaving(true);
+  }
+  // la card si misura quando la striscia delle schede si è sistemata (due fotogrammi)
+  useEffect(() => {
+    if (!collapse || collapse.rect) return;
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        const card = chainCardRef.current;
+        if (!card) { clearCollapse(); setCollapse(null); return; }
+        setCollapse((c) => c && { ...c, rect: card.getBoundingClientRect() });
+      });
+    });
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+  }, [collapse]);
+  // poi si richiude (420 ms) e sfuma sulla card (180 ms); anche qui tengono il tempo i timer
+  const collapseStage = !collapse ? 0 : !collapse.rect ? 1 : !collapse.leaving ? 2 : 3;
+  useEffect(() => {
+    if (collapseStage === 2) {
+      const t = window.setTimeout(() => setCollapse((c) => c && { ...c, leaving: true }), 420);
+      return () => window.clearTimeout(t);
+    }
+    if (collapseStage === 3) {
+      const t = window.setTimeout(() => { clearCollapse(); setCollapse(null); }, 180);
+      return () => window.clearTimeout(t);
+    }
+    return undefined;
+  }, [collapseStage]);
+
+──── P7 ────
+TROVA:
+      <div style={{ position: "relative", zIndex: 10, maxWidth: SCREEN_MAX, margin: "0 auto", padding: "18px 16px 32px", boxSizing: "border-box" }}>
+
+        <TabHeader tab="profile" subtitle="Your account, your streak, your settings." right={null} />
+
+SOSTITUISCI CON:
+      <style>{`${CHAIN_CSS}
+        .vpf-breathe { animation: vpf-breathe 1.8s ease-in-out infinite; }
+        @keyframes vpf-breathe { 50% { opacity: .35; box-shadow: 0 0 2px #F59E0B; } }
+        @media (prefers-reduced-motion: reduce) { .vpf-breathe { animation: none; } }
+      `}</style>
+      <div style={{ position: "relative", zIndex: 10, maxWidth: SCREEN_MAX, margin: "0 auto", padding: "18px 16px 32px", boxSizing: "border-box" }}>
+
+        <TabHeader tab="profile" subtitle="Your account, your chain, your settings." right={null} />
+
+──── P8 ────
+TROVA:
+        <div style={{ background: active ? "rgba(245,158,11,0.07)" : "rgba(255,255,255,0.03)", border: active ? "0.5px solid rgba(245,158,11,0.25)" : "0.5px solid rgba(255,255,255,0.09)", borderRadius: 16, padding: 15, marginTop: 20 }}>
+          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, fontWeight: 500, color: active ? "rgba(248,184,78,0.9)" : "rgba(255,255,255,0.4)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 12 }}>Momentum</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Flame size={32} color={active ? AMBER : "rgba(255,255,255,0.25)"} strokeWidth={1.8} />
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
+                <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 28, fontWeight: 700, color: active ? AMBER_SOFT : "rgba(255,255,255,0.55)", lineHeight: 1 }}>{momentum}</span>
+                <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: active ? "rgba(248,184,78,0.85)" : "rgba(255,255,255,0.4)" }}>{momentum === 1 ? "day" : "days"}</span>
+              </div>
+              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.42)", marginTop: 3 }}>{active ? `Best ${best} · keep it alive` : "Study today to start your momentum"}</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 15 }}>
+            {week.map((d, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 9, color: "rgba(255,255,255,0.35)" }}>{d.weekday}</span>
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: d.studied ? AMBER : "transparent", border: d.studied ? "none" : `1.5px solid rgba(255,255,255,${d.isFuture ? 0.12 : 0.2})`, boxShadow: d.isToday && d.studied ? "0 0 0 3px rgba(245,158,11,0.25)" : "none" }} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+SOSTITUISCI CON:
+        {/* La catena: tocca la card e si allarga fino a diventare la schermata Chain */}
+        <motion.button
+          ref={chainCardRef}
+          onClick={openChain}
+          whileTap={tapScale("card")}
+          transition={TAP_SPRING}
+          aria-label="Open your chain"
+          style={{ display: "block", width: "100%", textAlign: "left", cursor: "pointer", outline: "none", marginTop: 20, padding: "16px 16px 14px", borderRadius: 20, border: `1px solid ${CHAIN_EDGE}`, background: CHAIN_CARD_BG, color: "#fff", boxSizing: "border-box" }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "'Inter', sans-serif", fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: AMBER, fontWeight: 600 }}>
+              <ChainIcon cut="#1a130a" />Chain
+            </span>
+            {chain.longest > 0 ? (
+              <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: "rgba(255,255,255,0.45)" }}>
+                Longest <b style={{ color: "rgba(255,255,255,0.8)", fontWeight: 500 }}>{chain.longest}</b> {chain.longest === 1 ? "day" : "days"}
+              </span>
+            ) : null}
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 9, margin: "10px 0 2px" }}>
+            <b style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 44, letterSpacing: -1.5, lineHeight: 1, backgroundImage: "linear-gradient(180deg, #fff 30%, #FCD34D)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>{chain.current}</b>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.55)" }}>{chain.current === 1 ? "day unbroken" : "days unbroken"}</span>
+          </div>
+          {/* gli ultimi 14 giorni, con lo stesso margine ai due lati */}
+          <div style={{ margin: "14px 0 4px" }}>
+            <ChainStrip days={strip} cut="#131110" animate={!collapse} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(255,255,255,0.32)", letterSpacing: "0.04em" }}>
+            <span>2 weeks ago</span>
+            <span style={{ color: "rgba(245,158,11,0.75)", letterSpacing: 0, fontSize: 11.5 }}>See your chain ›</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", fontFamily: "'Inter', sans-serif", fontSize: 12.5, color: "rgba(255,255,255,0.7)" }}>
+            <i className={chain.todayDone ? undefined : "vpf-breathe"} style={{ width: 7, height: 7, borderRadius: "50%", background: AMBER, boxShadow: `0 0 8px ${AMBER}`, flexShrink: 0 }} />
+            <span>{chainStatus}</span>
+          </div>
+        </motion.button>
+
+        {/* La tinta della card che si allarga (verso la schermata Chain) e che, al
+            ritorno, si richiude al suo posto. Portale su document.body: dentro la
+            striscia delle schede, che è spostata di lato, "fixed" si fisserebbe
+            alla striscia e non allo schermo. */}
+        {typeof document !== "undefined" && createPortal(
+          // PresenceContext null: la tinta parte sempre dalla card. Senza, se l'app è
+          // stata aperta direttamente su una scheda, la transizione delle pagine
+          // (AnimatePresence initial={false}) farebbe saltare l'animazione d'ingresso.
+          <PresenceContext.Provider value={null}>
+            {expand && (
+              <motion.div
+                aria-hidden="true"
+                initial={{ top: expand.top, left: expand.left, width: expand.width, height: expand.height, borderRadius: 20, opacity: 1 }}
+                animate={{ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: expandLeaving ? 0 : 1 }}
+                transition={expandLeaving ? { duration: 0.32, ease: "easeOut" } : { duration: 0.44, ease: [0.2, 0.9, 0.25, 1] }}
+                style={{ position: "fixed", zIndex: 60, pointerEvents: "auto", background: CHAIN_TINT, border: `1px solid ${CHAIN_EDGE}` }}
+              />
+            )}
+            {collapse && (
+              <motion.div
+                aria-hidden="true"
+                initial={{ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: 1 }}
+                animate={collapse.rect
+                  ? { top: collapse.rect.top, left: collapse.rect.left, width: collapse.rect.width, height: collapse.rect.height, borderRadius: 20, opacity: collapse.leaving ? 0 : 1 }
+                  : { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: 1 }}
+                transition={collapse.leaving ? { duration: 0.18, ease: "easeOut" } : { duration: 0.42, ease: [0.2, 0.9, 0.25, 1] }}
+                style={{ position: "fixed", zIndex: 60, pointerEvents: "none", background: CHAIN_TINT, border: `1px solid ${CHAIN_EDGE}` }}
+              />
+            )}
+          </PresenceContext.Provider>,
+          document.body,
+        )}
+
+──── P9 ────
+TROVA:
+              <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.5, margin: "11px 0 12px" }}>This erases your learning progress and your saved words (My Verba). Your Momentum stays.</p>
+
+SOSTITUISCI CON:
+              <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.5, margin: "11px 0 12px" }}>This erases your learning progress and your saved words (My Verba). Your chain stays.</p>
+
+════════════════════════════════════════════════════════════
+9 · src/pages/ResultsScreen.tsx — la celebrazione nuova (3 edit)
+════════════════════════════════════════════════════════════
+──── R1 ────
+TROVA:
+import { getMomentum } from "@/lib/studyActivity";
+import { getDueCount, getWordStat } from "@/lib/wordStats";
+import StreakCelebration from "@/components/StreakCelebration";
+
+SOSTITUISCI CON:
+import { getDueCount, getWordStat } from "@/lib/wordStats";
+import ChainCelebration from "@/components/ChainCelebration";
+import { shouldCelebrateToday, markCelebratedToday } from "@/lib/chain";
+
+──── R2 ────
+TROVA:
+      // Streak celebration: solo alla PRIMA Results del giorno. Il flag si scrive al DISMISS (non qui),
+      // così un eventuale re-mount della schermata non "consuma" la celebrazione a metà.
+      try {
+        const now = new Date();
+        const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+        if (localStorage.getItem("verba_streak_celebrated") !== todayYMD && getMomentum() >= 1) {
+          setShowCelebration(true);
+        }
+      } catch { /* storage non disponibile */ }
+
+SOSTITUISCI CON:
+      // La catena: solo alla fine della PRIMA sessione del giorno. Il flag si scrive al DISMISS (non qui),
+      // così un eventuale re-mount della schermata non "consuma" la celebrazione a metà.
+      if (shouldCelebrateToday()) setShowCelebration(true);
+
+──── R3 ────
+TROVA:
+        <StreakCelebration
+          onDismiss={() => {
+            try {
+              const now = new Date();
+              const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+              localStorage.setItem("verba_streak_celebrated", todayYMD);
+            } catch { /* storage */ }
+
+SOSTITUISCI CON:
+        <ChainCelebration
+          onDismiss={() => {
+            markCelebratedToday();
+
+════════════════════════════════════════════════════════════
+10 · src/pages/ReviewSummaryScreen.tsx — la celebrazione anche dopo la Review (4 edit)
+════════════════════════════════════════════════════════════
+──── S1 ────
+TROVA:
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+
+SOSTITUISCI CON:
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+import ChainCelebration from "@/components/ChainCelebration";
+import { shouldCelebrateToday, markCelebratedToday } from "@/lib/chain";
+
+──── S2 ────
+TROVA:
+  const [myWords, setMyWords] = useState<Set<string>>(new Set());
+
+SOSTITUISCI CON:
+  const [myWords, setMyWords] = useState<Set<string>>(new Set());
+  // la catena: anche una sessione di sola Review aggiunge l'anello di oggi
+  const [showCelebration, setShowCelebration] = useState(false);
+
+──── S3 ────
+TROVA:
+    setMyWords(loadMyWords());
+  }, [navigate]);
+
+SOSTITUISCI CON:
+    setMyWords(loadMyWords());
+    if (shouldCelebrateToday()) setShowCelebration(true);
+  }, [navigate]);
+
+──── S4 ────
+TROVA:
+    <div style={{ minHeight: "100dvh", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
+      <AppBackground showWords={false} />
+
+SOSTITUISCI CON:
+    <div style={{ minHeight: "100dvh", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
+      {showCelebration && (
+        <ChainCelebration onDismiss={() => { markCelebratedToday(); setShowCelebration(false); }} />
+      )}
+      <AppBackground showWords={false} />
+
+════════════════════════════════════════════════════════════
+11 · src/pages/HowItWorksScreen.tsx — Momentum → Your chain (2 edit)
+════════════════════════════════════════════════════════════
+──── W1 ────
+TROVA:
+import { BookOpen, Repeat, Target, Flame, Star, AlertTriangle, Lock } from "lucide-react";
+
+SOSTITUISCI CON:
+import { BookOpen, Repeat, Target, Link2, Star, AlertTriangle, Lock } from "lucide-react";
+
+──── W2 ────
+TROVA:
+  { icon: <Flame size={18} />, color: AMBER, title: "Momentum", body: "Study even a little each day to build Momentum. Small daily sessions beat rare long ones — consistency is the whole game." },
+
+SOSTITUISCI CON:
+  { icon: <Link2 size={18} />, color: AMBER, title: "Your chain", body: "Every day you study adds a link to your chain. Small daily sessions beat rare long ones — consistency is the whole game. Don't break the chain." },
+
+════════════════════════════════════════════════════════════
+VERIFICA — rispondi VOCE PER VOCE, non in prosa
+════════════════════════════════════════════════════════════
+a) Righe PRIMA e DOPO. Attese: pageTransition.ts 44→44 · App.tsx 134→136 · PracticeHomeScreen.tsx 495→497 · ProfileScreen.tsx 179→299 · ResultsScreen.tsx 923→913 · ReviewSummaryScreen.tsx 150→158 · HowItWorksScreen.tsx 57→57.
+   File nuovi: chain.ts 118 · ChainLinks.tsx 134 · ChainCelebration.tsx 276 · ChainScreen.tsx 240.
+b) Se un conteggio è RADDOPPIATO o più: FERMATI e dillo per primo.
+   (ProfileScreen cresce di ~120 righe: è previsto, non è un raddoppio.)
+c) T1, A1, A2, H1, H2, H3, H4, P1, P2, P3, P4, P5, P6, P7, P8, P9, R1, R2, R3, S1, S2, S3, S4, W1, W2: sì/no per ciascuno.
+d) In ProfileScreen.tsx: `Flame` ZERO volte; `getMomentum` ZERO volte;
+   `createPortal(` UNA volta; `PresenceContext.Provider` DUE volte (apertura e
+   chiusura); `window.setTimeout(finishExpand, 440)` UNA volta;
+   `subtitle="Your account, your chain, your settings."` UNA volta.
+e) In PracticeHomeScreen.tsx: `PresenceContext.Provider` DUE volte;
+   `kind === "review" || kind === "practice"` UNA volta.
+f) In ResultsScreen.tsx: `StreakCelebration` ZERO volte; `ChainCelebration` DUE
+   volte (import e uso); `getMomentum` ZERO volte.
+g) In App.tsx: `<Route path="/chain" component={ChainScreen} />` UNA volta.
+h) Typecheck (pnpm --filter @workspace/verba typecheck): pulito sì/no, errori
+   riportati PER INTERO.
+i) Edit saltati e motivo.
+
+NON FARE
+· NON modificare TabPager.tsx, BottomNav.tsx, studyActivity.ts, wordStats.ts,
+  QuizScreen.tsx, PracticeSetupScreen.tsx, attached_assets/.
+· NON cancellare file.
+· NON avviare il dev server, NON testare.
+· NON riscrivere per intero nessun file esistente.

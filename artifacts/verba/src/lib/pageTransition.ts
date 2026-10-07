@@ -27,7 +27,7 @@ export function takeSkipSlide(): boolean {
  * può avvenire due volte; lo cancella chi ha finito l'animazione
  * (clearCollapse), e comunque scade da solo dopo un secondo e mezzo.
  */
-type CardKind = "review" | "practice";
+type CardKind = "review" | "practice" | "chain";
 let collapse: { kind: CardKind; at: number } | null = null;
 
 export function requestCollapse(kind: CardKind): void {

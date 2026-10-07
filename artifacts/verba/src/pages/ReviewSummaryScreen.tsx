@@ -5,6 +5,8 @@ import { Star } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
 import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+import ChainCelebration from "@/components/ChainCelebration";
+import { shouldCelebrateToday, markCelebratedToday } from "@/lib/chain";
 
 // Contratto dati (scritto dal QuizScreen a fine review source=due, step 3c):
 // sessionStorage "verba_review_summary" = [{ id, word, status }]
@@ -29,6 +31,8 @@ export default function ReviewSummaryScreen() {
   const [, navigate] = useLocation();
   const [words, setWords] = useState<ReviewedWord[]>([]);
   const [myWords, setMyWords] = useState<Set<string>>(new Set());
+  // la catena: anche una sessione di sola Review aggiunge l'anello di oggi
+  const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
     let list: ReviewedWord[] = [];
@@ -39,6 +43,7 @@ export default function ReviewSummaryScreen() {
     if (!list || list.length === 0) { navigate("/progress"); return; }
     setWords(list);
     setMyWords(loadMyWords());
+    if (shouldCelebrateToday()) setShowCelebration(true);
   }, [navigate]);
 
   function toggleStar(id: string, e: React.MouseEvent) {
@@ -57,6 +62,9 @@ export default function ReviewSummaryScreen() {
 
   return (
     <div style={{ minHeight: "100dvh", width: "100%", background: "#0A0A0A", position: "relative", overflow: "hidden" }}>
+      {showCelebration && (
+        <ChainCelebration onDismiss={() => { markCelebratedToday(); setShowCelebration(false); }} />
+      )}
       <AppBackground showWords={false} />
       <div style={{ position: "absolute", top: "-8%", left: "50%", transform: "translateX(-50%)", width: 340, height: 320, borderRadius: "50%", background: "radial-gradient(circle, rgba(245,158,11,0.12) 0%, transparent 70%)", pointerEvents: "none", zIndex: 1 }} />
 

@@ -5,9 +5,9 @@ import { Star } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
 import ScreenColumn, { SCREEN_MAX } from "@/components/ScreenColumn";
 import { lowercaseFirst } from "@/lib/formatText";
-import { getMomentum } from "@/lib/studyActivity";
 import { getDueCount, getWordStat } from "@/lib/wordStats";
-import StreakCelebration from "@/components/StreakCelebration";
+import ChainCelebration from "@/components/ChainCelebration";
+import { shouldCelebrateToday, markCelebratedToday } from "@/lib/chain";
 import GlassDrop from "@/components/GlassDrop";
 import FeedbackCard from "@/components/FeedbackCard";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
@@ -810,15 +810,9 @@ export default function ResultsScreen() {
     try {
       const parsed: SessionResult = JSON.parse(raw);
       setResult(parsed);
-      // Streak celebration: solo alla PRIMA Results del giorno. Il flag si scrive al DISMISS (non qui),
+      // La catena: solo alla fine della PRIMA sessione del giorno. Il flag si scrive al DISMISS (non qui),
       // così un eventuale re-mount della schermata non "consuma" la celebrazione a metà.
-      try {
-        const now = new Date();
-        const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-        if (localStorage.getItem("verba_streak_celebrated") !== todayYMD && getMomentum() >= 1) {
-          setShowCelebration(true);
-        }
-      } catch { /* storage non disponibile */ }
+      if (shouldCelebrateToday()) setShowCelebration(true);
       // 1A — persist last session
       try {
         const session = {
@@ -858,13 +852,9 @@ export default function ResultsScreen() {
       overflowX: "hidden",
     }}>
       {showCelebration && (
-        <StreakCelebration
+        <ChainCelebration
           onDismiss={() => {
-            try {
-              const now = new Date();
-              const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-              localStorage.setItem("verba_streak_celebrated", todayYMD);
-            } catch { /* storage */ }
+            markCelebratedToday();
             setShowCelebration(false);
           }}
         />
