@@ -51,13 +51,6 @@ function el(tag: string, attrs: Record<string, string | number>, parent?: Elemen
   if (parent) parent.appendChild(e);
   return e;
 }
-function glowFilter(defs: Element, id: string, sd: number) {
-  const f = el("filter", { id, x: "-50%", y: "-50%", width: "200%", height: "200%" }, defs);
-  el("feGaussianBlur", { stdDeviation: sd, result: "b" }, f);
-  const m = el("feMerge", {}, f);
-  el("feMergeNode", { in: "b" }, m);
-  el("feMergeNode", { in: "SourceGraphic" }, m);
-}
 /** Una fila di anelli con gli intrecci fra i vicini veri. Restituisce le x dei centri. */
 function drawRow(parent: Element, x0: number, cy: number, g: LinkGeom & { pitch: number }, states: ("done" | "ghost")[], color: (i: number) => string, stroke: number, cut: string): { cx: number; p: SVGElement }[] {
   const layer = el("g", {}, parent);
@@ -125,7 +118,6 @@ export default function ChainCelebration({ onDismiss }: Props) {
     // ═══ la scena ═══
     hero.innerHTML = "";
     const defs = el("defs", {}, hero);
-    glowFilter(defs, "vcc-glow", 5);
     const lg = el("linearGradient", { id: "vcc-today", x1: 0, y1: 0, x2: 1, y2: 1 }, defs);
     el("stop", { offset: 0, "stop-color": "#FDE68A" }, lg);
     el("stop", { offset: 1, "stop-color": "#F59E0B" }, lg);
@@ -150,7 +142,11 @@ export default function ChainCelebration({ onDismiss }: Props) {
     if (shown > 0) drawRow(old, x0, CY, G, Array.from({ length: shown }, () => "done"), (i) => amberAt(i, shown), HS, BG);
     const tx = shown > 0 && !broken ? CENTER + G.pitch : CENTER;
     const ghost = el("path", { d: linkPath(tx, CY, G), fill: "none", stroke: "rgba(255,255,255,0.18)", "stroke-width": HS * 0.75, "stroke-dasharray": `${HS * 1.1} ${HS * 2.6}`, "stroke-linecap": "round" }, slide);
-    const today = el("path", { d: linkPath(tx, CY, G), fill: "none", stroke: "url(#vcc-today)", "stroke-width": HS, "stroke-linecap": "round", pathLength: 1, "stroke-dasharray": 1, "stroke-dashoffset": 1, filter: "url(#vcc-glow)" }, slide) as SVGPathElement;
+    // il bagliore: due tratti più larghi e trasparenti sotto l'anello, niente filtri
+    // (su Safari un filtro SVG lasciava un riquadro grigio attorno all'anello)
+    const haloA = el("path", { d: linkPath(tx, CY, G), fill: "none", stroke: "#FCD34D", "stroke-width": HS + 8, "stroke-linecap": "round", pathLength: 1, "stroke-dasharray": 1, "stroke-dashoffset": 1, opacity: 0 }, slide);
+    const haloB = el("path", { d: linkPath(tx, CY, G), fill: "none", stroke: "#FCD34D", "stroke-width": HS + 3.5, "stroke-linecap": "round", pathLength: 1, "stroke-dasharray": 1, "stroke-dashoffset": 1, opacity: 0 }, slide);
+    const today = el("path", { d: linkPath(tx, CY, G), fill: "none", stroke: "url(#vcc-today)", "stroke-width": HS, "stroke-linecap": "round", pathLength: 1, "stroke-dasharray": 1, "stroke-dashoffset": 1 }, slide) as SVGPathElement;
     const len = today.getTotalLength ? today.getTotalLength() : 400;
     // l'intreccio con l'anello di ieri
     const weave = el("g", { opacity: 0 }, slide);
@@ -161,7 +157,8 @@ export default function ChainCelebration({ onDismiss }: Props) {
       }
     }
     // la punta di luce che scrive
-    const pen = el("circle", { r: 4.2, fill: "#FFF7E0", filter: "url(#vcc-glow)", opacity: 0 }, slide);
+    const penHalo = el("circle", { r: 10, fill: "#FCD34D", opacity: 0 }, slide);
+    const pen = el("circle", { r: 4.2, fill: "#FFF7E0", opacity: 0 }, slide);
     // il riflesso che attraversa la catena
     const glint = el("g", { opacity: 0 }, slide);
     const allX: number[] = [];
@@ -171,8 +168,6 @@ export default function ChainCelebration({ onDismiss }: Props) {
 
     // ═══ la settimana: sette anelli, lunedì → domenica ═══
     weekSvg.innerHTML = "";
-    const wdefs = el("defs", {}, weekSvg);
-    glowFilter(wdefs, "vcc-glow-w", 2.5);
     const week = getWeekStrip();
     const wg = { w: 34, r: 9, pitch: 26 };
     const wx0 = 160 - 3 * wg.pitch;
@@ -180,7 +175,12 @@ export default function ChainCelebration({ onDismiss }: Props) {
       (i) => (week[i].isToday ? "#FCD34D" : "rgba(245,158,11,0.62)"), 2, BG);
     let weekToday: SVGElement | null = null;
     wNodes.forEach((n, i) => {
-      if (week[i].isToday && week[i].studied) { n.p.setAttribute("filter", "url(#vcc-glow-w)"); weekToday = n.p; }
+      if (week[i].isToday && week[i].studied) {
+        // bagliore dell'anello di oggi: un tratto largo e trasparente sotto di lui
+        const h = el("path", { d: linkPath(n.cx, 18, wg), fill: "none", stroke: "#FCD34D", "stroke-width": 6, opacity: 0.22 });
+        n.p.parentNode?.insertBefore(h, n.p);
+        weekToday = n.p;
+      }
       const t = el("text", { x: n.cx, y: 50, "text-anchor": "middle", "font-size": 9.5, "font-family": "Inter, sans-serif", fill: week[i].isToday ? "#F59E0B" : "rgba(255,255,255,0.38)" }, weekSvg);
       t.textContent = week[i].weekday;
     });
@@ -203,25 +203,28 @@ export default function ChainCelebration({ onDismiss }: Props) {
         const u = easeIO(seg(t, 0.12, 0.8));
         old.setAttribute("transform", `translate(${-u * 70},0)`);
         old.style.opacity = (1 - u).toFixed(3);
-        old.style.filter = `grayscale(${u})`;
       }
       // 2 · l'anello si scrive
       const d = easeIO(seg(t, T.drawA, T.drawB));
-      today.setAttribute("stroke-dashoffset", (1 - d).toFixed(4));
-      today.style.visibility = d > 0 ? "visible" : "hidden"; // a zero il tappo tondo lascerebbe un puntino
+      for (const p of [today, haloA, haloB]) {
+        p.setAttribute("stroke-dashoffset", (1 - d).toFixed(4));
+        p.style.visibility = d > 0 ? "visible" : "hidden"; // a zero il tappo tondo lascerebbe un puntino
+      }
       ghost.style.opacity = (1 - seg(t, T.drawA, T.drawA + 0.5)).toFixed(3);
       if (d > 0 && d < 1 && today.getPointAtLength) {
         const pt = today.getPointAtLength(d * len);
-        pen.setAttribute("cx", String(pt.x)); pen.setAttribute("cy", String(pt.y)); pen.setAttribute("opacity", "1");
-      } else pen.setAttribute("opacity", "0");
+        for (const c of [pen, penHalo]) { c.setAttribute("cx", String(pt.x)); c.setAttribute("cy", String(pt.y)); }
+        pen.setAttribute("opacity", "1"); penHalo.setAttribute("opacity", "0.28");
+      } else { pen.setAttribute("opacity", "0"); penHalo.setAttribute("opacity", "0"); }
       // 3 · si aggancia: l'intreccio scatta, un battito, il bagliore si spegne
       weave.setAttribute("opacity", seg(t, T.lock - 0.02, T.lock + 0.06).toFixed(3));
       const beat = t > T.lock ? Math.exp(-(t - T.lock) * 6) * Math.sin((t - T.lock) * 20) * 0.05 : 0;
       const sc = `translate(${tx},${CY}) scale(${1 + beat}) translate(${-tx},${-CY})`;
-      today.setAttribute("transform", sc);
-      weave.setAttribute("transform", sc);
+      for (const p of [today, weave, haloA, haloB]) p.setAttribute("transform", sc);
       const glowK = t < T.lock ? 1 : Math.exp(-(t - T.lock) * 1.6);
-      if (glowK > 0.05) today.setAttribute("filter", "url(#vcc-glow)"); else today.removeAttribute("filter");
+      // il bagliore si spegne dopo l'aggancio, ma ne resta un filo
+      haloA.setAttribute("opacity", (0.04 + 0.10 * glowK).toFixed(3));
+      haloB.setAttribute("opacity", (0.08 + 0.22 * glowK).toFixed(3));
       today.setAttribute("stroke-width", (HS + glowK * 0.6).toFixed(2));
       // 4 · la catena scorre di un passo: oggi va al centro
       const sh = (tx - CENTER) * spring(t - T.slideA);

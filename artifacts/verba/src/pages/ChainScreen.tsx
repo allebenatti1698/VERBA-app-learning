@@ -30,6 +30,13 @@ const bigNum: CSSProperties = {
   backgroundImage: "linear-gradient(180deg, #fff 30%, #FCD34D)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",
 };
 
+/** Il numero che sale: un componente a parte, così a ogni fotogramma si ridisegna
+ *  solo lui e non tutta la schermata con il calendario. */
+function CountUp({ to, delayMs, style }: { to: number; delayMs: number; style: CSSProperties }) {
+  const v = useCountUp(to, delayMs);
+  return <b style={style}>{v}</b>;
+}
+
 /** Il numero sale da 0 al valore, con una frenata morbida. */
 function useCountUp(to: number, delayMs: number): number {
   const [v, setV] = useState(() => (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? to : 0));
@@ -70,21 +77,21 @@ function Calendar({ year, month, chain }: { year: number; month: number; chain: 
   return (
     <svg viewBox={`0 0 ${VW} ${VH}`} style={{ display: "block", width: "100%", height: "auto" }} role="img"
       aria-label={`${MONTHS[month]} ${year}: ${cells.filter((x) => on(x.s)).length} days studied`}>
-      <defs>
-        <filter id="vcs-glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3" result="b" />
-          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-      </defs>
       {/* gli anelli */}
       <g>
         {cells.map((x) => {
           if (on(x.s)) {
+            const drawStyle = { "--d": delay(x.d), "--dur": ".36s" } as CSSProperties;
             return (
-              <path key={x.d} d={linkPath(x.cx, x.cy, g)} fill="none" stroke={color(x)} strokeWidth={2} strokeLinecap="round"
-                pathLength={1} strokeDasharray="1 1" className="vch-draw"
-                filter={x.s === "today" ? "url(#vcs-glow)" : undefined}
-                style={{ "--d": delay(x.d), "--dur": ".36s" } as CSSProperties} />
+              <g key={x.d}>
+                {/* bagliore di oggi: un tratto largo e trasparente, niente filtri (Safari) */}
+                {x.s === "today" ? (
+                  <path d={linkPath(x.cx, x.cy, g)} fill="none" stroke="#FCD34D" strokeOpacity={0.22} strokeWidth={6.5} strokeLinecap="round"
+                    pathLength={1} strokeDasharray="1 1" className="vch-draw" style={drawStyle} />
+                ) : null}
+                <path d={linkPath(x.cx, x.cy, g)} fill="none" stroke={color(x)} strokeWidth={2} strokeLinecap="round"
+                  pathLength={1} strokeDasharray="1 1" className="vch-draw" style={drawStyle} />
+              </g>
             );
           }
           if (x.s === "missed" || x.s === "todayWait") {
@@ -140,7 +147,6 @@ export default function ChainScreen() {
     setView((v) => { const d = new Date(v.y, v.m + n, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
   }
 
-  const shownN = useCountUp(chain.current, 120);
 
   // quanti giorni studiati nel mese che stai guardando
   const monthCount = useMemo(() => {
@@ -188,7 +194,7 @@ export default function ChainScreen() {
           <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "'Inter', sans-serif", fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase", color: "#F59E0B", fontWeight: 600 }}>
             <ChainIcon cut="#15110b" />Chain
           </span>
-          <div><b style={{ ...bigNum, fontSize: 96, letterSpacing: -4, marginTop: 10, display: "inline-block" }}>{shownN}</b></div>
+          <div><CountUp to={chain.current} delayMs={120} style={{ ...bigNum, fontSize: 96, letterSpacing: -4, marginTop: 10, display: "inline-block" }} /></div>
           <p style={{ margin: "2px 0 0", fontFamily: "'Inter', sans-serif", fontSize: 13.5, color: "rgba(255,255,255,0.55)" }}>{chain.current === 1 ? "day unbroken" : "days unbroken"}</p>
         </div>
         <p style={{ textAlign: "center", fontFamily: "'Inter', sans-serif", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.62)", margin: "14px 10px 22px" }}>{line}</p>

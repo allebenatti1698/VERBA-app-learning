@@ -50,10 +50,16 @@ function slideDirection(from: string | null, to: string): 1 | -1 {
 }
 
 const slideVariants = {
-  // d = 0: la pagina nuova compare in dissolvenza sopra la card allargata, senza scorrere
-  enter: (d: number) => (d === 0 ? { x: 0, opacity: 0 } : { x: d > 0 ? "100%" : "-100%", opacity: 1 }),
+  // d = 0: la pagina nasce da una card allargata. Compare SUBITO, sotto la tinta
+  // della card (che sta sopra a tutto e sfuma da sola): nessuna opacità animata
+  // sull'intera pagina. Su iPhone un'intera pagina che sfuma, con lo sfondo sfocato
+  // e la grana in fusione dentro, bloccava lo schermo per secondi.
+  // La pagina che esce resta ferma ~0,38 s (il tempo della tinta) e poi sparisce.
+  enter: (d: number) => (d === 0 ? { x: 0, opacity: 1 } : { x: d > 0 ? "100%" : "-100%", opacity: 1 }),
   center: { x: 0, opacity: 1 },
-  exit: (d: number) => (d === 0 ? { x: 0, opacity: 1 } : { x: d > 0 ? "-100%" : "100%", opacity: 1 }),
+  exit: (d: number) => (d === 0
+    ? { x: 0.01, opacity: 1, transition: { duration: 0.02, delay: 0.36 } }
+    : { x: d > 0 ? "-100%" : "100%", opacity: 1 }),
 };
 
 function Router() {

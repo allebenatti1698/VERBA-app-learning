@@ -218,15 +218,18 @@ function RoamingWords() {
 }
 
 function ChromaticOrbs() {
+  // contenitore che taglia: gli aloni escono dai bordi senza allargare la pagina
   return (
-    <>
+    <div aria-hidden style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 1 }}>
       <div
         aria-hidden
         style={{
-          position: "absolute", top: "5%", left: "0%",
-          width: 400, height: 400, borderRadius: "50%",
-          background: "radial-gradient(circle, #4C1D95 0%, transparent 70%)",
-          filter: "blur(120px)", pointerEvents: "none", zIndex: 1,
+          // niente filter: blur — su iPhone è fra gli effetti più costosi in assoluto;
+          // lo stesso alone morbido si ottiene con un gradiente più largo e più sfumato
+          position: "absolute", top: "calc(5% - 120px)", left: -120,
+          width: 640, height: 640, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(76,29,149,0.85) 0%, rgba(76,29,149,0.45) 30%, rgba(76,29,149,0.12) 55%, transparent 72%)",
+          pointerEvents: "none", zIndex: 1,
           animation: "none",
           opacity: 0.22,
         }}
@@ -234,14 +237,14 @@ function ChromaticOrbs() {
       <div
         aria-hidden
         style={{
-          position: "absolute", bottom: "5%", right: "0%",
-          width: 350, height: 350, borderRadius: "50%",
-          background: "radial-gradient(circle, #9D174D 0%, transparent 70%)",
-          filter: "blur(120px)", pointerEvents: "none", zIndex: 1,
+          position: "absolute", bottom: "calc(5% - 120px)", right: -120,
+          width: 590, height: 590, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(157,23,77,0.85) 0%, rgba(157,23,77,0.45) 30%, rgba(157,23,77,0.12) 55%, transparent 72%)",
+          pointerEvents: "none", zIndex: 1,
           opacity: 0.18,
         }}
       />
-    </>
+    </div>
   );
 }
 
@@ -281,8 +284,9 @@ function Grain() {
         inset: 0,
         pointerEvents: "none",
         zIndex: 4,
-        opacity: 0.035,
-        mixBlendMode: "overlay",
+        // niente mixBlendMode: costringeva iPhone a ricomporre tutta la pagina a ogni
+        // fotogramma di un'animazione; la grana a opacità più bassa si vede uguale
+        opacity: 0.022,
         backgroundRepeat: "repeat",
         backgroundSize: "160px 160px",
         backgroundImage:

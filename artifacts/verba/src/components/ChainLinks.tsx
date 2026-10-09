@@ -94,21 +94,22 @@ export function ChainStrip({ days, cut, animate = true }: {
   const delay = (i: number) => `${(60 + i * 40) / 1000}s`;
   return (
     <svg viewBox={`0 0 ${VW} ${VH}`} style={{ display: "block", width: "100%", height: "auto" }} aria-hidden="true">
-      <defs>
-        <filter id="vch-glow-strip" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="2" result="b" />
-          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-      </defs>
       {days.map((d, i) => {
         const s = d.state;
         if (on(s)) {
+          const drawStyle = animate ? ({ "--d": delay(i) } as CSSProperties) : { strokeDashoffset: 0 };
           return (
-            <path key={i} d={linkPath(xs[i], cy, g)} fill="none" stroke={col(i)} strokeWidth={2} strokeLinecap="round"
-              pathLength={1} strokeDasharray="1 1"
-              filter={s === "today" ? "url(#vch-glow-strip)" : undefined}
-              className={animate ? "vch-draw" : undefined}
-              style={animate ? ({ "--d": delay(i) } as CSSProperties) : { strokeDashoffset: 0 }} />
+            <g key={i}>
+              {/* bagliore dell'anello di oggi: un tratto largo e trasparente, niente filtri (Safari) */}
+              {s === "today" ? (
+                <path d={linkPath(xs[i], cy, g)} fill="none" stroke="#FCD34D" strokeOpacity={0.22} strokeWidth={5.5} strokeLinecap="round"
+                  pathLength={1} strokeDasharray="1 1" className={animate ? "vch-draw" : undefined} style={drawStyle} />
+              ) : null}
+              <path d={linkPath(xs[i], cy, g)} fill="none" stroke={col(i)} strokeWidth={2} strokeLinecap="round"
+                pathLength={1} strokeDasharray="1 1"
+                className={animate ? "vch-draw" : undefined}
+                style={drawStyle} />
+            </g>
           );
         }
         // anello vuoto: oggi ancora aperto (ambra, respira) oppure giorno saltato / prima di Verba
