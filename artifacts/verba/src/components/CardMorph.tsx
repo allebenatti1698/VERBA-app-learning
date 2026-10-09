@@ -129,17 +129,32 @@ export default function CardMorph({ children }: { children: ReactNode }) {
       outer.querySelectorAll<HTMLElement>("[data-late]").forEach((n, i, all) => n.animate(
         [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(10px)" }],
         { duration: 180, delay: (all.length - 1 - i) * 25, easing: "cubic-bezier(.4,0,1,1)", fill: "forwards" }));
+      // Chiudendo, il contenuto della pagina NON deve farsi tagliare dal bordo che
+      // stringe: si scioglie per primo, e a stringersi resta una superficie del colore
+      // della card (come una card vuota che rientra), con sopra la faccia della card
+      // che riaffiora. All'arrivo superficie + faccia sono identiche alla card vera.
+      const surface = document.createElement("div");
+      const ecs = getComputedStyle(el);
+      const rr = outer.getBoundingClientRect();
+      Object.assign(surface.style, {
+        position: "absolute", left: `${c.x - rr.left}px`, top: `${c.y - rr.top}px`, width: `${c.w}px`, height: `${c.h}px`,
+        backgroundColor: ecs.backgroundColor === "rgba(0, 0, 0, 0)" ? "#111013" : ecs.backgroundColor,
+        backgroundImage: ecs.backgroundImage, transformOrigin: "0 0", zIndex: "49", pointerEvents: "none", opacity: "0",
+      });
+      surface.setAttribute("aria-hidden", "true");
+      outer.appendChild(surface);
       const face = makeFace(c);
       face.style.opacity = "0";
       const opt = { duration: CLOSE_MS, delay: LEAD_MS, easing: SPRINGY, fill: "forwards" as const };
       outer.animate([{ clipPath: clipFor(fullScreen(), 0) }, { clipPath: clipFor(c, RADIUS) }], opt);
       inner.animate([{ transform: "none" }, { transform: glue(c) }], opt);
       face.animate([{ transform: faceAtFull(c) }, { transform: "none" }], opt);
-      // il contenuto si scioglie e riaffiora la faccia della card
-      inner.animate([{ opacity: 1 }, { opacity: 1, offset: 0.25 }, { opacity: 0 }], { ...opt, easing: SOFT });
-      face.animate([{ opacity: 0 }, { opacity: 0, offset: 0.25 }, { opacity: 1 }], { ...opt, easing: SOFT });
-      // fondo pieno finché il contenuto svanisce; alla fine resta solo la faccia della card
-      outer.animate([{ backgroundColor: "rgba(10,10,10,1)" }, { backgroundColor: "rgba(10,10,10,1)", offset: 0.7 }, { backgroundColor: "rgba(10,10,10,0)" }], { ...opt, easing: "linear" });
+      surface.animate([{ transform: `translate(${-c.x}px, ${-c.y}px) scale(${W / c.w}, ${H / c.h})` }, { transform: "none" }], opt);
+      // prima si scioglie il contenuto, mentre la superficie della card lo rimpiazza;
+      // poi riaffiora la faccia della card
+      inner.animate([{ opacity: 1, easing: SOFT }, { opacity: 0, offset: 0.4 }, { opacity: 0 }], { ...opt, easing: "linear" });
+      surface.animate([{ opacity: 0, easing: SOFT }, { opacity: 1, offset: 0.4 }, { opacity: 1 }], { ...opt, easing: "linear" });
+      face.animate([{ opacity: 0 }, { opacity: 0, offset: 0.15, easing: SOFT }, { opacity: 1, offset: 0.6 }, { opacity: 1 }], { ...opt, easing: "linear" });
       if (nFrom && nTo) fly(nFrom, nTo, rectOf(nFrom), rectOf(nTo), CLOSE_MS, LEAD_MS);
       window.setTimeout(() => { el.style.visibility = ""; done(); }, LEAD_MS + CLOSE_MS);
     });
