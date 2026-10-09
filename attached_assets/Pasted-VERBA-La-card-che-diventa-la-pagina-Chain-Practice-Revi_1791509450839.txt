@@ -1,0 +1,1101 @@
+VERBA — La card che diventa la pagina (Chain, Practice, Review).
+POWER MODE, Claude Sonnet 5.5 (scelto a mano), Effort secondo livello. Stima ~$1.50–3. 2 file nuovi + 6 file con edit mirati.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Tutti i percorsi sono dentro artifacts/verba/.
+
+REGOLE
+· I 2 FILE NUOVI si creano con il contenuto COMPLETO qui sotto, copiato alla lettera.
+  Se uno esiste già: FERMATI e dimmelo prima di fare qualunque cosa.
+· Nei 6 file ESISTENTI: SOLO edit mirati old_string → new_string. NESSUNA
+  sostituzione integrale. Applica ogni edit in modo INDIPENDENTE: se una TROVA non
+  combacia ESATTAMENTE, SALTA quell'edit, SEGNALALO e prosegui con gli altri.
+  Ogni TROVA deve comparire UNA VOLTA SOLA nel suo file; se no, salta.
+· Alcuni edit TOLGONO blocchi lunghi (la vecchia "tinta" delle card): la TROVA
+  è lunga apposta, va copiata intera.
+
+PRIMA DI TUTTO riporta il numero di righe di:
+  src/App.tsx · src/pages/ProfileScreen.tsx · src/pages/PracticeHomeScreen.tsx ·
+  src/pages/ChainScreen.tsx · src/pages/PracticeSetupScreen.tsx · src/pages/QuizScreen.tsx
+Attese oggi: App.tsx 172 · ProfileScreen.tsx 303 · PracticeHomeScreen.tsx 505 · ChainScreen.tsx 246 · PracticeSetupScreen.tsx 334 · QuizScreen.tsx 488.
+Se diverse, dimmelo PRIMA di modificare.
+
+CONTESTO (approvato da Alle sul mockup verba-card-che-diventa-pagina.html)
+· Oggi toccando una card si allarga solo una "tinta" vuota e la pagina compare
+  dopo: c'è un momento di solo colore, in apertura e in chiusura.
+· Ora la card DIVENTA la pagina, come le card "Today" dell'App Store:
+  - aprendo, la pagina vera (con tutto il contenuto) nasce nella forma della card,
+    rimpicciolita e agganciata al suo angolo, e si allarga insieme ai bordi; la
+    faccia della card viaggia con lei e si scioglie nel contenuto;
+  - nella Chain il numero della card vola fino al numero grande della pagina;
+  - le parti secondarie (data-late) arrivano dopo e, chiudendo, se ne vanno prima;
+  - chiudendo, la pagina si rimpicciolisce con il contenuto dentro fino alla card,
+    la faccia della card riaffiora, e solo alla fine si torna alla scheda.
+· Come: components/CardMorph.tsx avvolge ogni pagina (App.tsx) e fa le
+  animazioni; lib/cardMorph.ts è il canale fra la card e la pagina
+  (openFromCard / closeToCard / returningFrom). La vecchia tinta in Profile e in
+  Practice viene tolta.
+
+════════════════════════════════════════════════════════════
+1 · FILE NUOVO src/lib/cardMorph.ts — il canale fra card e pagina (66 righe)
+════════════════════════════════════════════════════════════
+CREA IL FILE CON ESATTAMENTE QUESTO CONTENUTO:
+```ts
+// src/lib/cardMorph.ts
+// "La card che diventa la pagina" — il canale fra la card (in una scheda) e la
+// pagina che ne nasce (Chain, setup di Practice, sessione di Review).
+//
+//  · La scheda chiama openFromCard(kind, cardEl) e naviga SUBITO.
+//  · La pagina, avvolta in <CardMorph> (App.tsx), al primo disegno prende la
+//    card con takeOrigin() e si apre da lei: il contenuto cresce dalla card.
+//  · Per tornare, la pagina chiama closeToCard(): <CardMorph> rimpicciolisce la
+//    pagina dentro la card e solo alla fine si naviga indietro.
+//  · La scheda, ricostruita al ritorno, chiede returningFrom() per non rifare
+//    le proprie animazioni d'ingresso (la catena che si disegna, ecc.).
+import { skipNextSlide } from "@/lib/pageTransition";
+
+export type CardKind = "chain" | "practice" | "review";
+
+let origin: { kind: CardKind; el: HTMLElement; at: number } | null = null;
+let closer: ((done: () => void) => void) | null = null;
+let returning: { kind: CardKind; at: number } | null = null;
+
+/** Dalla scheda: la card su cui si è toccato. Poi si naviga subito. */
+export function openFromCard(kind: CardKind, el: HTMLElement): void {
+  origin = { kind, el, at: Date.now() };
+  skipNextSlide();                       // la pagina non scorre: nasce dalla card
+}
+
+/** La pagina che sta nascendo viene da una card? (senza consumarla) */
+export function peekOrigin(): CardKind | null {
+  return origin && Date.now() - origin.at <= 1500 ? origin.kind : null;
+}
+
+/** Dalla pagina appena montata: la card da cui nasce (una volta sola). */
+export function takeOrigin(): { kind: CardKind; el: HTMLElement } | null {
+  const o = origin;
+  origin = null;
+  if (!o || Date.now() - o.at > 1500 || !o.el.isConnected) return null;
+  return { kind: o.kind, el: o.el };
+}
+
+/** <CardMorph> registra qui come si richiude la pagina corrente. */
+export function registerCloser(fn: ((done: () => void) => void) | null): void {
+  closer = fn;
+}
+
+/**
+ * Dalla pagina: torna richiudendosi nella card da cui era nata, poi esegue `go`
+ * (la navigazione). Se la pagina non era nata da una card, esegue `go` subito.
+ */
+export function closeToCard(kind: CardKind, go: () => void): void {
+  const fn = closer;
+  if (!fn) { go(); return; }
+  closer = null;
+  fn(() => {
+    returning = { kind, at: Date.now() };
+    skipNextSlide();                     // la pagina sparisce sotto la card, senza scorrere
+    go();
+  });
+}
+
+/** Dalla scheda ricostruita: si sta tornando dentro questa card? */
+export function returningFrom(): CardKind | null {
+  if (!returning || Date.now() - returning.at > 1200) return null;
+  return returning.kind;
+}
+
+/** Evento: le schede devono tornare visibili sotto la pagina che si richiude. */
+export const SHOW_TABS_EVENT = "verba:show-tabs";
+```
+
+════════════════════════════════════════════════════════════
+2 · FILE NUOVO src/components/CardMorph.tsx — le animazioni della card che diventa pagina (156 righe)
+════════════════════════════════════════════════════════════
+CREA IL FILE CON ESATTAMENTE QUESTO CONTENUTO:
+```tsx
+// src/components/CardMorph.tsx
+// "La card che diventa la pagina". Avvolge ogni pagina (App.tsx). Se la pagina
+// nasce da una card (lib/cardMorph.ts), al primo disegno si apre DA quella card:
+//
+//  · il contenuto è "incollato" alla card: rimpicciolito alla sua larghezza e
+//    agganciato al suo angolo, si allarga insieme ai bordi (niente tagli);
+//  · la faccia della card (una copia) viaggia dentro la pagina e si scioglie nel
+//    contenuto; chiudendo il contenuto si scioglie e la faccia riaffiora;
+//  · il numero segnato con data-morph-num vola fino a data-morph-num-target;
+//  · gli elementi data-late arrivano dopo e se ne vanno prima;
+//  · una sola curva per tutto, morbida in arrivo (molla stile iOS).
+// Tutto con Web Animations sul DOM: React disegna la pagina una volta e basta.
+import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { takeOrigin, registerCloser, SHOW_TABS_EVENT, type CardKind } from "@/lib/cardMorph";
+
+const SPRINGY = "cubic-bezier(.32,.72,0,1)";
+const SOFT = "cubic-bezier(.4,0,.2,1)";
+const OPEN_MS = 460;
+const CLOSE_MS = 440;
+const LEAD_MS = 120;                      // in chiusura: prima se ne vanno le parti secondarie
+
+// la copia della card non deve ridisegnare le proprie animazioni d'ingresso
+const FACE_CSS = `[data-morph-face] *{animation:none!important;transition:none!important}
+[data-morph-face] .vch-draw,[data-morph-face] .vch-fade{opacity:1!important;stroke-dashoffset:0!important}`;
+
+type Rect = { x: number; y: number; w: number; h: number };
+const rectOf = (n: Element): Rect => { const r = n.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
+
+export default function CardMorph({ children }: { children: ReactNode }) {
+  const outerRef = useRef<HTMLDivElement | null>(null);
+  const innerRef = useRef<HTMLDivElement | null>(null);
+  // la card d'origine si prende UNA volta (in sviluppo React esegue gli effetti due volte)
+  const originRef = useRef<{ kind: CardKind; el: HTMLElement } | null | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    if (originRef.current === undefined) originRef.current = takeOrigin();
+    const o = originRef.current;
+    const outer = outerRef.current, inner = innerRef.current;
+    if (!o || !outer || !inner) { registerCloser(null); return; }
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const cleanups: (() => void)[] = [];
+
+    // ── geometria ──
+    const W = window.innerWidth, H = window.innerHeight;
+    /** il ritaglio, nelle coordinate della pagina, che mostra il rettangolo c dello schermo */
+    const clipFor = (c: Rect, rad: number) => {
+      const r = outer.getBoundingClientRect();
+      const top = c.y - r.top, left = c.x - r.left;
+      return `inset(${top}px ${Math.max(0, r.width - left - c.w)}px ${Math.max(0, r.height - top - c.h)}px ${left}px round ${rad}px)`;
+    };
+    const fullScreen = (): Rect => ({ x: 0, y: 0, w: W, h: H });
+    /** il contenuto incollato alla card: l'angolo dello schermo va sull'angolo della card */
+    const glue = (c: Rect) => {
+      const r = outer.getBoundingClientRect(), s = c.w / W;
+      return `translate(${c.x - r.left + s * r.left}px, ${c.y - r.top + s * r.top}px) scale(${s})`;
+    };
+    /** la copia della card, posata sulla card */
+    function makeFace(c: Rect): HTMLElement {
+      const r = outer!.getBoundingClientRect();
+      const f = o!.el.cloneNode(true) as HTMLElement;
+      f.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
+      f.setAttribute("data-morph-face", "");
+      f.setAttribute("aria-hidden", "true");
+      f.querySelectorAll<HTMLElement>("[data-morph-num]").forEach((n) => { n.style.visibility = "hidden"; });
+      Object.assign(f.style, {
+        position: "absolute", left: `${c.x - r.left}px`, top: `${c.y - r.top}px`, width: `${c.w}px`, height: `${c.h}px`,
+        margin: "0", transform: "none", transformOrigin: "0 0", zIndex: "50", pointerEvents: "none",
+        visibility: "visible", opacity: "1", boxSizing: "border-box",
+      });
+      outer!.appendChild(f);
+      return f;
+    }
+    /** la copia, allargata a tutto schermo */
+    const faceAtFull = (c: Rect) => {
+      const r = outer.getBoundingClientRect(), k = W / c.w;
+      return `translate(${-r.left - (c.x - r.left)}px, ${-r.top - (c.y - r.top)}px) scale(${k})`;
+    };
+    /** il numero che vola: una copia nel body, sopra a tutto */
+    function fly(from: HTMLElement, to: HTMLElement, a: Rect, b: Rect, ms: number, delay: number) {
+      const f = from.cloneNode(true) as HTMLElement;
+      const cs = getComputedStyle(from);
+      Object.assign(f.style, { position: "fixed", left: `${a.x}px`, top: `${a.y}px`, margin: "0", zIndex: "9999", pointerEvents: "none",
+        transformOrigin: "0 0", fontSize: cs.fontSize, lineHeight: cs.lineHeight, letterSpacing: cs.letterSpacing, visibility: "visible" });
+      document.body.appendChild(f);
+      from.style.visibility = "hidden"; to.style.visibility = "hidden";
+      const anim = f.animate([{ transform: "none" }, { transform: `translate(${b.x - a.x}px, ${b.y - a.y}px) scale(${b.h / a.h})` }],
+        { duration: ms, delay, easing: SPRINGY, fill: "both" });
+      const end = () => { f.remove(); from.style.visibility = ""; to.style.visibility = ""; };
+      anim.onfinish = end;
+      cleanups.push(() => { anim.cancel(); end(); });
+    }
+
+    // ── apertura ──
+    const RADIUS = parseFloat(getComputedStyle(o.el).borderTopLeftRadius) || 20;   // gli angoli della card
+    const card = rectOf(o.el);
+    const numFrom = o.el.querySelector<HTMLElement>("[data-morph-num]");
+    const numTo = outer.querySelector<HTMLElement>("[data-morph-num-target]");
+    const numA = numFrom ? rectOf(numFrom) : null;
+    const numB = numTo ? rectOf(numTo) : null;   // misurato PRIMA di rimpicciolire il contenuto
+    o.el.style.visibility = "hidden";             // la card vera sta sotto la pagina: non deve trasparire
+    if (!reduce) {
+      inner.style.transformOrigin = "0 0";
+      const face = makeFace(card);
+      const anims = [
+        outer.animate([{ clipPath: clipFor(card, RADIUS) }, { clipPath: clipFor(fullScreen(), 0) }], { duration: OPEN_MS, easing: SPRINGY }),
+        inner.animate([{ transform: glue(card), opacity: 0 }, { opacity: 1, offset: 0.45 }, { transform: "none", opacity: 1 }], { duration: OPEN_MS, easing: SPRINGY }),
+        face.animate([{ transform: "none" }, { transform: faceAtFull(card) }], { duration: OPEN_MS, easing: SPRINGY }),
+        face.animate([{ opacity: 1 }, { opacity: 0 }], { duration: OPEN_MS * 0.45, easing: SOFT, fill: "forwards" }),
+        // un fondo pieno sotto il contenuto che sta comparendo: la scheda sotto non deve trasparire
+        outer.animate([{ backgroundColor: "rgba(10,10,10,0)" }, { backgroundColor: "rgba(10,10,10,1)", offset: 0.3 }, { backgroundColor: "rgba(10,10,10,1)" }], { duration: OPEN_MS }),
+      ];
+      outer.querySelectorAll<HTMLElement>("[data-late]").forEach((n, i) => anims.push(
+        n.animate([{ opacity: 0, transform: "translateY(14px)" }, { opacity: 1, transform: "none" }],
+          { duration: 360, delay: OPEN_MS * 0.45 + i * 45, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" })));
+      if (numFrom && numTo && numA && numB) fly(numFrom, numTo, numA, numB, OPEN_MS, 0);
+      const t = window.setTimeout(() => face.remove(), OPEN_MS);
+      cleanups.push(() => { window.clearTimeout(t); anims.forEach((a) => a.cancel()); face.remove(); });
+    }
+
+    // ── chiusura: registrata per closeToCard() ──
+    registerCloser((done) => {
+      const el = o.el;
+      if (reduce || !el.isConnected) { el.style.visibility = ""; done(); return; }
+      window.dispatchEvent(new Event(SHOW_TABS_EVENT));   // le schede tornano visibili sotto la pagina
+      const c = rectOf(el);
+      const nTo = el.querySelector<HTMLElement>("[data-morph-num]");
+      const nFrom = outer.querySelector<HTMLElement>("[data-morph-num-target]");
+      inner.style.transformOrigin = "0 0";
+      outer.querySelectorAll<HTMLElement>("[data-late]").forEach((n, i, all) => n.animate(
+        [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(10px)" }],
+        { duration: 180, delay: (all.length - 1 - i) * 25, easing: "cubic-bezier(.4,0,1,1)", fill: "forwards" }));
+      const face = makeFace(c);
+      face.style.opacity = "0";
+      const opt = { duration: CLOSE_MS, delay: LEAD_MS, easing: SPRINGY, fill: "forwards" as const };
+      outer.animate([{ clipPath: clipFor(fullScreen(), 0) }, { clipPath: clipFor(c, RADIUS) }], opt);
+      inner.animate([{ transform: "none" }, { transform: glue(c) }], opt);
+      face.animate([{ transform: faceAtFull(c) }, { transform: "none" }], opt);
+      // il contenuto si scioglie e riaffiora la faccia della card
+      inner.animate([{ opacity: 1 }, { opacity: 1, offset: 0.25 }, { opacity: 0 }], { ...opt, easing: SOFT });
+      face.animate([{ opacity: 0 }, { opacity: 0, offset: 0.25 }, { opacity: 1 }], { ...opt, easing: SOFT });
+      // fondo pieno finché il contenuto svanisce; alla fine resta solo la faccia della card
+      outer.animate([{ backgroundColor: "rgba(10,10,10,1)" }, { backgroundColor: "rgba(10,10,10,1)", offset: 0.7 }, { backgroundColor: "rgba(10,10,10,0)" }], { ...opt, easing: "linear" });
+      if (nFrom && nTo) fly(nFrom, nTo, rectOf(nFrom), rectOf(nTo), CLOSE_MS, LEAD_MS);
+      window.setTimeout(() => { el.style.visibility = ""; done(); }, LEAD_MS + CLOSE_MS);
+    });
+
+    return () => { cleanups.forEach((f) => f()); registerCloser(null); };
+  }, []);
+
+  return (
+    <div ref={outerRef} data-card-morph style={{ position: "relative", minHeight: "100%" }}>
+      <style>{FACE_CSS}</style>
+      <div ref={innerRef} style={{ minHeight: "100%" }}>{children}</div>
+    </div>
+  );
+}
+```
+
+════════════════════════════════════════════════════════════
+3 · src/App.tsx — ogni pagina avvolta in CardMorph (4 edit)
+════════════════════════════════════════════════════════════
+──── A1 ────
+TROVA:
+import TabPager from "@/components/TabPager";
+import { takeSkipSlide } from "@/lib/pageTransition";
+
+const queryClient = new QueryClient();
+
+SOSTITUISCI CON:
+import TabPager from "@/components/TabPager";
+import { takeSkipSlide } from "@/lib/pageTransition";
+import { SHOW_TABS_EVENT } from "@/lib/cardMorph";
+import CardMorph from "@/components/CardMorph";
+
+const queryClient = new QueryClient();
+
+──── A2 ────
+TROVA:
+    return () => window.clearTimeout(t);
+  }, [isTabPage]);
+  const tabsVisible = isTabPage || !tabsHidden;
+  // TabPager e le schede: TAB_ORDER qui e in TabPager.tsx devono restare uguali.
+
+SOSTITUISCI CON:
+    return () => window.clearTimeout(t);
+  }, [isTabPage]);
+  // una pagina che si richiude nella sua card chiede di rivedere le schede sotto di sé
+  useEffect(() => {
+    const show = () => setTabsHidden(false);
+    window.addEventListener(SHOW_TABS_EVENT, show);
+    return () => window.removeEventListener(SHOW_TABS_EVENT, show);
+  }, []);
+  const tabsVisible = isTabPage || !tabsHidden;
+  // TabPager e le schede: TAB_ORDER qui e in TabPager.tsx devono restare uguali.
+
+──── A3 ────
+TROVA:
+              scorre via, invece di ridisegnarsi con la pagina nuova (che così veniva
+              costruita due volte) */}
+          <Switch location={location}>
+            <Route path="/" component={WelcomeScreen} />
+
+SOSTITUISCI CON:
+              scorre via, invece di ridisegnarsi con la pagina nuova (che così veniva
+              costruita due volte) */}
+          {/* CardMorph: se la pagina nasce da una card, si apre da lei e ci si richiude */}
+          <CardMorph>
+          <Switch location={location}>
+            <Route path="/" component={WelcomeScreen} />
+
+──── A4 ────
+TROVA:
+            <Route component={NotFound} />
+          </Switch>
+        </motion.div>
+        )}
+
+SOSTITUISCI CON:
+            <Route component={NotFound} />
+          </Switch>
+          </CardMorph>
+        </motion.div>
+        )}
+
+════════════════════════════════════════════════════════════
+4 · src/pages/ProfileScreen.tsx — card Chain: niente più tinta (8 edit)
+════════════════════════════════════════════════════════════
+──── P1 ────
+TROVA:
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { motion, PresenceContext } from "framer-motion";
+import { useLocation } from "wouter";
+import { User, Star, HelpCircle, ThumbsUp, Mail, RotateCcw, Trash2, Lock, ChevronRight, Check } from "lucide-react";
+
+SOSTITUISCI CON:
+import React, { useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { useLocation } from "wouter";
+import { User, Star, HelpCircle, ThumbsUp, Mail, RotateCcw, Trash2, Lock, ChevronRight, Check } from "lucide-react";
+
+──── P2 ────
+TROVA:
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+import { getChain, lastDays } from "@/lib/chain";
+import { skipNextSlide, peekCollapse, clearCollapse } from "@/lib/pageTransition";
+
+const SUPPORT_EMAIL = "support@verba.app";
+
+SOSTITUISCI CON:
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+import { getChain, lastDays } from "@/lib/chain";
+import { openFromCard, returningFrom } from "@/lib/cardMorph";
+
+const SUPPORT_EMAIL = "support@verba.app";
+
+──── P3 ────
+TROVA:
+const RED = "#EF4444";
+
+// la card Chain: fondo pieno (non trasparente) perché l'intreccio degli anelli
+// "taglia" con il colore dello sfondo; la stessa tinta si allarga verso la schermata Chain
+const CHAIN_CARD_BG = "linear-gradient(170deg, #1b140a, #121010 55%)";
+const CHAIN_TINT = "linear-gradient(170deg, #1b140a, #0D0C0B 60%)";
+const CHAIN_EDGE = "rgba(245,158,11,0.22)";
+
+function loadMyWordsCount(): number {
+
+SOSTITUISCI CON:
+const RED = "#EF4444";
+
+// la card Chain: fondo pieno (non trasparente) perché l'intreccio degli anelli
+// "taglia" con il colore dello sfondo
+const CHAIN_CARD_BG = "linear-gradient(170deg, #1b140a, #121010 55%)";
+const CHAIN_EDGE = "rgba(245,158,11,0.22)";
+
+function loadMyWordsCount(): number {
+
+──── P4 ────
+TROVA:
+  function doResetProgress() { resetProgress(); refresh(); flashDone("progress"); }
+
+  // ── la card Chain che si allarga e si richiude ──
+  const chainCardRef = useRef<HTMLButtonElement | null>(null);
+  const [expand, setExpand] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [expandLeaving, setExpandLeaving] = useState(false);
+  const expandDone = useRef(false);
+  // Il ritorno dalla schermata Chain: Profile nasce coperta dalla tinta a schermo
+  // pieno e la richiude sulla card appena la card è misurabile.
+  const [collapse, setCollapse] = useState<{ rect: DOMRect | null; leaving: boolean } | null>(() =>
+    peekCollapse() === "chain" ? { rect: null, leaving: false } : null);
+
+  function openChain() {
+    const card = chainCardRef.current;
+    const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!card || reduce) { navigate("/chain"); return; }
+    const r = card.getBoundingClientRect();
+    expandDone.current = false;
+    setExpandLeaving(false);
+    setExpand({ top: r.top, left: r.left, width: r.width, height: r.height });
+    // i tempi sono tenuti da un timer, non dalla fine dell'animazione: così la pagina
+    // si apre sempre. 290 su 360 ms: il lavoro della pagina nuova si sovrappone alla
+    // fine del gesto invece di seguirlo
+    window.setTimeout(finishExpand, 290);
+  }
+  function finishExpand() {
+    if (expandDone.current) return;
+    expandDone.current = true;
+    skipNextSlide();                 // la schermata Chain compare sopra la card, senza scorrere
+    navigate("/chain");
+    setExpandLeaving(true);
+    // le schede restano montate: la tinta va tolta a mano, finita la dissolvenza,
+    // o resterebbe (invisibile) sopra la pagina a intercettare i tocchi
+    window.setTimeout(() => { setExpand(null); setExpandLeaving(false); }, 220);
+  }
+  // la card si misura quando la striscia delle schede si è sistemata (due fotogrammi)
+  useEffect(() => {
+    if (!collapse || collapse.rect) return;
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        const card = chainCardRef.current;
+        if (!card) { clearCollapse(); setCollapse(null); return; }
+        setCollapse((c) => c && { ...c, rect: card.getBoundingClientRect() });
+      });
+    });
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+  }, [collapse]);
+  // poi si richiude (340 ms) e sfuma sulla card (160 ms); anche qui tengono il tempo i timer
+  const collapseStage = !collapse ? 0 : !collapse.rect ? 1 : !collapse.leaving ? 2 : 3;
+  useEffect(() => {
+    if (collapseStage === 2) {
+      const t = window.setTimeout(() => setCollapse((c) => c && { ...c, leaving: true }), 340);
+      return () => window.clearTimeout(t);
+    }
+    if (collapseStage === 3) {
+      const t = window.setTimeout(() => { clearCollapse(); setCollapse(null); }, 160);
+      return () => window.clearTimeout(t);
+    }
+    return undefined;
+  }, [collapseStage]);
+
+  return (
+
+SOSTITUISCI CON:
+  function doResetProgress() { resetProgress(); refresh(); flashDone("progress"); }
+
+  // ── la card Chain: toccandola diventa la schermata Chain (components/CardMorph.tsx) ──
+  const chainCardRef = useRef<HTMLButtonElement | null>(null);
+  // tornando dalla schermata Chain la card è già al suo posto: niente animazione d'ingresso
+  const [returning] = useState(() => returningFrom() === "chain");
+  function openChain() {
+    const card = chainCardRef.current;
+    if (card) openFromCard("chain", card);
+    navigate("/chain");
+  }
+
+  return (
+
+──── P5 ────
+TROVA:
+        </div>
+
+        {/* La catena: tocca la card e si allarga fino a diventare la schermata Chain */}
+        <motion.button
+          ref={chainCardRef}
+
+SOSTITUISCI CON:
+        </div>
+
+        {/* La catena: toccandola la card diventa la schermata Chain */}
+        <motion.button
+          ref={chainCardRef}
+
+──── P6 ────
+TROVA:
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 9, margin: "10px 0 2px" }}>
+            <b style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 44, letterSpacing: -1.5, lineHeight: 1, backgroundImage: "linear-gradient(180deg, #fff 30%, #FCD34D)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>{chain.current}</b>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.55)" }}>{chain.current === 1 ? "day unbroken" : "days unbroken"}</span>
+          </div>
+
+SOSTITUISCI CON:
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 9, margin: "10px 0 2px" }}>
+            <b data-morph-num style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 44, letterSpacing: -1.5, lineHeight: 1, backgroundImage: "linear-gradient(180deg, #fff 30%, #FCD34D)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>{chain.current}</b>
+            <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.55)" }}>{chain.current === 1 ? "day unbroken" : "days unbroken"}</span>
+          </div>
+
+──── P7 ────
+TROVA:
+          {/* gli ultimi 14 giorni, con lo stesso margine ai due lati */}
+          <div style={{ margin: "14px 0 4px" }}>
+            <ChainStrip days={strip} cut="#131110" animate={!collapse} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(255,255,255,0.32)", letterSpacing: "0.04em" }}>
+
+SOSTITUISCI CON:
+          {/* gli ultimi 14 giorni, con lo stesso margine ai due lati */}
+          <div style={{ margin: "14px 0 4px" }}>
+            <ChainStrip days={strip} cut="#131110" animate={!returning} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(255,255,255,0.32)", letterSpacing: "0.04em" }}>
+
+──── P8 ────
+TROVA:
+          </div>
+        </motion.button>
+
+        {/* La tinta della card che si allarga (verso la schermata Chain) e che, al
+            ritorno, si richiude al suo posto. Portale su document.body: dentro la
+            striscia delle schede, che è spostata di lato, "fixed" si fisserebbe
+            alla striscia e non allo schermo. */}
+        {typeof document !== "undefined" && createPortal(
+          // PresenceContext null: la tinta parte sempre dalla card. Senza, se l'app è
+          // stata aperta direttamente su una scheda, la transizione delle pagine
+          // (AnimatePresence initial={false}) farebbe saltare l'animazione d'ingresso.
+          <PresenceContext.Provider value={null}>
+            {expand && (
+              <motion.div
+                aria-hidden="true"
+                initial={{ top: expand.top, left: expand.left, width: expand.width, height: expand.height, borderRadius: 20, opacity: 1 }}
+                animate={{ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: expandLeaving ? 0 : 1 }}
+                transition={expandLeaving ? { duration: 0.16, ease: "easeOut" } : { duration: 0.36, ease: [0.2, 0.9, 0.25, 1] }}
+                style={{ position: "fixed", zIndex: 60, pointerEvents: "auto", background: CHAIN_TINT, border: `1px solid ${CHAIN_EDGE}` }}
+              />
+            )}
+            {collapse && (
+              <motion.div
+                aria-hidden="true"
+                initial={{ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: 1 }}
+                animate={collapse.rect
+                  ? { top: collapse.rect.top, left: collapse.rect.left, width: collapse.rect.width, height: collapse.rect.height, borderRadius: 20, opacity: collapse.leaving ? 0 : 1 }
+                  : { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: 1 }}
+                transition={collapse.leaving ? { duration: 0.16, ease: "easeOut" } : { duration: 0.34, ease: [0.2, 0.9, 0.25, 1] }}
+                style={{ position: "fixed", zIndex: 60, pointerEvents: "none", background: CHAIN_TINT, border: `1px solid ${CHAIN_EDGE}` }}
+              />
+            )}
+          </PresenceContext.Provider>,
+          document.body,
+        )}
+
+        <GroupLabel>Support</GroupLabel>
+
+SOSTITUISCI CON:
+          </div>
+        </motion.button>
+
+        <GroupLabel>Support</GroupLabel>
+
+════════════════════════════════════════════════════════════
+5 · src/pages/PracticeHomeScreen.tsx — card Practice e Review: niente più tinta (7 edit)
+════════════════════════════════════════════════════════════
+──── H1 ────
+TROVA:
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { motion, PresenceContext } from "framer-motion";
+import { useLocation } from "wouter";
+import { Play } from "lucide-react";
+
+SOSTITUISCI CON:
+import { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { useLocation } from "wouter";
+import { Play } from "lucide-react";
+
+──── H2 ────
+TROVA:
+import { getStudySets, type StudySet } from "@/lib/studySets";
+import { fetchWordsByIds } from "@/lib/quizQueries";
+import { skipNextSlide, peekCollapse, clearCollapse } from "@/lib/pageTransition";
+
+// La scheda Practice: due card gemelle e Quick start.
+
+SOSTITUISCI CON:
+import { getStudySets, type StudySet } from "@/lib/studySets";
+import { fetchWordsByIds } from "@/lib/quizQueries";
+import { openFromCard as morphFromCard } from "@/lib/cardMorph";
+
+// La scheda Practice: due card gemelle e Quick start.
+
+──── H3 ────
+TROVA:
+] as const;
+
+/** La tinta delle due card, usata quando si allargano e quando si richiudono. */
+const CARD_TINT = { review: "linear-gradient(165deg,#241a0a,#0D0C10 60%)", practice: "linear-gradient(165deg,#17122a,#0D0C10 60%)" } as const;
+const CARD_EDGE = { review: "rgba(245,158,11,0.4)", practice: "rgba(167,139,250,0.3)" } as const;
+
+const REVIEW_DUE_KEY = "verba_review_due";
+
+SOSTITUISCI CON:
+] as const;
+
+
+const REVIEW_DUE_KEY = "verba_review_due";
+
+──── H4 ────
+TROVA:
+  const [flipped, setFlipped] = useState(false);
+  const [hintSeen, setHintSeen] = useState(true);
+  // La card che si allarga fino a coprire lo schermo prima di aprire ciò che contiene.
+  const [expand, setExpand] = useState<{ kind: "review" | "practice"; rect: DOMRect; num?: DOMRect; to: string } | null>(null);
+  const expandDone = useRef(false);
+  const expandTo = useRef<string | null>(null);
+  // dopo l'allargamento la tinta sfuma sopra la pagina nuova, invece di sparire di colpo
+  const [expandLeaving, setExpandLeaving] = useState(false);
+  // Il ritorno: la schermata nasce già coperta dalla tinta della card, a schermo
+  // pieno, e la richiude al suo posto appena la card è misurabile.
+  const [collapse, setCollapse] = useState<{ kind: "review" | "practice"; rect: DOMRect | null; num: DOMRect | null; leaving: boolean } | null>(() => {
+    const kind = peekCollapse();
+    // solo le due card di questa schermata (la card Chain si richiude in Profile)
+    return kind === "review" || kind === "practice" ? { kind, rect: null, num: null, leaving: false } : null;
+  });
+  const practiceCardRef = useRef<HTMLButtonElement | null>(null);
+  const reviewCardRef = useRef<HTMLButtonElement | null>(null);
+  const reviewNumRef = useRef<HTMLSpanElement | null>(null);
+  const dueIds = useMemo(() => getDueWordIds(), []);
+  const due = dueIds.length;
+
+SOSTITUISCI CON:
+  const [flipped, setFlipped] = useState(false);
+  const [hintSeen, setHintSeen] = useState(true);
+  const practiceCardRef = useRef<HTMLButtonElement | null>(null);
+  const reviewCardRef = useRef<HTMLButtonElement | null>(null);
+  const dueIds = useMemo(() => getDueWordIds(), []);
+  const due = dueIds.length;
+
+──── H5 ────
+TROVA:
+  }
+
+  /** La card si allarga fino a coprire lo schermo, poi si apre ciò che contiene. */
+  function openFromCard(kind: "review" | "practice", to: string) {
+    const card = kind === "review" ? reviewCardRef.current : practiceCardRef.current;
+    const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!card || reduce) { navigate(to); return; }
+    expandDone.current = false;
+    expandTo.current = to;
+    setExpandLeaving(false);
+    setExpand({ kind, rect: card.getBoundingClientRect(), num: kind === "review" ? reviewNumRef.current?.getBoundingClientRect() : undefined, to });
+    // si apre la pagina poco prima che la card arrivi a tutto schermo (290 su 340 ms):
+    // il lavoro della pagina nuova si sovrappone alla fine del gesto invece di seguirlo
+    window.setTimeout(finishExpand, 290);
+  }
+  function finishExpand() {
+    if (expandDone.current || !expandTo.current) return;
+    expandDone.current = true;
+    skipNextSlide();                 // la pagina nuova compare sopra la card, senza scorrere
+    navigate(expandTo.current);
+    setExpandLeaving(true);
+    // le schede restano montate: la tinta va tolta a mano, finita la dissolvenza,
+    // o resterebbe (invisibile) sopra la pagina a intercettare i tocchi
+    window.setTimeout(() => { setExpand(null); setExpandLeaving(false); expandTo.current = null; }, 220);
+  }
+
+  // Il ritorno: la card si misura quando la striscia delle schede si è sistemata
+  // (due fotogrammi dopo il primo disegno), poi la tinta si richiude lì.
+  useEffect(() => {
+    if (!collapse || collapse.rect) return;
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        const card = collapse.kind === "review" ? reviewCardRef.current : practiceCardRef.current;
+        if (!card) { clearCollapse(); setCollapse(null); return; }
+        setCollapse((c) => c && { ...c, rect: card.getBoundingClientRect(),
+          num: c.kind === "review" ? reviewNumRef.current?.getBoundingClientRect() ?? null : null });
+      });
+    });
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+  }, [collapse]);
+  function onReviewTap(e: React.MouseEvent) {
+    // il grafico è la settimana: toccarlo gira la card
+
+SOSTITUISCI CON:
+  }
+
+  /** La card diventa la pagina: si naviga subito, la pagina si apre dalla card
+   *  (components/CardMorph.tsx) e al ritorno ci si richiude. */
+  function openFromCard(kind: "review" | "practice", to: string) {
+    const card = kind === "review" ? reviewCardRef.current : practiceCardRef.current;
+    if (card) morphFromCard(kind, card);
+    navigate(to);
+  }
+  function onReviewTap(e: React.MouseEvent) {
+    // il grafico è la settimana: toccarlo gira la card
+
+──── H6 ────
+TROVA:
+        <TabHeader tab="practice" subtitle="Meet new words and keep the ones you know." />
+
+        {/* La card che si allarga e si richiude. È disegnata con un portale al livello
+            più alto della pagina: dentro la striscia delle schede, che è spostata di
+            lato, un elemento "fisso" si fisserebbe alla striscia e non allo schermo. */}
+        {typeof document !== "undefined" && createPortal(
+          // PresenceContext null: la tinta parte sempre dalla card (vedi ProfileScreen)
+          <PresenceContext.Provider value={null}>
+            {expand && (
+              <motion.div
+                aria-hidden="true"
+                initial={{ top: expand.rect.top, left: expand.rect.left, width: expand.rect.width, height: expand.rect.height, borderRadius: 22, opacity: 1 }}
+                animate={{ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: expandLeaving ? 0 : 1 }}
+                transition={expandLeaving ? { duration: 0.16, ease: "easeOut" } : { duration: 0.34, ease: [0.2, 0.9, 0.25, 1] }}
+                style={{ position: "fixed", zIndex: 60, pointerEvents: "auto", background: CARD_TINT[expand.kind], border: `1px solid ${CARD_EDGE[expand.kind]}` }}
+              />
+            )}
+            {expand?.kind === "review" && expand.num && (
+              <motion.span
+                aria-hidden="true"
+                initial={{ top: expand.num.top, left: expand.num.left, scale: 1, opacity: 1 }}
+                animate={{ top: 22, left: window.innerWidth / 2 - expand.num.width * 0.18, scale: 0.36, opacity: 0 }}
+                transition={{ duration: 0.34, ease: [0.2, 0.9, 0.25, 1] }}
+                style={{ ...bigNum, position: "fixed", zIndex: 61, margin: 0, transformOrigin: "0 0", pointerEvents: "none",
+                  backgroundImage: `linear-gradient(180deg, #fff, ${AMBER_SOFT})` }}
+              >
+                {due}
+              </motion.span>
+            )}
+            {collapse && (
+              <motion.div
+                aria-hidden="true"
+                initial={{ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: 1 }}
+                animate={collapse.rect
+                  ? { top: collapse.rect.top, left: collapse.rect.left, width: collapse.rect.width, height: collapse.rect.height, borderRadius: 22, opacity: collapse.leaving ? 0 : 1 }
+                  : { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: 1 }}
+                transition={collapse.leaving ? { duration: 0.16, ease: "easeOut" } : { duration: 0.34, ease: [0.2, 0.9, 0.25, 1] }}
+                onAnimationComplete={() => {
+                  if (!collapse.rect) return;
+                  if (collapse.leaving) { clearCollapse(); setCollapse(null); }
+                  else setCollapse((c) => c && { ...c, leaving: true });
+                }}
+                style={{ position: "fixed", zIndex: 60, pointerEvents: "none", background: CARD_TINT[collapse.kind], border: `1px solid ${CARD_EDGE[collapse.kind]}` }}
+              />
+            )}
+            {collapse?.kind === "review" && collapse.rect && collapse.num && !collapse.leaving && (
+              <motion.span
+                aria-hidden="true"
+                initial={{ top: 22, left: window.innerWidth / 2 - collapse.num.width * 0.18, scale: 0.36, opacity: 0 }}
+                animate={{ top: collapse.num.top, left: collapse.num.left, scale: 1, opacity: 1 }}
+                transition={{ duration: 0.34, ease: [0.2, 0.9, 0.25, 1] }}
+                style={{ ...bigNum, position: "fixed", zIndex: 61, margin: 0, transformOrigin: "0 0", pointerEvents: "none",
+                  backgroundImage: `linear-gradient(180deg, #fff, ${AMBER_SOFT})` }}
+              >
+                {due}
+              </motion.span>
+            )}
+          </PresenceContext.Provider>,
+          document.body,
+        )}
+
+        {/* le due card gemelle */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+
+SOSTITUISCI CON:
+        <TabHeader tab="practice" subtitle="Meet new words and keep the ones you know." />
+
+        {/* le due card gemelle */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+
+──── H7 ────
+TROVA:
+                </div>
+                <span style={cardTitle}>Review</span>
+                <span ref={reviewNumRef} style={{ ...bigNum, visibility: expand?.kind === "review" || (collapse?.kind === "review" && !collapse.leaving) ? "hidden" : "visible", backgroundImage: hot ? `linear-gradient(180deg, #fff, ${AMBER_SOFT})` : "linear-gradient(180deg,#fff,#fff)" }}>{due}</span>
+                <span style={caption}>
+                  {due === 0 ? `nothing due · ${tomorrow} tomorrow` : due > 50 ? "waiting · 50 a day to catch up" : "due today"}
+
+SOSTITUISCI CON:
+                </div>
+                <span style={cardTitle}>Review</span>
+                <span style={{ ...bigNum, backgroundImage: hot ? `linear-gradient(180deg, #fff, ${AMBER_SOFT})` : "linear-gradient(180deg,#fff,#fff)" }}>{due}</span>
+                <span style={caption}>
+                  {due === 0 ? `nothing due · ${tomorrow} tomorrow` : due > 50 ? "waiting · 50 a day to catch up" : "due today"}
+
+════════════════════════════════════════════════════════════
+6 · src/pages/ChainScreen.tsx — si richiude nella card + parti secondarie (6 edit)
+════════════════════════════════════════════════════════════
+──── C1 ────
+TROVA:
+import { CHAIN_CSS, ChainIcon, Weave, linkPath } from "@/components/ChainLinks";
+import { getChain, dayState, inCurrentChain, type DayState } from "@/lib/chain";
+import { requestCollapse, skipNextSlide } from "@/lib/pageTransition";
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+SOSTITUISCI CON:
+import { CHAIN_CSS, ChainIcon, Weave, linkPath } from "@/components/ChainLinks";
+import { getChain, dayState, inCurrentChain, type DayState } from "@/lib/chain";
+import { closeToCard, peekOrigin } from "@/lib/cardMorph";
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+──── C2 ────
+TROVA:
+function CountUp({ to, delayMs, style }: { to: number; delayMs: number; style: CSSProperties }) {
+  const v = useCountUp(to, delayMs);
+  return <b style={style}>{v}</b>;
+}
+
+/** Il numero sale da 0 al valore, con una frenata morbida. */
+function useCountUp(to: number, delayMs: number): number {
+  const [v, setV] = useState(() => (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? to : 0));
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setV(to); return; }
+    let raf = 0;
+    const t0 = performance.now() + delayMs;
+
+SOSTITUISCI CON:
+function CountUp({ to, delayMs, style }: { to: number; delayMs: number; style: CSSProperties }) {
+  const v = useCountUp(to, delayMs);
+  // data-morph-num-target: aprendo dalla card, qui atterra il numero che vola
+  return <b data-morph-num-target style={style}>{v}</b>;
+}
+
+/** Il numero sale da 0 al valore, con una frenata morbida. Se la schermata nasce
+ *  dalla card Chain il numero ci arriva volando, già al suo valore: niente conteggio. */
+function useCountUp(to: number, delayMs: number): number {
+  const [still] = useState(() => peekOrigin() === "chain" || (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches));
+  const [v, setV] = useState(() => (still ? to : 0));
+  useEffect(() => {
+    if (still) { setV(to); return; }
+    let raf = 0;
+    const t0 = performance.now() + delayMs;
+
+──── C3 ────
+TROVA:
+  }
+
+  function goBack() {
+    // si torna dentro la card Chain, che si richiude al suo posto
+    requestCollapse("chain");
+    skipNextSlide();
+    navigate("/profile");
+  }
+
+  return (
+
+SOSTITUISCI CON:
+  }
+
+  function goBack() {
+    // la schermata si richiude dentro la card Chain, poi si torna a Profile
+    closeToCard("chain", () => navigate("/profile"));
+  }
+
+  return (
+
+──── C4 ────
+TROVA:
+          <p style={{ margin: "2px 0 0", fontFamily: "'Inter', sans-serif", fontSize: 13.5, color: "rgba(255,255,255,0.55)" }}>{chain.current === 1 ? "day unbroken" : "days unbroken"}</p>
+        </div>
+        <p style={{ textAlign: "center", fontFamily: "'Inter', sans-serif", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.62)", margin: "14px 10px 22px" }}>{line}</p>
+
+        {/* il calendario */}
+
+SOSTITUISCI CON:
+          <p style={{ margin: "2px 0 0", fontFamily: "'Inter', sans-serif", fontSize: 13.5, color: "rgba(255,255,255,0.55)" }}>{chain.current === 1 ? "day unbroken" : "days unbroken"}</p>
+        </div>
+        <p data-late style={{ textAlign: "center", fontFamily: "'Inter', sans-serif", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.62)", margin: "14px 10px 22px" }}>{line}</p>
+
+        {/* il calendario */}
+
+──── C5 ────
+TROVA:
+        </div>
+
+        {/* tre numeri */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 12 }}>
+          {[
+            { n: monthCount, l: "this month" },
+
+SOSTITUISCI CON:
+        </div>
+
+        {/* tre numeri */}
+        <div data-late style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 12 }}>
+          {[
+            { n: monthCount, l: "this month" },
+
+──── C6 ────
+TROVA:
+        </div>
+
+        {/* legenda */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 18, marginTop: 16, fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="26" height="14" viewBox="0 0 26 14" aria-hidden="true"><rect x="2" y="2" width="22" height="10" rx="5" fill="none" stroke="#F59E0B" strokeWidth="1.6" /></svg>studied
+
+SOSTITUISCI CON:
+        </div>
+
+        {/* legenda */}
+        <div data-late style={{ display: "flex", justifyContent: "center", gap: 18, marginTop: 16, fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="26" height="14" viewBox="0 0 26 14" aria-hidden="true"><rect x="2" y="2" width="22" height="10" rx="5" fill="none" stroke="#F59E0B" strokeWidth="1.6" /></svg>studied
+
+════════════════════════════════════════════════════════════
+7 · src/pages/PracticeSetupScreen.tsx — si richiude nella card + parti secondarie (7 edit)
+════════════════════════════════════════════════════════════
+──── S1 ────
+TROVA:
+import DeckPill from "@/components/DeckPill";
+import { estimateMinutes } from "@/lib/pace";
+import { skipNextSlide, requestCollapse } from "@/lib/pageTransition";
+import AppBackground from "@/components/AppBackground";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+
+SOSTITUISCI CON:
+import DeckPill from "@/components/DeckPill";
+import { estimateMinutes } from "@/lib/pace";
+import { closeToCard } from "@/lib/cardMorph";
+import AppBackground from "@/components/AppBackground";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+
+──── S2 ────
+TROVA:
+  function goBack() {
+    if (fromStudy) { navigate("/study"); return; }
+    // si torna dentro la card Practice, che si richiude al suo posto
+    requestCollapse("practice");
+    skipNextSlide();
+    navigate("/decks");
+  }
+  function begin() {
+
+SOSTITUISCI CON:
+  function goBack() {
+    if (fromStudy) { navigate("/study"); return; }
+    // il setup si richiude dentro la card Practice, poi si torna alla scheda
+    closeToCard("practice", () => navigate("/decks"));
+  }
+  function begin() {
+
+──── S3 ────
+TROVA:
+        )}
+
+        {/* ── le domande ── */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+          <p style={label}>Questions</p>
+          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.35)" }}>pick more than one to mix</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
+          {FORMATS.map(({ f, title, line }) => {
+            const on = formats.has(f);
+
+SOSTITUISCI CON:
+        )}
+
+        {/* ── le domande ── */}
+        <div data-late style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+          <p style={label}>Questions</p>
+          <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.35)" }}>pick more than one to mix</span>
+        </div>
+        <div data-late style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
+          {FORMATS.map(({ f, title, line }) => {
+            const on = formats.has(f);
+
+──── S4 ────
+TROVA:
+          })}
+        </div>
+        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, lineHeight: 1.5, color: "rgba(255,255,255,0.42)", margin: "10px 2px 0" }}>
+          {formats.size > 1 ? "Mix: Verba picks the right question for each word." : `${FORMATS[[...formats][0] - 1].title} only.`}
+        </p>
+
+SOSTITUISCI CON:
+          })}
+        </div>
+        <p data-late style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, lineHeight: 1.5, color: "rgba(255,255,255,0.42)", margin: "10px 2px 0" }}>
+          {formats.size > 1 ? "Mix: Verba picks the right question for each word." : `${FORMATS[[...formats][0] - 1].title} only.`}
+        </p>
+
+──── S5 ────
+TROVA:
+        </p>
+
+        {/* ── quante parole ── */}
+        <p style={{ ...label, margin: "30px 0 4px" }}>Words</p>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <input type="range" min={minWords} max={Math.max(minWords, maxWords)} value={count} disabled={maxWords <= minWords}
+            onChange={(e) => setWords(Number(e.target.value))} aria-label="Words" style={{ flex: 1, accentColor: AMBER }} />
+
+SOSTITUISCI CON:
+        </p>
+
+        {/* ── quante parole ── */}
+        <p data-late style={{ ...label, margin: "30px 0 4px" }}>Words</p>
+        <div data-late style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <input type="range" min={minWords} max={Math.max(minWords, maxWords)} value={count} disabled={maxWords <= minWords}
+            onChange={(e) => setWords(Number(e.target.value))} aria-label="Words" style={{ flex: 1, accentColor: AMBER }} />
+
+──── S6 ────
+TROVA:
+            backgroundImage: `linear-gradient(90deg, #fff, ${AMBER})`, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>{count}</span>
+        </div>
+        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, lineHeight: 1.55, color: "rgba(255,255,255,0.45)", margin: "8px 0 0" }}>
+          Picked at random from {pool} words{chosenNames ? ` (${chosenNames})` : ""}.<br />
+          New words you meet join your <span style={{ color: VIOLET }}>Review</span>.
+
+SOSTITUISCI CON:
+            backgroundImage: `linear-gradient(90deg, #fff, ${AMBER})`, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>{count}</span>
+        </div>
+        <p data-late style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, lineHeight: 1.55, color: "rgba(255,255,255,0.45)", margin: "8px 0 0" }}>
+          Picked at random from {pool} words{chosenNames ? ` (${chosenNames})` : ""}.<br />
+          New words you meet join your <span style={{ color: VIOLET }}>Review</span>.
+
+──── S7 ────
+TROVA:
+      </div>
+
+      {/* Begin: la stessa barra fissa in fondo del Next del quiz */}
+      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 30, padding: "18px 16px calc(18px + env(safe-area-inset-bottom))",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 8, background: "linear-gradient(to top, #0A0A0A 62%, transparent)", pointerEvents: "none" }}>
+        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: "rgba(255,255,255,0.5)", margin: 0, pointerEvents: "none" }}>
+
+SOSTITUISCI CON:
+      </div>
+
+      {/* Begin: la stessa barra fissa in fondo del Next del quiz */}
+      <div data-late style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 30, padding: "18px 16px calc(18px + env(safe-area-inset-bottom))",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 8, background: "linear-gradient(to top, #0A0A0A 62%, transparent)", pointerEvents: "none" }}>
+        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: "rgba(255,255,255,0.5)", margin: 0, pointerEvents: "none" }}>
+
+════════════════════════════════════════════════════════════
+8 · src/pages/QuizScreen.tsx — la Review si richiude nella sua card (2 edit)
+════════════════════════════════════════════════════════════
+──── Q1 ────
+TROVA:
+import { undismissTrouble } from "@/lib/troubleDismiss";
+import { recordPace } from "@/lib/pace";
+import { skipNextSlide, requestCollapse } from "@/lib/pageTransition";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+import RecognizeQuestion from "@/components/quiz/RecognizeQuestion";
+
+SOSTITUISCI CON:
+import { undismissTrouble } from "@/lib/troubleDismiss";
+import { recordPace } from "@/lib/pace";
+import { closeToCard } from "@/lib/cardMorph";
+import { tapScale, TAP_SPRING } from "@/components/SpringTap";
+import RecognizeQuestion from "@/components/quiz/RecognizeQuestion";
+
+──── Q2 ────
+TROVA:
+  // torna dentro la sua card, che si richiude al suo posto.
+  function handleClose() {
+    if (sourceParam === "due") {
+      requestCollapse("review");
+      skipNextSlide();
+    }
+    setLocation("/decks");
+  }
+
+SOSTITUISCI CON:
+  // torna dentro la sua card, che si richiude al suo posto.
+  function handleClose() {
+    // dalla Review la sessione si richiude dentro la sua card (components/CardMorph.tsx)
+    if (sourceParam === "due") { closeToCard("review", () => setLocation("/decks")); return; }
+    setLocation("/decks");
+  }
+
+════════════════════════════════════════════════════════════
+VERIFICA — rispondi VOCE PER VOCE, non in prosa
+════════════════════════════════════════════════════════════
+a) Righe PRIMA e DOPO. Attese: App.tsx 172→183 · ProfileScreen.tsx 303→218 · PracticeHomeScreen.tsx 505→396 · ChainScreen.tsx 246→247 · PracticeSetupScreen.tsx 334→332 · QuizScreen.tsx 488→486.
+   File nuovi: cardMorph.ts 66 · CardMorph.tsx 156.
+b) Se un conteggio è RADDOPPIATO o più: FERMATI e dillo per primo.
+   (Profile e Practice DIMINUISCONO: è previsto, si tolgono i vecchi blocchi.)
+c) A1, A2, A3, A4, P1, P2, P3, P4, P5, P6, P7, P8, H1, H2, H3, H4, H5, H6, H7, C1, C2, C3, C4, C5, C6, S1, S2, S3, S4, S5, S6, S7, Q1, Q2: sì/no per ciascuno.
+d) In ProfileScreen.tsx e PracticeHomeScreen.tsx: `createPortal` ZERO volte;
+   `PresenceContext` ZERO volte; `expandLeaving` ZERO volte; `collapse` ZERO volte.
+e) In App.tsx: `<CardMorph>` UNA volta e `</CardMorph>` UNA volta.
+f) `requestCollapse` ZERO volte fuori da src/lib/pageTransition.ts (cerca in tutto src/).
+g) `data-late` presente: ChainScreen 3 volte; PracticeSetupScreen 7 volte.
+   `data-morph-num` in ProfileScreen UNA volta; `data-morph-num-target` in ChainScreen UNA volta.
+h) Typecheck (pnpm --filter @workspace/verba typecheck): pulito sì/no, errori
+   riportati PER INTERO.
+i) Edit saltati e motivo.
+
+NON FARE
+· NON modificare altri file (lib/pageTransition.ts resta com'è), attached_assets/.
+· NON avviare il dev server, NON testare.
+· NON riscrivere per intero nessun file esistente.

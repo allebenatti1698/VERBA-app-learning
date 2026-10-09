@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { motion, PresenceContext } from "framer-motion";
+import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { Play } from "lucide-react";
 import TabHeader from "@/components/TabHeader";
@@ -10,7 +9,7 @@ import { computeProgress, type ProgressSnapshot } from "@/lib/progressStats";
 import { getDueWordIds, getAllWordStats } from "@/lib/wordStats";
 import { getStudySets, type StudySet } from "@/lib/studySets";
 import { fetchWordsByIds } from "@/lib/quizQueries";
-import { skipNextSlide, peekCollapse, clearCollapse } from "@/lib/pageTransition";
+import { openFromCard as morphFromCard } from "@/lib/cardMorph";
 
 // La scheda Practice: due card gemelle e Quick start.
 //
@@ -37,9 +36,6 @@ const TIERS = [
   { difficulty: "hard", label: "Rare" },
 ] as const;
 
-/** La tinta delle due card, usata quando si allargano e quando si richiudono. */
-const CARD_TINT = { review: "linear-gradient(165deg,#241a0a,#0D0C10 60%)", practice: "linear-gradient(165deg,#17122a,#0D0C10 60%)" } as const;
-const CARD_EDGE = { review: "rgba(245,158,11,0.4)", practice: "rgba(167,139,250,0.3)" } as const;
 
 const REVIEW_DUE_KEY = "verba_review_due";
 const MY_WORDS_KEY = "verba_my_words";
@@ -126,22 +122,8 @@ export default function PracticeHomeScreen() {
   const [savedPreview, setSavedPreview] = useState<string[]>([]);
   const [flipped, setFlipped] = useState(false);
   const [hintSeen, setHintSeen] = useState(true);
-  // La card che si allarga fino a coprire lo schermo prima di aprire ciò che contiene.
-  const [expand, setExpand] = useState<{ kind: "review" | "practice"; rect: DOMRect; num?: DOMRect; to: string } | null>(null);
-  const expandDone = useRef(false);
-  const expandTo = useRef<string | null>(null);
-  // dopo l'allargamento la tinta sfuma sopra la pagina nuova, invece di sparire di colpo
-  const [expandLeaving, setExpandLeaving] = useState(false);
-  // Il ritorno: la schermata nasce già coperta dalla tinta della card, a schermo
-  // pieno, e la richiude al suo posto appena la card è misurabile.
-  const [collapse, setCollapse] = useState<{ kind: "review" | "practice"; rect: DOMRect | null; num: DOMRect | null; leaving: boolean } | null>(() => {
-    const kind = peekCollapse();
-    // solo le due card di questa schermata (la card Chain si richiude in Profile)
-    return kind === "review" || kind === "practice" ? { kind, rect: null, num: null, leaving: false } : null;
-  });
   const practiceCardRef = useRef<HTMLButtonElement | null>(null);
   const reviewCardRef = useRef<HTMLButtonElement | null>(null);
-  const reviewNumRef = useRef<HTMLSpanElement | null>(null);
   const dueIds = useMemo(() => getDueWordIds(), []);
   const due = dueIds.length;
   const week = useMemo(() => weekAhead(due), [due]);
@@ -190,45 +172,13 @@ export default function PracticeHomeScreen() {
     openFromCard("review", `/quiz?source=due&words=${Math.min(50, due)}`);
   }
 
-  /** La card si allarga fino a coprire lo schermo, poi si apre ciò che contiene. */
+  /** La card diventa la pagina: si naviga subito, la pagina si apre dalla card
+   *  (components/CardMorph.tsx) e al ritorno ci si richiude. */
   function openFromCard(kind: "review" | "practice", to: string) {
     const card = kind === "review" ? reviewCardRef.current : practiceCardRef.current;
-    const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!card || reduce) { navigate(to); return; }
-    expandDone.current = false;
-    expandTo.current = to;
-    setExpandLeaving(false);
-    setExpand({ kind, rect: card.getBoundingClientRect(), num: kind === "review" ? reviewNumRef.current?.getBoundingClientRect() : undefined, to });
-    // si apre la pagina poco prima che la card arrivi a tutto schermo (290 su 340 ms):
-    // il lavoro della pagina nuova si sovrappone alla fine del gesto invece di seguirlo
-    window.setTimeout(finishExpand, 290);
+    if (card) morphFromCard(kind, card);
+    navigate(to);
   }
-  function finishExpand() {
-    if (expandDone.current || !expandTo.current) return;
-    expandDone.current = true;
-    skipNextSlide();                 // la pagina nuova compare sopra la card, senza scorrere
-    navigate(expandTo.current);
-    setExpandLeaving(true);
-    // le schede restano montate: la tinta va tolta a mano, finita la dissolvenza,
-    // o resterebbe (invisibile) sopra la pagina a intercettare i tocchi
-    window.setTimeout(() => { setExpand(null); setExpandLeaving(false); expandTo.current = null; }, 220);
-  }
-
-  // Il ritorno: la card si misura quando la striscia delle schede si è sistemata
-  // (due fotogrammi dopo il primo disegno), poi la tinta si richiude lì.
-  useEffect(() => {
-    if (!collapse || collapse.rect) return;
-    let raf2 = 0;
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
-        const card = collapse.kind === "review" ? reviewCardRef.current : practiceCardRef.current;
-        if (!card) { clearCollapse(); setCollapse(null); return; }
-        setCollapse((c) => c && { ...c, rect: card.getBoundingClientRect(),
-          num: c.kind === "review" ? reviewNumRef.current?.getBoundingClientRect() ?? null : null });
-      });
-    });
-    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
-  }, [collapse]);
   function onReviewTap(e: React.MouseEvent) {
     // il grafico è la settimana: toccarlo gira la card
     if ((e.target as HTMLElement).closest("[data-week]")) { setFlipped(true); return; }
@@ -274,65 +224,6 @@ export default function PracticeHomeScreen() {
         {/* intestazione comune delle schede: icona animata, titolo, pillola, a cosa serve */}
         <TabHeader tab="practice" subtitle="Meet new words and keep the ones you know." />
 
-        {/* La card che si allarga e si richiude. È disegnata con un portale al livello
-            più alto della pagina: dentro la striscia delle schede, che è spostata di
-            lato, un elemento "fisso" si fisserebbe alla striscia e non allo schermo. */}
-        {typeof document !== "undefined" && createPortal(
-          // PresenceContext null: la tinta parte sempre dalla card (vedi ProfileScreen)
-          <PresenceContext.Provider value={null}>
-            {expand && (
-              <motion.div
-                aria-hidden="true"
-                initial={{ top: expand.rect.top, left: expand.rect.left, width: expand.rect.width, height: expand.rect.height, borderRadius: 22, opacity: 1 }}
-                animate={{ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: expandLeaving ? 0 : 1 }}
-                transition={expandLeaving ? { duration: 0.16, ease: "easeOut" } : { duration: 0.34, ease: [0.2, 0.9, 0.25, 1] }}
-                style={{ position: "fixed", zIndex: 60, pointerEvents: "auto", background: CARD_TINT[expand.kind], border: `1px solid ${CARD_EDGE[expand.kind]}` }}
-              />
-            )}
-            {expand?.kind === "review" && expand.num && (
-              <motion.span
-                aria-hidden="true"
-                initial={{ top: expand.num.top, left: expand.num.left, scale: 1, opacity: 1 }}
-                animate={{ top: 22, left: window.innerWidth / 2 - expand.num.width * 0.18, scale: 0.36, opacity: 0 }}
-                transition={{ duration: 0.34, ease: [0.2, 0.9, 0.25, 1] }}
-                style={{ ...bigNum, position: "fixed", zIndex: 61, margin: 0, transformOrigin: "0 0", pointerEvents: "none",
-                  backgroundImage: `linear-gradient(180deg, #fff, ${AMBER_SOFT})` }}
-              >
-                {due}
-              </motion.span>
-            )}
-            {collapse && (
-              <motion.div
-                aria-hidden="true"
-                initial={{ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: 1 }}
-                animate={collapse.rect
-                  ? { top: collapse.rect.top, left: collapse.rect.left, width: collapse.rect.width, height: collapse.rect.height, borderRadius: 22, opacity: collapse.leaving ? 0 : 1 }
-                  : { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: 1 }}
-                transition={collapse.leaving ? { duration: 0.16, ease: "easeOut" } : { duration: 0.34, ease: [0.2, 0.9, 0.25, 1] }}
-                onAnimationComplete={() => {
-                  if (!collapse.rect) return;
-                  if (collapse.leaving) { clearCollapse(); setCollapse(null); }
-                  else setCollapse((c) => c && { ...c, leaving: true });
-                }}
-                style={{ position: "fixed", zIndex: 60, pointerEvents: "none", background: CARD_TINT[collapse.kind], border: `1px solid ${CARD_EDGE[collapse.kind]}` }}
-              />
-            )}
-            {collapse?.kind === "review" && collapse.rect && collapse.num && !collapse.leaving && (
-              <motion.span
-                aria-hidden="true"
-                initial={{ top: 22, left: window.innerWidth / 2 - collapse.num.width * 0.18, scale: 0.36, opacity: 0 }}
-                animate={{ top: collapse.num.top, left: collapse.num.left, scale: 1, opacity: 1 }}
-                transition={{ duration: 0.34, ease: [0.2, 0.9, 0.25, 1] }}
-                style={{ ...bigNum, position: "fixed", zIndex: 61, margin: 0, transformOrigin: "0 0", pointerEvents: "none",
-                  backgroundImage: `linear-gradient(180deg, #fff, ${AMBER_SOFT})` }}
-              >
-                {due}
-              </motion.span>
-            )}
-          </PresenceContext.Provider>,
-          document.body,
-        )}
-
         {/* le due card gemelle */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <motion.button
@@ -377,7 +268,7 @@ export default function PracticeHomeScreen() {
                   </div>
                 </div>
                 <span style={cardTitle}>Review</span>
-                <span ref={reviewNumRef} style={{ ...bigNum, visibility: expand?.kind === "review" || (collapse?.kind === "review" && !collapse.leaving) ? "hidden" : "visible", backgroundImage: hot ? `linear-gradient(180deg, #fff, ${AMBER_SOFT})` : "linear-gradient(180deg,#fff,#fff)" }}>{due}</span>
+                <span style={{ ...bigNum, backgroundImage: hot ? `linear-gradient(180deg, #fff, ${AMBER_SOFT})` : "linear-gradient(180deg,#fff,#fff)" }}>{due}</span>
                 <span style={caption}>
                   {due === 0 ? `nothing due · ${tomorrow} tomorrow` : due > 50 ? "waiting · 50 a day to catch up" : "due today"}
                 </span>

@@ -23,6 +23,8 @@ import ChainScreen from "@/pages/ChainScreen";
 import BottomNav, { TAB_PATHS } from "@/components/BottomNav";
 import TabPager from "@/components/TabPager";
 import { takeSkipSlide } from "@/lib/pageTransition";
+import { SHOW_TABS_EVENT } from "@/lib/cardMorph";
+import CardMorph from "@/components/CardMorph";
 
 const queryClient = new QueryClient();
 
@@ -93,6 +95,12 @@ function Router() {
     const t = window.setTimeout(() => setTabsHidden(true), 450);
     return () => window.clearTimeout(t);
   }, [isTabPage]);
+  // una pagina che si richiude nella sua card chiede di rivedere le schede sotto di sé
+  useEffect(() => {
+    const show = () => setTabsHidden(false);
+    window.addEventListener(SHOW_TABS_EVENT, show);
+    return () => window.removeEventListener(SHOW_TABS_EVENT, show);
+  }, []);
   const tabsVisible = isTabPage || !tabsHidden;
   // TabPager e le schede: TAB_ORDER qui e in TabPager.tsx devono restare uguali.
   return (
@@ -130,6 +138,8 @@ function Router() {
           {/* location fissata: la pagina che esce continua a mostrare SE STESSA mentre
               scorre via, invece di ridisegnarsi con la pagina nuova (che così veniva
               costruita due volte) */}
+          {/* CardMorph: se la pagina nasce da una card, si apre da lei e ci si richiude */}
+          <CardMorph>
           <Switch location={location}>
             <Route path="/" component={WelcomeScreen} />
             <Route path="/study" component={StudyScreen} />
@@ -148,6 +158,7 @@ function Router() {
             <Route path="/chain" component={ChainScreen} />
             <Route component={NotFound} />
           </Switch>
+          </CardMorph>
         </motion.div>
         )}
       </AnimatePresence>

@@ -4,7 +4,7 @@ import { useLocation, useSearch } from "wouter";
 import { ChevronLeft } from "lucide-react";
 import DeckPill from "@/components/DeckPill";
 import { estimateMinutes } from "@/lib/pace";
-import { skipNextSlide, requestCollapse } from "@/lib/pageTransition";
+import { closeToCard } from "@/lib/cardMorph";
 import AppBackground from "@/components/AppBackground";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
@@ -156,10 +156,8 @@ export default function PracticeSetupScreen() {
   }
   function goBack() {
     if (fromStudy) { navigate("/study"); return; }
-    // si torna dentro la card Practice, che si richiude al suo posto
-    requestCollapse("practice");
-    skipNextSlide();
-    navigate("/decks");
+    // il setup si richiude dentro la card Practice, poi si torna alla scheda
+    closeToCard("practice", () => navigate("/decks"));
   }
   function begin() {
     if (count < 1) return;
@@ -275,11 +273,11 @@ export default function PracticeSetupScreen() {
         )}
 
         {/* ── le domande ── */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+        <div data-late style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
           <p style={label}>Questions</p>
           <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.35)" }}>pick more than one to mix</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
+        <div data-late style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
           {FORMATS.map(({ f, title, line }) => {
             const on = formats.has(f);
             return (
@@ -300,26 +298,26 @@ export default function PracticeSetupScreen() {
             );
           })}
         </div>
-        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, lineHeight: 1.5, color: "rgba(255,255,255,0.42)", margin: "10px 2px 0" }}>
+        <p data-late style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, lineHeight: 1.5, color: "rgba(255,255,255,0.42)", margin: "10px 2px 0" }}>
           {formats.size > 1 ? "Mix: Verba picks the right question for each word." : `${FORMATS[[...formats][0] - 1].title} only.`}
         </p>
 
         {/* ── quante parole ── */}
-        <p style={{ ...label, margin: "30px 0 4px" }}>Words</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <p data-late style={{ ...label, margin: "30px 0 4px" }}>Words</p>
+        <div data-late style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <input type="range" min={minWords} max={Math.max(minWords, maxWords)} value={count} disabled={maxWords <= minWords}
             onChange={(e) => setWords(Number(e.target.value))} aria-label="Words" style={{ flex: 1, accentColor: AMBER }} />
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 24, minWidth: 34, textAlign: "right",
             backgroundImage: `linear-gradient(90deg, #fff, ${AMBER})`, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>{count}</span>
         </div>
-        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, lineHeight: 1.55, color: "rgba(255,255,255,0.45)", margin: "8px 0 0" }}>
+        <p data-late style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, lineHeight: 1.55, color: "rgba(255,255,255,0.45)", margin: "8px 0 0" }}>
           Picked at random from {pool} words{chosenNames ? ` (${chosenNames})` : ""}.<br />
           New words you meet join your <span style={{ color: VIOLET }}>Review</span>.
         </p>
       </div>
 
       {/* Begin: la stessa barra fissa in fondo del Next del quiz */}
-      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 30, padding: "18px 16px calc(18px + env(safe-area-inset-bottom))",
+      <div data-late style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 30, padding: "18px 16px calc(18px + env(safe-area-inset-bottom))",
         display: "flex", flexDirection: "column", alignItems: "center", gap: 8, background: "linear-gradient(to top, #0A0A0A 62%, transparent)", pointerEvents: "none" }}>
         <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: "rgba(255,255,255,0.5)", margin: 0, pointerEvents: "none" }}>
           {count} words · about {minutes} min

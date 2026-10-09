@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { motion, PresenceContext } from "framer-motion";
+import React, { useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { User, Star, HelpCircle, ThumbsUp, Mail, RotateCcw, Trash2, Lock, ChevronRight, Check } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
@@ -9,7 +8,7 @@ import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { CHAIN_CSS, ChainIcon, ChainStrip } from "@/components/ChainLinks";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 import { getChain, lastDays } from "@/lib/chain";
-import { skipNextSlide, peekCollapse, clearCollapse } from "@/lib/pageTransition";
+import { openFromCard, returningFrom } from "@/lib/cardMorph";
 
 const SUPPORT_EMAIL = "support@verba.app";
 const RATE_URL = "";
@@ -21,9 +20,8 @@ const GREEN = "#34D399";
 const RED = "#EF4444";
 
 // la card Chain: fondo pieno (non trasparente) perché l'intreccio degli anelli
-// "taglia" con il colore dello sfondo; la stessa tinta si allarga verso la schermata Chain
+// "taglia" con il colore dello sfondo
 const CHAIN_CARD_BG = "linear-gradient(170deg, #1b140a, #121010 55%)";
-const CHAIN_TINT = "linear-gradient(170deg, #1b140a, #0D0C0B 60%)";
 const CHAIN_EDGE = "rgba(245,158,11,0.22)";
 
 function loadMyWordsCount(): number {
@@ -106,65 +104,15 @@ export default function ProfileScreen() {
   function doResetHints() { resetHints(); flashDone("hints"); }
   function doResetProgress() { resetProgress(); refresh(); flashDone("progress"); }
 
-  // ── la card Chain che si allarga e si richiude ──
+  // ── la card Chain: toccandola diventa la schermata Chain (components/CardMorph.tsx) ──
   const chainCardRef = useRef<HTMLButtonElement | null>(null);
-  const [expand, setExpand] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
-  const [expandLeaving, setExpandLeaving] = useState(false);
-  const expandDone = useRef(false);
-  // Il ritorno dalla schermata Chain: Profile nasce coperta dalla tinta a schermo
-  // pieno e la richiude sulla card appena la card è misurabile.
-  const [collapse, setCollapse] = useState<{ rect: DOMRect | null; leaving: boolean } | null>(() =>
-    peekCollapse() === "chain" ? { rect: null, leaving: false } : null);
-
+  // tornando dalla schermata Chain la card è già al suo posto: niente animazione d'ingresso
+  const [returning] = useState(() => returningFrom() === "chain");
   function openChain() {
     const card = chainCardRef.current;
-    const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!card || reduce) { navigate("/chain"); return; }
-    const r = card.getBoundingClientRect();
-    expandDone.current = false;
-    setExpandLeaving(false);
-    setExpand({ top: r.top, left: r.left, width: r.width, height: r.height });
-    // i tempi sono tenuti da un timer, non dalla fine dell'animazione: così la pagina
-    // si apre sempre. 290 su 360 ms: il lavoro della pagina nuova si sovrappone alla
-    // fine del gesto invece di seguirlo
-    window.setTimeout(finishExpand, 290);
-  }
-  function finishExpand() {
-    if (expandDone.current) return;
-    expandDone.current = true;
-    skipNextSlide();                 // la schermata Chain compare sopra la card, senza scorrere
+    if (card) openFromCard("chain", card);
     navigate("/chain");
-    setExpandLeaving(true);
-    // le schede restano montate: la tinta va tolta a mano, finita la dissolvenza,
-    // o resterebbe (invisibile) sopra la pagina a intercettare i tocchi
-    window.setTimeout(() => { setExpand(null); setExpandLeaving(false); }, 220);
   }
-  // la card si misura quando la striscia delle schede si è sistemata (due fotogrammi)
-  useEffect(() => {
-    if (!collapse || collapse.rect) return;
-    let raf2 = 0;
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
-        const card = chainCardRef.current;
-        if (!card) { clearCollapse(); setCollapse(null); return; }
-        setCollapse((c) => c && { ...c, rect: card.getBoundingClientRect() });
-      });
-    });
-    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
-  }, [collapse]);
-  // poi si richiude (340 ms) e sfuma sulla card (160 ms); anche qui tengono il tempo i timer
-  const collapseStage = !collapse ? 0 : !collapse.rect ? 1 : !collapse.leaving ? 2 : 3;
-  useEffect(() => {
-    if (collapseStage === 2) {
-      const t = window.setTimeout(() => setCollapse((c) => c && { ...c, leaving: true }), 340);
-      return () => window.clearTimeout(t);
-    }
-    if (collapseStage === 3) {
-      const t = window.setTimeout(() => { clearCollapse(); setCollapse(null); }, 160);
-      return () => window.clearTimeout(t);
-    }
-    return undefined;
-  }, [collapseStage]);
 
   return (
     <div style={{ minHeight: "100%", width: "100%", background: "#0A0A0A", position: "relative" }}>
@@ -188,7 +136,7 @@ export default function ProfileScreen() {
           </div>
         </div>
 
-        {/* La catena: tocca la card e si allarga fino a diventare la schermata Chain */}
+        {/* La catena: toccandola la card diventa la schermata Chain */}
         <motion.button
           ref={chainCardRef}
           onClick={openChain}
@@ -208,12 +156,12 @@ export default function ProfileScreen() {
             ) : null}
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 9, margin: "10px 0 2px" }}>
-            <b style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 44, letterSpacing: -1.5, lineHeight: 1, backgroundImage: "linear-gradient(180deg, #fff 30%, #FCD34D)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>{chain.current}</b>
+            <b data-morph-num style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 44, letterSpacing: -1.5, lineHeight: 1, backgroundImage: "linear-gradient(180deg, #fff 30%, #FCD34D)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>{chain.current}</b>
             <span style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: "rgba(255,255,255,0.55)" }}>{chain.current === 1 ? "day unbroken" : "days unbroken"}</span>
           </div>
           {/* gli ultimi 14 giorni, con lo stesso margine ai due lati */}
           <div style={{ margin: "14px 0 4px" }}>
-            <ChainStrip days={strip} cut="#131110" animate={!collapse} />
+            <ChainStrip days={strip} cut="#131110" animate={!returning} />
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: "'Inter', sans-serif", fontSize: 10, color: "rgba(255,255,255,0.32)", letterSpacing: "0.04em" }}>
             <span>2 weeks ago</span>
@@ -224,39 +172,6 @@ export default function ProfileScreen() {
             <span>{chainStatus}</span>
           </div>
         </motion.button>
-
-        {/* La tinta della card che si allarga (verso la schermata Chain) e che, al
-            ritorno, si richiude al suo posto. Portale su document.body: dentro la
-            striscia delle schede, che è spostata di lato, "fixed" si fisserebbe
-            alla striscia e non allo schermo. */}
-        {typeof document !== "undefined" && createPortal(
-          // PresenceContext null: la tinta parte sempre dalla card. Senza, se l'app è
-          // stata aperta direttamente su una scheda, la transizione delle pagine
-          // (AnimatePresence initial={false}) farebbe saltare l'animazione d'ingresso.
-          <PresenceContext.Provider value={null}>
-            {expand && (
-              <motion.div
-                aria-hidden="true"
-                initial={{ top: expand.top, left: expand.left, width: expand.width, height: expand.height, borderRadius: 20, opacity: 1 }}
-                animate={{ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: expandLeaving ? 0 : 1 }}
-                transition={expandLeaving ? { duration: 0.16, ease: "easeOut" } : { duration: 0.36, ease: [0.2, 0.9, 0.25, 1] }}
-                style={{ position: "fixed", zIndex: 60, pointerEvents: "auto", background: CHAIN_TINT, border: `1px solid ${CHAIN_EDGE}` }}
-              />
-            )}
-            {collapse && (
-              <motion.div
-                aria-hidden="true"
-                initial={{ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: 1 }}
-                animate={collapse.rect
-                  ? { top: collapse.rect.top, left: collapse.rect.left, width: collapse.rect.width, height: collapse.rect.height, borderRadius: 20, opacity: collapse.leaving ? 0 : 1 }
-                  : { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: 1 }}
-                transition={collapse.leaving ? { duration: 0.16, ease: "easeOut" } : { duration: 0.34, ease: [0.2, 0.9, 0.25, 1] }}
-                style={{ position: "fixed", zIndex: 60, pointerEvents: "none", background: CHAIN_TINT, border: `1px solid ${CHAIN_EDGE}` }}
-              />
-            )}
-          </PresenceContext.Provider>,
-          document.body,
-        )}
 
         <GroupLabel>Support</GroupLabel>
         <div style={groupCard}>

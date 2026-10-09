@@ -12,7 +12,7 @@ import { ChevronLeft } from "lucide-react";
 import { SCREEN_MAX } from "@/components/ScreenColumn";
 import { CHAIN_CSS, ChainIcon, Weave, linkPath } from "@/components/ChainLinks";
 import { getChain, dayState, inCurrentChain, type DayState } from "@/lib/chain";
-import { requestCollapse, skipNextSlide } from "@/lib/pageTransition";
+import { closeToCard, peekOrigin } from "@/lib/cardMorph";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const DOW = ["M", "T", "W", "T", "F", "S", "S"];
@@ -34,14 +34,17 @@ const bigNum: CSSProperties = {
  *  solo lui e non tutta la schermata con il calendario. */
 function CountUp({ to, delayMs, style }: { to: number; delayMs: number; style: CSSProperties }) {
   const v = useCountUp(to, delayMs);
-  return <b style={style}>{v}</b>;
+  // data-morph-num-target: aprendo dalla card, qui atterra il numero che vola
+  return <b data-morph-num-target style={style}>{v}</b>;
 }
 
-/** Il numero sale da 0 al valore, con una frenata morbida. */
+/** Il numero sale da 0 al valore, con una frenata morbida. Se la schermata nasce
+ *  dalla card Chain il numero ci arriva volando, già al suo valore: niente conteggio. */
 function useCountUp(to: number, delayMs: number): number {
-  const [v, setV] = useState(() => (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? to : 0));
+  const [still] = useState(() => peekOrigin() === "chain" || (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches));
+  const [v, setV] = useState(() => (still ? to : 0));
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setV(to); return; }
+    if (still) { setV(to); return; }
     let raf = 0;
     const t0 = performance.now() + delayMs;
     const step = (now: number) => {
@@ -170,10 +173,8 @@ export default function ChainScreen() {
   }
 
   function goBack() {
-    // si torna dentro la card Chain, che si richiude al suo posto
-    requestCollapse("chain");
-    skipNextSlide();
-    navigate("/profile");
+    // la schermata si richiude dentro la card Chain, poi si torna a Profile
+    closeToCard("chain", () => navigate("/profile"));
   }
 
   return (
@@ -197,7 +198,7 @@ export default function ChainScreen() {
           <div><CountUp to={chain.current} delayMs={120} style={{ ...bigNum, fontSize: 96, letterSpacing: -4, marginTop: 10, display: "inline-block" }} /></div>
           <p style={{ margin: "2px 0 0", fontFamily: "'Inter', sans-serif", fontSize: 13.5, color: "rgba(255,255,255,0.55)" }}>{chain.current === 1 ? "day unbroken" : "days unbroken"}</p>
         </div>
-        <p style={{ textAlign: "center", fontFamily: "'Inter', sans-serif", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.62)", margin: "14px 10px 22px" }}>{line}</p>
+        <p data-late style={{ textAlign: "center", fontFamily: "'Inter', sans-serif", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.62)", margin: "14px 10px 22px" }}>{line}</p>
 
         {/* il calendario */}
         <div style={{ borderRadius: 20, background: CAL_BG, border: "1px solid rgba(255,255,255,0.08)", padding: "14px 12px 12px" }}>
@@ -218,7 +219,7 @@ export default function ChainScreen() {
         </div>
 
         {/* tre numeri */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 12 }}>
+        <div data-late style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 12 }}>
           {[
             { n: monthCount, l: "this month" },
             { n: chain.longest, l: "longest chain" },
@@ -232,7 +233,7 @@ export default function ChainScreen() {
         </div>
 
         {/* legenda */}
-        <div style={{ display: "flex", justifyContent: "center", gap: 18, marginTop: 16, fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+        <div data-late style={{ display: "flex", justifyContent: "center", gap: 18, marginTop: 16, fontFamily: "'Inter', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <svg width="26" height="14" viewBox="0 0 26 14" aria-hidden="true"><rect x="2" y="2" width="22" height="10" rx="5" fill="none" stroke="#F59E0B" strokeWidth="1.6" /></svg>studied
           </span>

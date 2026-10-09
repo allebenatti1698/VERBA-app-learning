@@ -10,7 +10,7 @@ import { primaryButtonStyle } from "@/lib/primaryButtonStyle";
 import { recordAnswer, getWordStat, formatForWord, type AnswerFormat } from "@/lib/wordStats";
 import { undismissTrouble } from "@/lib/troubleDismiss";
 import { recordPace } from "@/lib/pace";
-import { skipNextSlide, requestCollapse } from "@/lib/pageTransition";
+import { closeToCard } from "@/lib/cardMorph";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 import RecognizeQuestion from "@/components/quiz/RecognizeQuestion";
 import ContextQuestion from "@/components/quiz/ContextQuestion";
@@ -209,10 +209,8 @@ export default function QuizScreen() {
   // cui viene data, quindi uscire a metà non fa perdere niente. Dalla Review si
   // torna dentro la sua card, che si richiude al suo posto.
   function handleClose() {
-    if (sourceParam === "due") {
-      requestCollapse("review");
-      skipNextSlide();
-    }
+    // dalla Review la sessione si richiude dentro la sua card (components/CardMorph.tsx)
+    if (sourceParam === "due") { closeToCard("review", () => setLocation("/decks")); return; }
     setLocation("/decks");
   }
 
