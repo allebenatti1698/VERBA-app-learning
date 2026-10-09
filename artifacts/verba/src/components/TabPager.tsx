@@ -71,7 +71,7 @@ function Panel({ i, x, width, reduce, children }: { i: number; x: MotionValue<nu
 
 type Drag = { id: number; x0: number; y0: number; base: number; lock: "x" | null; lastX: number; lastT: number; v: number };
 
-export default function TabPager({ location }: { location: string }) {
+export default function TabPager({ location, visit = 0 }: { location: string; visit?: number }) {
   const [, navigate] = useLocation();
   const index = Math.max(0, TAB_ORDER.indexOf(location));
   const ref = useRef<HTMLDivElement | null>(null);
@@ -84,6 +84,36 @@ export default function TabPager({ location }: { location: string }) {
   const [reduce] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
+
+  // Le schede restano montate anche quando si apre una pagina (App.tsx). Al
+  // ritorno ("visit" cambia) i dati vanno rinfrescati: la scheda su cui si arriva
+  // si ricostruisce SUBITO (con dati freschi, ed è lei che richiude la card); le
+  // altre una alla volta poco dopo, partendo dalle vicine. Fino ad allora mostrano
+  // il contenuto di prima: mai una scheda vuota.
+  const keysRef = useRef<number[]>(TAB_ORDER.map(() => visit));
+  const seenVisit = useRef(visit);
+  const [, bump] = useState(0);
+  if (seenVisit.current !== visit) {
+    seenVisit.current = visit;
+    keysRef.current = keysRef.current.map((k, i) => (i === index ? visit : k));
+  }
+  useEffect(() => {
+    if (visit === 0) return;
+    const others = TAB_ORDER.map((_, i) => i)
+      .filter((i) => i !== indexRef.current)
+      .sort((a, b) => Math.abs(a - indexRef.current) - Math.abs(b - indexRef.current));
+    const timers = others.map((i, n) => window.setTimeout(() => {
+      keysRef.current = keysRef.current.map((k, j) => (j === i ? visit : k));
+      bump((v) => v + 1);
+    }, 800 + n * 160));
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [visit]);
+  // al ritorno la striscia è già sulla scheda giusta: niente corsa attraverso le altre
+  useLayoutEffect(() => {
+    if (visit === 0 || !width) return;
+    x.stop();
+    x.set(-indexRef.current * width);
+  }, [visit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // larghezza della finestra: al primo disegno la striscia è già al posto giusto
   useLayoutEffect(() => {
@@ -180,7 +210,7 @@ export default function TabPager({ location }: { location: string }) {
       <motion.div style={{ position: "absolute", inset: 0, x }}>
         {SCREENS.map((Screen, i) => (
           <Panel key={TAB_ORDER[i]} i={i} x={x} width={width} reduce={reduce}>
-            <Screen />
+            <Screen key={keysRef.current[i]} />
           </Panel>
         ))}
       </motion.div>

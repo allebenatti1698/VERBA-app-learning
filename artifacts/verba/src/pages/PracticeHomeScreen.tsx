@@ -129,6 +129,7 @@ export default function PracticeHomeScreen() {
   // La card che si allarga fino a coprire lo schermo prima di aprire ciò che contiene.
   const [expand, setExpand] = useState<{ kind: "review" | "practice"; rect: DOMRect; num?: DOMRect; to: string } | null>(null);
   const expandDone = useRef(false);
+  const expandTo = useRef<string | null>(null);
   // dopo l'allargamento la tinta sfuma sopra la pagina nuova, invece di sparire di colpo
   const [expandLeaving, setExpandLeaving] = useState(false);
   // Il ritorno: la schermata nasce già coperta dalla tinta della card, a schermo
@@ -195,14 +196,22 @@ export default function PracticeHomeScreen() {
     const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (!card || reduce) { navigate(to); return; }
     expandDone.current = false;
+    expandTo.current = to;
+    setExpandLeaving(false);
     setExpand({ kind, rect: card.getBoundingClientRect(), num: kind === "review" ? reviewNumRef.current?.getBoundingClientRect() : undefined, to });
+    // si apre la pagina poco prima che la card arrivi a tutto schermo (290 su 340 ms):
+    // il lavoro della pagina nuova si sovrappone alla fine del gesto invece di seguirlo
+    window.setTimeout(finishExpand, 290);
   }
   function finishExpand() {
-    if (!expand || expandDone.current) return;
+    if (expandDone.current || !expandTo.current) return;
     expandDone.current = true;
     skipNextSlide();                 // la pagina nuova compare sopra la card, senza scorrere
-    navigate(expand.to);
+    navigate(expandTo.current);
     setExpandLeaving(true);
+    // le schede restano montate: la tinta va tolta a mano, finita la dissolvenza,
+    // o resterebbe (invisibile) sopra la pagina a intercettare i tocchi
+    window.setTimeout(() => { setExpand(null); setExpandLeaving(false); expandTo.current = null; }, 220);
   }
 
   // Il ritorno: la card si misura quando la striscia delle schede si è sistemata
@@ -276,8 +285,7 @@ export default function PracticeHomeScreen() {
                 aria-hidden="true"
                 initial={{ top: expand.rect.top, left: expand.rect.left, width: expand.rect.width, height: expand.rect.height, borderRadius: 22, opacity: 1 }}
                 animate={{ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: expandLeaving ? 0 : 1 }}
-                transition={expandLeaving ? { duration: 0.32, ease: "easeOut" } : { duration: 0.42, ease: [0.2, 0.9, 0.25, 1] }}
-                onAnimationComplete={() => { if (!expandLeaving) finishExpand(); }}
+                transition={expandLeaving ? { duration: 0.16, ease: "easeOut" } : { duration: 0.34, ease: [0.2, 0.9, 0.25, 1] }}
                 style={{ position: "fixed", zIndex: 60, pointerEvents: "auto", background: CARD_TINT[expand.kind], border: `1px solid ${CARD_EDGE[expand.kind]}` }}
               />
             )}
@@ -286,7 +294,7 @@ export default function PracticeHomeScreen() {
                 aria-hidden="true"
                 initial={{ top: expand.num.top, left: expand.num.left, scale: 1, opacity: 1 }}
                 animate={{ top: 22, left: window.innerWidth / 2 - expand.num.width * 0.18, scale: 0.36, opacity: 0 }}
-                transition={{ duration: 0.42, ease: [0.2, 0.9, 0.25, 1] }}
+                transition={{ duration: 0.34, ease: [0.2, 0.9, 0.25, 1] }}
                 style={{ ...bigNum, position: "fixed", zIndex: 61, margin: 0, transformOrigin: "0 0", pointerEvents: "none",
                   backgroundImage: `linear-gradient(180deg, #fff, ${AMBER_SOFT})` }}
               >
@@ -300,7 +308,7 @@ export default function PracticeHomeScreen() {
                 animate={collapse.rect
                   ? { top: collapse.rect.top, left: collapse.rect.left, width: collapse.rect.width, height: collapse.rect.height, borderRadius: 22, opacity: collapse.leaving ? 0 : 1 }
                   : { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: 1 }}
-                transition={collapse.leaving ? { duration: 0.18, ease: "easeOut" } : { duration: 0.42, ease: [0.2, 0.9, 0.25, 1] }}
+                transition={collapse.leaving ? { duration: 0.16, ease: "easeOut" } : { duration: 0.34, ease: [0.2, 0.9, 0.25, 1] }}
                 onAnimationComplete={() => {
                   if (!collapse.rect) return;
                   if (collapse.leaving) { clearCollapse(); setCollapse(null); }
@@ -314,7 +322,7 @@ export default function PracticeHomeScreen() {
                 aria-hidden="true"
                 initial={{ top: 22, left: window.innerWidth / 2 - collapse.num.width * 0.18, scale: 0.36, opacity: 0 }}
                 animate={{ top: collapse.num.top, left: collapse.num.left, scale: 1, opacity: 1 }}
-                transition={{ duration: 0.42, ease: [0.2, 0.9, 0.25, 1] }}
+                transition={{ duration: 0.34, ease: [0.2, 0.9, 0.25, 1] }}
                 style={{ ...bigNum, position: "fixed", zIndex: 61, margin: 0, transformOrigin: "0 0", pointerEvents: "none",
                   backgroundImage: `linear-gradient(180deg, #fff, ${AMBER_SOFT})` }}
               >

@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -50,16 +50,12 @@ function slideDirection(from: string | null, to: string): 1 | -1 {
 }
 
 const slideVariants = {
-  // d = 0: la pagina nasce da una card allargata. Compare SUBITO, sotto la tinta
-  // della card (che sta sopra a tutto e sfuma da sola): nessuna opacità animata
-  // sull'intera pagina. Su iPhone un'intera pagina che sfuma, con lo sfondo sfocato
-  // e la grana in fusione dentro, bloccava lo schermo per secondi.
-  // La pagina che esce resta ferma ~0,38 s (il tempo della tinta) e poi sparisce.
-  enter: (d: number) => (d === 0 ? { x: 0, opacity: 1 } : { x: d > 0 ? "100%" : "-100%", opacity: 1 }),
-  center: { x: 0, opacity: 1 },
-  exit: (d: number) => (d === 0
-    ? { x: 0.01, opacity: 1, transition: { duration: 0.02, delay: 0.36 } }
-    : { x: d > 0 ? "-100%" : "100%", opacity: 1 }),
+  // d = 0: la pagina nasce da una card allargata (o si richiude in una card). Compare
+  // e sparisce SUBITO, sotto la tinta della card, che sta sopra a tutto e fa da
+  // transizione: nessuna opacità animata sull'intera pagina (su iPhone bloccava).
+  enter: (d: number) => (d === 0 ? { x: 0 } : { x: d > 0 ? "100%" : "-100%" }),
+  center: { x: 0 },
+  exit: (d: number) => (d === 0 ? { x: 0, transition: { duration: 0 } } : { x: d > 0 ? "-100%" : "100%" }),
 };
 
 function Router() {
@@ -67,23 +63,57 @@ function Router() {
   const showNav = TAB_PATHS.includes(location);
   // Calcolata una volta per cambio di pagina e tenuta ferma: AnimatePresence la
   // passa anche alla pagina che esce, così le due scorrono nello stesso verso.
+  const isTabPage = TAB_ORDER.includes(location);
   const prevRef = useRef<string | null>(null);
   const dirRef = useRef<1 | -1 | 0>(1);
+  // Le schede restano SEMPRE in memoria, come in un'app iOS: aprendo una pagina
+  // (setup, quiz, Chain…) la striscia delle schede esce di scena ma non si smonta,
+  // e tornando è già pronta, senza ricostruirla. "visit" conta i ritorni: a ogni
+  // ritorno TabPager rinfresca i dati delle schede (vedi TabPager.tsx).
+  const visitRef = useRef(0);
+  const lastTabRef = useRef(isTabPage ? location : "/study");
+  const everTabsRef = useRef(isTabPage);
+  const firstRenderRef = useRef(true);
+  useEffect(() => { firstRenderRef.current = false; }, []);
   if (prevRef.current !== location) {
     // 0 = la pagina nasce da una card che si è appena allargata a tutto schermo
     dirRef.current = takeSkipSlide() ? 0 : slideDirection(prevRef.current, location);
+    // un ritorno vero: le schede esistevano già e si torna da una pagina
+    if (isTabPage && everTabsRef.current && prevRef.current !== null && !TAB_ORDER.includes(prevRef.current)) visitRef.current += 1;
     prevRef.current = location;
   }
+  if (isTabPage) { lastTabRef.current = location; everTabsRef.current = true; }
   const dir = dirRef.current;
-  // Le quattro schede vivono in una striscia sola (TabPager): passando da una
-  // all'altra la pagina NON cambia, scorre la striscia. TAB_ORDER qui e in
-  // TabPager.tsx devono restare uguali.
-  const isTabPage = TAB_ORDER.includes(location);
+  // Quando una pagina copre del tutto le schede, le schede si nascondono
+  // (visibility: hidden, che a differenza di display: none conserva la posizione
+  // di scorrimento di ogni scheda): niente disegno dietro al quiz.
+  const [tabsHidden, setTabsHidden] = useState(!isTabPage);
+  useEffect(() => {
+    if (isTabPage) { setTabsHidden(false); return; }
+    const t = window.setTimeout(() => setTabsHidden(true), 450);
+    return () => window.clearTimeout(t);
+  }, [isTabPage]);
+  const tabsVisible = isTabPage || !tabsHidden;
+  // TabPager e le schede: TAB_ORDER qui e in TabPager.tsx devono restare uguali.
   return (
     <div style={{ position: "relative", overflow: "hidden", height: "100dvh", width: "100%", background: "#0A0A0A" }}>
-      <AnimatePresence initial={false} custom={dir}>
+      {everTabsRef.current && (
         <motion.div
-          key={isTabPage ? "tabs" : location}
+          // la prima volta (dal Welcome) le schede entrano scorrendo come una pagina;
+          // all'avvio direttamente su una scheda invece sono già al loro posto
+          initial={firstRenderRef.current || dir === 0 ? false : { x: dir > 0 ? "100%" : "-100%" }}
+          animate={{ x: isTabPage || dir === 0 ? 0 : dir > 0 ? "-100%" : "100%" }}
+          transition={dir === 0 ? { duration: 0 } : SLIDE.transition}
+          aria-hidden={!isTabPage}
+          style={{ position: "absolute", inset: 0, visibility: tabsVisible ? "visible" : "hidden", pointerEvents: isTabPage ? "auto" : "none" }}
+        >
+          <TabPager location={lastTabRef.current} visit={visitRef.current} />
+        </motion.div>
+      )}
+      <AnimatePresence initial={false} custom={dir}>
+        {!isTabPage && (
+        <motion.div
+          key={location}
           custom={dir}
           variants={slideVariants}
           initial="enter"
@@ -97,10 +127,10 @@ function Router() {
             paddingBottom: showNav ? "calc(64px + env(safe-area-inset-bottom))" : 0,
           }}
         >
-          {isTabPage ? (
-            <TabPager location={location} />
-          ) : (
-          <Switch>
+          {/* location fissata: la pagina che esce continua a mostrare SE STESSA mentre
+              scorre via, invece di ridisegnarsi con la pagina nuova (che così veniva
+              costruita due volte) */}
+          <Switch location={location}>
             <Route path="/" component={WelcomeScreen} />
             <Route path="/study" component={StudyScreen} />
             <Route path="/decks" component={PracticeHomeScreen} />
@@ -118,8 +148,8 @@ function Router() {
             <Route path="/chain" component={ChainScreen} />
             <Route component={NotFound} />
           </Switch>
-          )}
         </motion.div>
+        )}
       </AnimatePresence>
       <BottomNav />
     </div>

@@ -124,9 +124,10 @@ export default function ProfileScreen() {
     expandDone.current = false;
     setExpandLeaving(false);
     setExpand({ top: r.top, left: r.left, width: r.width, height: r.height });
-    // i tempi sono tenuti da un timer (440 ms = la durata dell'allargamento), non dalla
-    // fine dell'animazione: così la pagina si apre sempre, anche se l'evento non arriva
-    window.setTimeout(finishExpand, 440);
+    // i tempi sono tenuti da un timer, non dalla fine dell'animazione: così la pagina
+    // si apre sempre. 290 su 360 ms: il lavoro della pagina nuova si sovrappone alla
+    // fine del gesto invece di seguirlo
+    window.setTimeout(finishExpand, 290);
   }
   function finishExpand() {
     if (expandDone.current) return;
@@ -134,6 +135,9 @@ export default function ProfileScreen() {
     skipNextSlide();                 // la schermata Chain compare sopra la card, senza scorrere
     navigate("/chain");
     setExpandLeaving(true);
+    // le schede restano montate: la tinta va tolta a mano, finita la dissolvenza,
+    // o resterebbe (invisibile) sopra la pagina a intercettare i tocchi
+    window.setTimeout(() => { setExpand(null); setExpandLeaving(false); }, 220);
   }
   // la card si misura quando la striscia delle schede si è sistemata (due fotogrammi)
   useEffect(() => {
@@ -148,15 +152,15 @@ export default function ProfileScreen() {
     });
     return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
   }, [collapse]);
-  // poi si richiude (420 ms) e sfuma sulla card (180 ms); anche qui tengono il tempo i timer
+  // poi si richiude (340 ms) e sfuma sulla card (160 ms); anche qui tengono il tempo i timer
   const collapseStage = !collapse ? 0 : !collapse.rect ? 1 : !collapse.leaving ? 2 : 3;
   useEffect(() => {
     if (collapseStage === 2) {
-      const t = window.setTimeout(() => setCollapse((c) => c && { ...c, leaving: true }), 420);
+      const t = window.setTimeout(() => setCollapse((c) => c && { ...c, leaving: true }), 340);
       return () => window.clearTimeout(t);
     }
     if (collapseStage === 3) {
-      const t = window.setTimeout(() => { clearCollapse(); setCollapse(null); }, 180);
+      const t = window.setTimeout(() => { clearCollapse(); setCollapse(null); }, 160);
       return () => window.clearTimeout(t);
     }
     return undefined;
@@ -235,7 +239,7 @@ export default function ProfileScreen() {
                 aria-hidden="true"
                 initial={{ top: expand.top, left: expand.left, width: expand.width, height: expand.height, borderRadius: 20, opacity: 1 }}
                 animate={{ top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: expandLeaving ? 0 : 1 }}
-                transition={expandLeaving ? { duration: 0.32, ease: "easeOut" } : { duration: 0.44, ease: [0.2, 0.9, 0.25, 1] }}
+                transition={expandLeaving ? { duration: 0.16, ease: "easeOut" } : { duration: 0.36, ease: [0.2, 0.9, 0.25, 1] }}
                 style={{ position: "fixed", zIndex: 60, pointerEvents: "auto", background: CHAIN_TINT, border: `1px solid ${CHAIN_EDGE}` }}
               />
             )}
@@ -246,7 +250,7 @@ export default function ProfileScreen() {
                 animate={collapse.rect
                   ? { top: collapse.rect.top, left: collapse.rect.left, width: collapse.rect.width, height: collapse.rect.height, borderRadius: 20, opacity: collapse.leaving ? 0 : 1 }
                   : { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight, borderRadius: 0, opacity: 1 }}
-                transition={collapse.leaving ? { duration: 0.18, ease: "easeOut" } : { duration: 0.42, ease: [0.2, 0.9, 0.25, 1] }}
+                transition={collapse.leaving ? { duration: 0.16, ease: "easeOut" } : { duration: 0.34, ease: [0.2, 0.9, 0.25, 1] }}
                 style={{ position: "fixed", zIndex: 60, pointerEvents: "none", background: CHAIN_TINT, border: `1px solid ${CHAIN_EDGE}` }}
               />
             )}
