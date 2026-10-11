@@ -73,6 +73,10 @@ function Router() {
   // e tornando è già pronta, senza ricostruirla. "visit" conta i ritorni: a ogni
   // ritorno TabPager rinfresca i dati delle schede (vedi TabPager.tsx).
   const visitRef = useRef(0);
+  // le schede hanno già riletto i dati mentre la pagina si richiudeva nella card:
+  // al ritorno non serve rileggerli di nuovo
+  const refreshedRef = useRef(false);
+  const [, rerender] = useState(0);
   const lastTabRef = useRef(isTabPage ? location : "/study");
   const everTabsRef = useRef(isTabPage);
   const firstRenderRef = useRef(true);
@@ -81,7 +85,10 @@ function Router() {
     // 0 = la pagina nasce da una card che si è appena allargata a tutto schermo
     dirRef.current = takeSkipSlide() ? 0 : slideDirection(prevRef.current, location);
     // un ritorno vero: le schede esistevano già e si torna da una pagina
-    if (isTabPage && everTabsRef.current && prevRef.current !== null && !TAB_ORDER.includes(prevRef.current)) visitRef.current += 1;
+    if (isTabPage && everTabsRef.current && prevRef.current !== null && !TAB_ORDER.includes(prevRef.current)) {
+      if (refreshedRef.current) refreshedRef.current = false;
+      else visitRef.current += 1;
+    }
     prevRef.current = location;
   }
   if (isTabPage) { lastTabRef.current = location; everTabsRef.current = true; }
@@ -95,9 +102,16 @@ function Router() {
     const t = window.setTimeout(() => setTabsHidden(true), 450);
     return () => window.clearTimeout(t);
   }, [isTabPage]);
-  // una pagina che si richiude nella sua card chiede di rivedere le schede sotto di sé
+  // una pagina che si richiude nella sua card chiede di rivedere le schede sotto di
+  // sé, e le schede rileggono SUBITO i dati: la card in cui la pagina rientra
+  // mostra già i numeri nuovi (CardMorph la copia un attimo dopo)
   useEffect(() => {
-    const show = () => setTabsHidden(false);
+    const show = () => {
+      visitRef.current += 1;
+      refreshedRef.current = true;
+      setTabsHidden(false);
+      rerender((n) => n + 1);
+    };
     window.addEventListener(SHOW_TABS_EVENT, show);
     return () => window.removeEventListener(SHOW_TABS_EVENT, show);
   }, []);
@@ -113,9 +127,16 @@ function Router() {
           animate={{ x: isTabPage || dir === 0 ? 0 : dir > 0 ? "-100%" : "100%" }}
           transition={dir === 0 ? { duration: 0 } : SLIDE.transition}
           aria-hidden={!isTabPage}
-          style={{ position: "absolute", inset: 0, visibility: tabsVisible ? "visible" : "hidden", pointerEvents: isTabPage ? "auto" : "none" }}
+          // zIndex 0: la barra in basso resta DENTRO lo strato delle schede, sotto
+          // qualunque pagina aperta sopra
+          style={{ position: "absolute", inset: 0, zIndex: 0, visibility: tabsVisible ? "visible" : "hidden", pointerEvents: isTabPage ? "auto" : "none" }}
         >
           <TabPager location={lastTabRef.current} visit={visitRef.current} />
+          {/* La barra in basso fa parte delle schede, come in un'app iOS: sempre
+              montata, scorre via con loro e c'è già quando una pagina si richiude
+              nella sua card (niente banda nera in fondo, niente barra che ricompare
+              e icona che si ridisegna dopo la chiusura) */}
+          <BottomNav location={lastTabRef.current} />
         </motion.div>
       )}
       <AnimatePresence initial={false} custom={dir}>
@@ -162,7 +183,6 @@ function Router() {
         </motion.div>
         )}
       </AnimatePresence>
-      <BottomNav />
     </div>
   );
 }

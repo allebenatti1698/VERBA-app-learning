@@ -1,0 +1,351 @@
+VERBA — Chiusura delle card: barra in basso sempre presente, nessuna coda scura, numeri già aggiornati.
+POWER MODE, Claude Sonnet 5.5 (scelto a mano), Effort secondo livello. Stima ~$0.50–1.
+3 file con edit mirati, nessun file nuovo.
+
+DO NOT test live — I test manually.
+NON toccare attached_assets/.
+Tutti i percorsi sono dentro artifacts/verba/.
+
+REGOLE
+· SOLO edit mirati old_string → new_string. NESSUNA sostituzione integrale.
+  Applica ogni edit in modo INDIPENDENTE: se una TROVA non combacia ESATTAMENTE,
+  SALTA quell'edit, SEGNALALO e prosegui con gli altri.
+  Ogni TROVA deve comparire UNA VOLTA SOLA nel suo file; se no, salta.
+· Se un file, dopo le modifiche, ha più del doppio delle righe di prima: FERMATI.
+
+PRIMA DI TUTTO riporta il numero di righe di:
+  src/App.tsx · src/components/BottomNav.tsx · src/components/CardMorph.tsx
+Attese oggi: App.tsx 183 · BottomNav.tsx 81 · CardMorph.tsx 277.
+Se diverse, dimmelo PRIMA di modificare.
+
+CONTESTO (prove di Alle su iPhone)
+1. Banda nera in fondo e "riassestamento" dopo la chiusura (Chain e Review).
+   La barra delle schede (BottomNav) spariva quando si apriva una pagina e, al
+   ritorno, veniva ricreata: entrava in dissolvenza DOPO la chiusura e l'icona
+   attiva si ridisegnava. Durante la chiusura, al suo posto c'era una banda nera.
+   Ora la barra fa parte dello strato delle schede (App.tsx): è sempre montata,
+   scorre via con le schede, è già lì sotto mentre la pagina rientra nella card e
+   dopo la chiusura non cambia niente. Lo strato delle schede ha zIndex 0, così la
+   barra resta sempre SOTTO le pagine.
+2. Coda scura sotto la card a fine chiusura. La pagina è alta quanto lo schermo e
+   la card no: l'altezza si chiudeva allo stesso passo della larghezza e restava
+   una striscia scura sotto la card. Ora l'altezza si chiude più in fretta, e il
+   fondo scuro della pagina si scioglie quando la faccia della card l'ha coperto.
+   Inoltre il contenuto di CardMorph copre sempre tutto lo schermo anche se la
+   pagina è più corta (la Chain): sotto non trasparisce nulla.
+3. Il numero della card cambiava DOPO la chiusura (es. Review 5 → 4). Ora le
+   schede rileggono i dati all'INIZIO della chiusura, e la copia della card si fa
+   un attimo dopo (fine della prima fase, 120ms): la pagina rientra in una card
+   che mostra già i numeri nuovi.
+
+════════════════════════════════════════════════════════════
+1 · src/App.tsx — barra dentro lo strato delle schede, dati riletti all'inizio della chiusura (5 edit)
+════════════════════════════════════════════════════════════
+──── A1 ────
+TROVA:
+  // ritorno TabPager rinfresca i dati delle schede (vedi TabPager.tsx).
+  const visitRef = useRef(0);
+  const lastTabRef = useRef(isTabPage ? location : "/study");
+  const everTabsRef = useRef(isTabPage);
+
+SOSTITUISCI CON:
+  // ritorno TabPager rinfresca i dati delle schede (vedi TabPager.tsx).
+  const visitRef = useRef(0);
+  // le schede hanno già riletto i dati mentre la pagina si richiudeva nella card:
+  // al ritorno non serve rileggerli di nuovo
+  const refreshedRef = useRef(false);
+  const [, rerender] = useState(0);
+  const lastTabRef = useRef(isTabPage ? location : "/study");
+  const everTabsRef = useRef(isTabPage);
+
+──── A2 ────
+TROVA:
+    dirRef.current = takeSkipSlide() ? 0 : slideDirection(prevRef.current, location);
+    // un ritorno vero: le schede esistevano già e si torna da una pagina
+    if (isTabPage && everTabsRef.current && prevRef.current !== null && !TAB_ORDER.includes(prevRef.current)) visitRef.current += 1;
+    prevRef.current = location;
+  }
+
+SOSTITUISCI CON:
+    dirRef.current = takeSkipSlide() ? 0 : slideDirection(prevRef.current, location);
+    // un ritorno vero: le schede esistevano già e si torna da una pagina
+    if (isTabPage && everTabsRef.current && prevRef.current !== null && !TAB_ORDER.includes(prevRef.current)) {
+      if (refreshedRef.current) refreshedRef.current = false;
+      else visitRef.current += 1;
+    }
+    prevRef.current = location;
+  }
+
+──── A3 ────
+TROVA:
+    return () => window.clearTimeout(t);
+  }, [isTabPage]);
+  // una pagina che si richiude nella sua card chiede di rivedere le schede sotto di sé
+  useEffect(() => {
+    const show = () => setTabsHidden(false);
+    window.addEventListener(SHOW_TABS_EVENT, show);
+    return () => window.removeEventListener(SHOW_TABS_EVENT, show);
+
+SOSTITUISCI CON:
+    return () => window.clearTimeout(t);
+  }, [isTabPage]);
+  // una pagina che si richiude nella sua card chiede di rivedere le schede sotto di
+  // sé, e le schede rileggono SUBITO i dati: la card in cui la pagina rientra
+  // mostra già i numeri nuovi (CardMorph la copia un attimo dopo)
+  useEffect(() => {
+    const show = () => {
+      visitRef.current += 1;
+      refreshedRef.current = true;
+      setTabsHidden(false);
+      rerender((n) => n + 1);
+    };
+    window.addEventListener(SHOW_TABS_EVENT, show);
+    return () => window.removeEventListener(SHOW_TABS_EVENT, show);
+
+──── A4 ────
+TROVA:
+          transition={dir === 0 ? { duration: 0 } : SLIDE.transition}
+          aria-hidden={!isTabPage}
+          style={{ position: "absolute", inset: 0, visibility: tabsVisible ? "visible" : "hidden", pointerEvents: isTabPage ? "auto" : "none" }}
+        >
+          <TabPager location={lastTabRef.current} visit={visitRef.current} />
+        </motion.div>
+      )}
+
+SOSTITUISCI CON:
+          transition={dir === 0 ? { duration: 0 } : SLIDE.transition}
+          aria-hidden={!isTabPage}
+          // zIndex 0: la barra in basso resta DENTRO lo strato delle schede, sotto
+          // qualunque pagina aperta sopra
+          style={{ position: "absolute", inset: 0, zIndex: 0, visibility: tabsVisible ? "visible" : "hidden", pointerEvents: isTabPage ? "auto" : "none" }}
+        >
+          <TabPager location={lastTabRef.current} visit={visitRef.current} />
+          {/* La barra in basso fa parte delle schede, come in un'app iOS: sempre
+              montata, scorre via con loro e c'è già quando una pagina si richiude
+              nella sua card (niente banda nera in fondo, niente barra che ricompare
+              e icona che si ridisegna dopo la chiusura) */}
+          <BottomNav location={lastTabRef.current} />
+        </motion.div>
+      )}
+
+──── A5 ────
+TROVA:
+        )}
+      </AnimatePresence>
+      <BottomNav />
+    </div>
+  );
+
+SOSTITUISCI CON:
+        )}
+      </AnimatePresence>
+    </div>
+  );
+
+════════════════════════════════════════════════════════════
+2 · src/components/BottomNav.tsx — barra sempre montata, senza entrata animata (2 edit)
+════════════════════════════════════════════════════════════
+──── B1 ────
+TROVA:
+const INACTIVE = "rgba(255,255,255,0.4)";
+
+export default function BottomNav() {
+  const [location, navigate] = useLocation();
+  if (!TAB_PATHS.includes(location)) return null;
+
+  return (
+    <motion.nav
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      style={{
+        position: "absolute",
+
+SOSTITUISCI CON:
+const INACTIVE = "rgba(255,255,255,0.4)";
+
+/**
+ * La barra delle schede. Vive DENTRO lo strato delle schede (App.tsx): è sempre
+ * montata, quindi tornando da una pagina non ricompare e l'icona attiva non si
+ * ridisegna. `location` è la scheda corrente (anche mentre una pagina la copre).
+ */
+export default function BottomNav({ location }: { location: string }) {
+  const [, navigate] = useLocation();
+
+  return (
+    <nav
+      style={{
+        position: "absolute",
+
+──── B2 ────
+TROVA:
+        );
+      })}
+    </motion.nav>
+  );
+}
+
+SOSTITUISCI CON:
+        );
+      })}
+    </nav>
+  );
+}
+
+════════════════════════════════════════════════════════════
+3 · src/components/CardMorph.tsx — niente coda scura, card copiata con i dati nuovi (6 edit)
+════════════════════════════════════════════════════════════
+──── C1 ────
+TROVA:
+     * angolo; il ritaglio arrotondato è nelle coordinate del contenuto stesso.
+     */
+    function place(c: Rect, r: DOMRect, e: number) {
+      const s0 = c.w / W;
+      const s = lerp(1, s0, e);
+
+SOSTITUISCI CON:
+     * angolo; il ritaglio arrotondato è nelle coordinate del contenuto stesso.
+     */
+    function place(c: Rect, r: DOMRect, e: number, ev: number = e) {
+      const s0 = c.w / W;
+      const s = lerp(1, s0, e);
+
+──── C2 ────
+TROVA:
+      // la finestra visibile, nelle coordinate del contenuto
+      const left = -r.left, top = -r.top;
+      const h = lerp(H, c.h / s0, e);
+      const rad = lerp(0, RADIUS / s0, e);
+      inner!.style.clipPath = e === 0 ? "" :
+
+SOSTITUISCI CON:
+      // la finestra visibile, nelle coordinate del contenuto
+      const left = -r.left, top = -r.top;
+      const h = lerp(H, c.h / s0, ev);         // l'altezza può avere un suo passo (ev)
+      const rad = lerp(0, RADIUS / s0, e);
+      inner!.style.clipPath = e === 0 ? "" :
+
+──── C3 ────
+TROVA:
+      const el = o.el;
+      if (reduce || !el.isConnected) { el.style.visibility = ""; done(); return; }
+      window.dispatchEvent(new Event(SHOW_TABS_EVENT));   // le schede tornano visibili sotto la pagina
+      const c = rectOf(el);
+      const nTo = el.querySelector<HTMLElement>("[data-morph-num]");
+      const nFrom = outer.querySelector<HTMLElement>("[data-morph-num-target]");
+
+SOSTITUISCI CON:
+      const el = o.el;
+      if (reduce || !el.isConnected) { el.style.visibility = ""; done(); return; }
+      // le schede tornano visibili sotto la pagina e rileggono SUBITO i loro dati
+      // (App.tsx): così la card, quando la pagina ci rientra, mostra già i numeri
+      // nuovi e dopo la chiusura non cambia più niente
+      window.dispatchEvent(new Event(SHOW_TABS_EVENT));
+      const nTo = el.querySelector<HTMLElement>("[data-morph-num]");
+      const nFrom = outer.querySelector<HTMLElement>("[data-morph-num-target]");
+
+──── C4 ────
+TROVA:
+      const late = lateOnScreen().reverse();       // escono prima quelle in basso
+      const box = outer.getBoundingClientRect();
+      const face = makeFace(c);
+      face.style.opacity = "0";
+      const a = nFrom ? rectOf(nFrom) : null, b = nTo ? rectOf(nTo) : null;
+      let flyer: HTMLElement | null = null;
+      const total = LEAD_MS + CLOSE_MS;
+
+      const frame = (ms: number) => {
+
+SOSTITUISCI CON:
+      const late = lateOnScreen().reverse();       // escono prima quelle in basso
+      const box = outer.getBoundingClientRect();
+      const total = LEAD_MS + CLOSE_MS;
+      // la card si misura e si copia alla fine della prima fase (LEAD_MS), quando
+      // ha già i dati aggiornati
+      let c: Rect | null = null, face: HTMLElement | null = null;
+      let a: Rect | null = null, b: Rect | null = null;
+      let flyer: HTMLElement | null = null;
+
+      const frame = (ms: number) => {
+
+──── C5 ────
+TROVA:
+          n.style.transform = `translateY(${p * 6}px)`;
+        });
+        const t = phase(ms, LEAD_MS, total);
+        const e = SPRINGY(t);
+        place(c, box, e);
+        // prima si scioglie il contenuto, poi riaffiora la faccia della card
+        const hide = SOFT(phase(t, 0, 0.4));
+        content().forEach((n) => { n.style.opacity = String(1 - hide); });
+        placeFace(face, c, e);
+        face.style.opacity = String(SOFT(phase(t, 0.15, 0.6)));
+        if (a && b && nFrom && nTo && ms >= LEAD_MS) {
+          if (!flyer) { flyer = makeFlyer(nFrom, a); nFrom.style.visibility = "hidden"; nTo.style.visibility = "hidden"; }
+          flyTo(flyer, a, b, e);
+        }
+      };
+      frame(0);
+
+SOSTITUISCI CON:
+          n.style.transform = `translateY(${p * 6}px)`;
+        });
+        if (ms < LEAD_MS) return;
+        if (!c) {
+          c = rectOf(el);
+          face = makeFace(c);
+          face.style.opacity = "0";
+          if (nFrom && nTo) {
+            a = rectOf(nFrom); b = rectOf(nTo);
+            flyer = makeFlyer(nFrom, a); nFrom.style.visibility = "hidden"; nTo.style.visibility = "hidden";
+          }
+        }
+        const t = phase(ms, LEAD_MS, total);
+        const e = SPRINGY(t);
+        // l'altezza si chiude più in fretta della larghezza: la pagina è alta
+        // quanto lo schermo e la card no, e così quando la faccia della card è
+        // arrivata sotto non resta una coda scura
+        place(c, box, e, 1 - (1 - e) * (1 - e));
+        // il fondo scuro della pagina si scioglie quando la faccia della card
+        // l'ha già coperta: alla fine resta solo la card
+        inner.style.backgroundColor = `rgba(${PAGE_BG},${1 - SOFT(phase(t, 0.55, 0.95))})`;
+        // prima si scioglie il contenuto, poi riaffiora la faccia della card
+        const hide = SOFT(phase(t, 0, 0.4));
+        content().forEach((n) => { n.style.opacity = String(1 - hide); });
+        placeFace(face!, c, e);
+        face!.style.opacity = String(SOFT(phase(t, 0.15, 0.6)));
+        if (flyer && a && b) flyTo(flyer, a, b, e);
+      };
+      frame(0);
+
+──── C6 ────
+TROVA:
+  }, []);
+
+  return (
+    <div ref={outerRef} data-card-morph style={{ position: "relative", minHeight: "100%" }}>
+      <style>{FACE_CSS}</style>
+      <div ref={innerRef} style={{ minHeight: "100%" }}>{children}</div>
+    </div>
+  );
+
+SOSTITUISCI CON:
+  }, []);
+
+  return (
+    // flex: il contenuto copre SEMPRE almeno tutto lo schermo, anche quando la
+    // pagina è più corta (la Chain): sotto non devono mai trasparire le schede
+    <div ref={outerRef} data-card-morph style={{ position: "relative", minHeight: "100%", display: "flex", flexDirection: "column" }}>
+      <style>{FACE_CSS}</style>
+      <div ref={innerRef} style={{ flex: "1 0 auto" }}>{children}</div>
+    </div>
+  );
+
+════════════════════════════════════════════════════════════
+ALLA FINE
+════════════════════════════════════════════════════════════
+Riporta il numero di righe DOPO. Attese: App.tsx 203 · BottomNav.tsx 82 · CardMorph.tsx 295.
+Poi la lista di verifica, una riga per voce, con ✅ applicato / ⚠️ saltato (e perché):
+  A1 · A2 · A3 · A4 · A5 · B1 · B2 · C1 · C2 · C3 · C4 · C5 · C6
+Esegui il controllo dei tipi (npx tsc --noEmit dentro artifacts/verba) e riporta l'esito.
+Non avviare l'app e non fare prove: le faccio io su iPhone.

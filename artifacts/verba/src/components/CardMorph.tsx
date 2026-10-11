@@ -104,7 +104,7 @@ export default function CardMorph({ children }: { children: ReactNode }) {
      * Il contenuto è rimpicciolito alla larghezza della card e agganciato al suo
      * angolo; il ritaglio arrotondato è nelle coordinate del contenuto stesso.
      */
-    function place(c: Rect, r: DOMRect, e: number) {
+    function place(c: Rect, r: DOMRect, e: number, ev: number = e) {
       const s0 = c.w / W;
       const s = lerp(1, s0, e);
       const tx = lerp(0, c.x - r.left + s0 * r.left, e);
@@ -112,7 +112,7 @@ export default function CardMorph({ children }: { children: ReactNode }) {
       inner!.style.transform = e === 0 ? "" : `translate(${tx}px, ${ty}px) scale(${s})`;
       // la finestra visibile, nelle coordinate del contenuto
       const left = -r.left, top = -r.top;
-      const h = lerp(H, c.h / s0, e);
+      const h = lerp(H, c.h / s0, ev);         // l'altezza può avere un suo passo (ev)
       const rad = lerp(0, RADIUS / s0, e);
       inner!.style.clipPath = e === 0 ? "" :
         `inset(${top}px ${r.width - left - W}px ${r.height - top - h}px ${left}px round ${rad}px)`;
@@ -222,8 +222,10 @@ export default function CardMorph({ children }: { children: ReactNode }) {
     registerCloser((done) => {
       const el = o.el;
       if (reduce || !el.isConnected) { el.style.visibility = ""; done(); return; }
-      window.dispatchEvent(new Event(SHOW_TABS_EVENT));   // le schede tornano visibili sotto la pagina
-      const c = rectOf(el);
+      // le schede tornano visibili sotto la pagina e rileggono SUBITO i loro dati
+      // (App.tsx): così la card, quando la pagina ci rientra, mostra già i numeri
+      // nuovi e dopo la chiusura non cambia più niente
+      window.dispatchEvent(new Event(SHOW_TABS_EVENT));
       const nTo = el.querySelector<HTMLElement>("[data-morph-num]");
       const nFrom = outer.querySelector<HTMLElement>("[data-morph-num-target]");
       inner.style.transformOrigin = "0 0";
@@ -231,11 +233,12 @@ export default function CardMorph({ children }: { children: ReactNode }) {
       inner.style.backgroundColor = `rgb(${PAGE_BG})`;
       const late = lateOnScreen().reverse();       // escono prima quelle in basso
       const box = outer.getBoundingClientRect();
-      const face = makeFace(c);
-      face.style.opacity = "0";
-      const a = nFrom ? rectOf(nFrom) : null, b = nTo ? rectOf(nTo) : null;
-      let flyer: HTMLElement | null = null;
       const total = LEAD_MS + CLOSE_MS;
+      // la card si misura e si copia alla fine della prima fase (LEAD_MS), quando
+      // ha già i dati aggiornati
+      let c: Rect | null = null, face: HTMLElement | null = null;
+      let a: Rect | null = null, b: Rect | null = null;
+      let flyer: HTMLElement | null = null;
 
       const frame = (ms: number) => {
         late.forEach((n, i) => {
@@ -243,18 +246,31 @@ export default function CardMorph({ children }: { children: ReactNode }) {
           n.style.opacity = String(1 - p);
           n.style.transform = `translateY(${p * 6}px)`;
         });
+        if (ms < LEAD_MS) return;
+        if (!c) {
+          c = rectOf(el);
+          face = makeFace(c);
+          face.style.opacity = "0";
+          if (nFrom && nTo) {
+            a = rectOf(nFrom); b = rectOf(nTo);
+            flyer = makeFlyer(nFrom, a); nFrom.style.visibility = "hidden"; nTo.style.visibility = "hidden";
+          }
+        }
         const t = phase(ms, LEAD_MS, total);
         const e = SPRINGY(t);
-        place(c, box, e);
+        // l'altezza si chiude più in fretta della larghezza: la pagina è alta
+        // quanto lo schermo e la card no, e così quando la faccia della card è
+        // arrivata sotto non resta una coda scura
+        place(c, box, e, 1 - (1 - e) * (1 - e));
+        // il fondo scuro della pagina si scioglie quando la faccia della card
+        // l'ha già coperta: alla fine resta solo la card
+        inner.style.backgroundColor = `rgba(${PAGE_BG},${1 - SOFT(phase(t, 0.55, 0.95))})`;
         // prima si scioglie il contenuto, poi riaffiora la faccia della card
         const hide = SOFT(phase(t, 0, 0.4));
         content().forEach((n) => { n.style.opacity = String(1 - hide); });
-        placeFace(face, c, e);
-        face.style.opacity = String(SOFT(phase(t, 0.15, 0.6)));
-        if (a && b && nFrom && nTo && ms >= LEAD_MS) {
-          if (!flyer) { flyer = makeFlyer(nFrom, a); nFrom.style.visibility = "hidden"; nTo.style.visibility = "hidden"; }
-          flyTo(flyer, a, b, e);
-        }
+        placeFace(face!, c, e);
+        face!.style.opacity = String(SOFT(phase(t, 0.15, 0.6)));
+        if (flyer && a && b) flyTo(flyer, a, b, e);
       };
       frame(0);
       clock(total, frame, () => {
@@ -269,9 +285,11 @@ export default function CardMorph({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div ref={outerRef} data-card-morph style={{ position: "relative", minHeight: "100%" }}>
+    // flex: il contenuto copre SEMPRE almeno tutto lo schermo, anche quando la
+    // pagina è più corta (la Chain): sotto non devono mai trasparire le schede
+    <div ref={outerRef} data-card-morph style={{ position: "relative", minHeight: "100%", display: "flex", flexDirection: "column" }}>
       <style>{FACE_CSS}</style>
-      <div ref={innerRef} style={{ minHeight: "100%" }}>{children}</div>
+      <div ref={innerRef} style={{ flex: "1 0 auto" }}>{children}</div>
     </div>
   );
 }

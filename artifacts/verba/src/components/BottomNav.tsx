@@ -15,15 +15,16 @@ const TABS: { path: string; label: string; tab: TabKey }[] = [
 const ACTIVE = "#F59E0B";
 const INACTIVE = "rgba(255,255,255,0.4)";
 
-export default function BottomNav() {
-  const [location, navigate] = useLocation();
-  if (!TAB_PATHS.includes(location)) return null;
+/**
+ * La barra delle schede. Vive DENTRO lo strato delle schede (App.tsx): è sempre
+ * montata, quindi tornando da una pagina non ricompare e l'icona attiva non si
+ * ridisegna. `location` è la scheda corrente (anche mentre una pagina la copre).
+ */
+export default function BottomNav({ location }: { location: string }) {
+  const [, navigate] = useLocation();
 
   return (
-    <motion.nav
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: "easeOut" }}
+    <nav
       style={{
         position: "absolute",
         left: 0,
@@ -76,6 +77,6 @@ export default function BottomNav() {
           </motion.button>
         );
       })}
-    </motion.nav>
+    </nav>
   );
 }
