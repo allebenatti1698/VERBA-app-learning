@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { User, Star, HelpCircle, ThumbsUp, Mail, RotateCcw, Trash2, Lock, ChevronRight, Check } from "lucide-react";
@@ -9,6 +9,7 @@ import { CHAIN_CSS, ChainIcon, ChainStrip } from "@/components/ChainLinks";
 import { tapScale, TAP_SPRING } from "@/components/SpringTap";
 import { getChain, lastDays } from "@/lib/chain";
 import { openFromCard, returningFrom } from "@/lib/cardMorph";
+import { useTabVisit } from "@/lib/tabVisit";
 
 const SUPPORT_EMAIL = "support@verba.app";
 const RATE_URL = "";
@@ -97,6 +98,9 @@ export default function ProfileScreen() {
     setChain(getChain());
     setMyCount(loadMyWordsCount());
   }
+  // tornando da una pagina (quiz, Chain…) la catena e i conteggi si rileggono sul posto
+  const visit = useTabVisit();
+  useEffect(() => { if (visit > 0) refresh(); }, [visit]); // eslint-disable-line react-hooks/exhaustive-deps
   function flashDone(which: "hints" | "progress") {
     setConfirm(null); setDone(which);
     setTimeout(() => setDone((d) => (d === which ? null : d)), 1600);

@@ -10,6 +10,7 @@ import { getDueWordIds, getAllWordStats } from "@/lib/wordStats";
 import { getStudySets, type StudySet } from "@/lib/studySets";
 import { fetchWordsByIds } from "@/lib/quizQueries";
 import { openFromCard as morphFromCard } from "@/lib/cardMorph";
+import { useTabVisit } from "@/lib/tabVisit";
 
 // La scheda Practice: due card gemelle e Quick start.
 //
@@ -124,7 +125,9 @@ export default function PracticeHomeScreen() {
   const [hintSeen, setHintSeen] = useState(true);
   const practiceCardRef = useRef<HTMLButtonElement | null>(null);
   const reviewCardRef = useRef<HTMLButtonElement | null>(null);
-  const dueIds = useMemo(() => getDueWordIds(), []);
+  // tornando da una pagina (quiz, setup) i dati si rileggono sul posto
+  const visit = useTabVisit();
+  const dueIds = useMemo(() => getDueWordIds(), [visit]); // eslint-disable-line react-hooks/exhaustive-deps
   const due = dueIds.length;
   const week = useMemo(() => weekAhead(due), [due]);
   // Scala a radice quadrata: con un arretrato di centinaia di parole oggi, una
@@ -160,10 +163,12 @@ export default function PracticeHomeScreen() {
       fetchWordsByIds(ids.slice(0, 3))
         .then((ws) => { if (active) setSavedPreview(ws.map((w) => w.word)); })
         .catch(() => { /* solo il conteggio */ });
+    } else {
+      setSavedPreview([]);
     }
     try { setHintSeen(localStorage.getItem(HINT_KEY) === "1"); } catch { /* resta nascosto */ }
     return () => { active = false; };
-  }, []);
+  }, [visit]);
 
   function startReview() {
     if (due === 0) { setFlipped(true); return; }

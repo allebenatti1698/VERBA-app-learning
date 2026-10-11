@@ -78,6 +78,9 @@ export default function PracticeSetupScreen() {
   const [tiers, setTiers] = useState<Tier[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tier, setTier] = useState(0);
+  // l'evidenziatore delle fasce scorre solo quando è l'utente a cambiare fascia;
+  // la fascia scelta in automatico all'apertura è già al suo posto, senza scatti
+  const [tierMoves, setTierMoves] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [nextKey, setNextKey] = useState<string | null>(null);
   const [formats, setFormats] = useState<Set<number>>(new Set([1, 2, 3]));
@@ -197,7 +200,7 @@ export default function PracticeSetupScreen() {
       `}</style>
       <div style={{ position: "absolute", top: -40, left: -30, width: 240, height: 210, background: "radial-gradient(circle, rgba(167,139,250,0.12), transparent 70%)", pointerEvents: "none" }} />
 
-      <div style={{ position: "relative", zIndex: 10, maxWidth: 640, margin: "0 auto", padding: "20px 20px 140px" }}>
+      <div style={{ position: "relative", zIndex: 10, maxWidth: 640, margin: "0 auto", padding: "20px 20px calc(32px + env(safe-area-inset-bottom))" }}>
         {/* pagina dentro Practice: indietro a sinistra, la pillola del deck a destra, poi il titolo */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 40 }}>
           <motion.button whileTap={tapScale("icon")} transition={TAP_SPRING} onClick={goBack} aria-label="Back"
@@ -227,11 +230,13 @@ export default function PracticeSetupScreen() {
           )}
         </div>
         <div style={{ position: "relative", display: "grid", gridTemplateColumns: "repeat(3,1fr)", background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 3, marginBottom: 10 }}>
-          <motion.div layout transition={{ type: "spring", stiffness: 420, damping: 36 }}
-            style={{ position: "absolute", top: 3, bottom: 3, left: `calc(3px + ${tier} * (100% - 6px) / 3)`, width: "calc((100% - 6px) / 3)", borderRadius: 9,
-              background: "rgba(167,139,250,0.14)", border: "1px solid rgba(167,139,250,0.3)" }} />
+          {/* niente misure di layout: si sposta di una larghezza per fascia (scorre sul compositore) */}
+          <div aria-hidden
+            style={{ position: "absolute", top: 3, bottom: 3, left: 3, width: "calc((100% - 6px) / 3)", borderRadius: 9, boxSizing: "border-box",
+              background: "rgba(167,139,250,0.14)", border: "1px solid rgba(167,139,250,0.3)",
+              transform: `translateX(${tier * 100}%)`, transition: tierMoves ? "transform 0.42s cubic-bezier(.32,.72,0,1)" : "none" }} />
           {TIERS.map((t, i) => (
-            <button key={t.difficulty} onClick={() => setTier(i)} aria-pressed={i === tier}
+            <button key={t.difficulty} onClick={() => { setTierMoves(true); setTier(i); }} aria-pressed={i === tier}
               style={{ position: "relative", zIndex: 1, background: "none", border: "none", padding: "8px 4px", cursor: "pointer",
                 fontFamily: "'Inter', sans-serif", fontSize: 12.5, fontWeight: 500, color: i === tier ? "#fff" : "rgba(255,255,255,0.5)" }}>{t.label}</button>
           ))}
@@ -314,18 +319,18 @@ export default function PracticeSetupScreen() {
           Picked at random from {pool} words{chosenNames ? ` (${chosenNames})` : ""}.<br />
           New words you meet join your <span style={{ color: VIOLET }}>Review</span>.
         </p>
-      </div>
 
-      {/* Begin: la stessa barra fissa in fondo del Next del quiz */}
-      <div data-late style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 30, padding: "18px 16px calc(18px + env(safe-area-inset-bottom))",
-        display: "flex", flexDirection: "column", alignItems: "center", gap: 8, background: "linear-gradient(to top, #0A0A0A 62%, transparent)", pointerEvents: "none" }}>
-        <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: "rgba(255,255,255,0.5)", margin: 0, pointerEvents: "none" }}>
-          {count} words · about {minutes} min
-        </p>
-        <motion.button onClick={begin} whileTap={count > 0 ? tapScale() : undefined} transition={TAP_SPRING} disabled={count < 1}
-          style={{ ...primaryButtonStyle, pointerEvents: "auto", touchAction: "manipulation", opacity: count < 1 ? 0.4 : 1 }}>
-          Begin
-        </motion.button>
+        {/* Begin: in fondo alle scelte, dopo averle fatte. Non è una barra fissa:
+            se lo schermo è corto lo si trova scorrendo */}
+        <div data-late style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, marginTop: 36 }}>
+          <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 11.5, color: "rgba(255,255,255,0.5)", margin: 0 }}>
+            {count} words · about {minutes} min
+          </p>
+          <motion.button onClick={begin} whileTap={count > 0 ? tapScale() : undefined} transition={TAP_SPRING} disabled={count < 1}
+            style={{ ...primaryButtonStyle, touchAction: "manipulation", opacity: count < 1 ? 0.4 : 1 }}>
+            Begin
+          </motion.button>
+        </div>
       </div>
     </div>
   );

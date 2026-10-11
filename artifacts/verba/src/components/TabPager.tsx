@@ -5,6 +5,7 @@ import StudyHomeScreen from "@/pages/StudyHomeScreen";
 import PracticeHomeScreen from "@/pages/PracticeHomeScreen";
 import ProgressScreen from "@/pages/ProgressScreen";
 import ProfileScreen from "@/pages/ProfileScreen";
+import { TabVisitContext } from "@/lib/tabVisit";
 
 // Le quattro schede come una striscia sola, affiancate.
 //
@@ -86,10 +87,11 @@ export default function TabPager({ location, visit = 0 }: { location: string; vi
   );
 
   // Le schede restano montate anche quando si apre una pagina (App.tsx). Al
-  // ritorno ("visit" cambia) i dati vanno rinfrescati: la scheda su cui si arriva
-  // si ricostruisce SUBITO (con dati freschi, ed è lei che richiude la card); le
-  // altre una alla volta poco dopo, partendo dalle vicine. Fino ad allora mostrano
-  // il contenuto di prima: mai una scheda vuota.
+  // ritorno ("visit" cambia) i dati vanno rinfrescati, ma SENZA ricostruire le
+  // schede: ognuna riceve il nuovo "visit" (lib/tabVisit.ts) e rilegge i propri
+  // dati sul posto, come un'app iOS che aggiorna un numero. Niente si ridisegna da
+  // capo, niente animazioni d'ingresso ripetute. La scheda su cui si arriva subito;
+  // le altre una alla volta poco dopo, partendo dalle vicine.
   const keysRef = useRef<number[]>(TAB_ORDER.map(() => visit));
   const seenVisit = useRef(visit);
   const [, bump] = useState(0);
@@ -210,7 +212,9 @@ export default function TabPager({ location, visit = 0 }: { location: string; vi
       <motion.div style={{ position: "absolute", inset: 0, x }}>
         {SCREENS.map((Screen, i) => (
           <Panel key={TAB_ORDER[i]} i={i} x={x} width={width} reduce={reduce}>
-            <Screen key={keysRef.current[i]} />
+            <TabVisitContext.Provider value={keysRef.current[i]}>
+              <Screen />
+            </TabVisitContext.Provider>
           </Panel>
         ))}
       </motion.div>

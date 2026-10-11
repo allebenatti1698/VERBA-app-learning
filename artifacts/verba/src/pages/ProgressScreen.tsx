@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useTabVisit } from "@/lib/tabVisit";
 import { useLocation } from "wouter";
 import { Loader2, GraduationCap, ChevronDown, ChevronRight, Info, Star, Trash2 } from "lucide-react";
 import AppBackground from "@/components/AppBackground";
@@ -235,6 +236,10 @@ export default function ProgressScreen() {
   const [troubleFilter, setTroubleFilter] = useState<TroubleFilter>("all");
   const [troubleExpanded, setTroubleExpanded] = useState(false);
   const [openWord, setOpenWord] = useState<TroubleEntry | null>(null);
+  // tornando da una pagina (quiz, Chain…) i dati si rileggono sul posto, senza
+  // rimettere la rotellina: quel che c'è resta finché arriva il nuovo
+  const visit = useTabVisit();
+  const loadedRef = useRef(false);
 
   useEffect(() => {
     try {
@@ -247,11 +252,11 @@ export default function ProgressScreen() {
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
-    setError(null);
     computeProgress(DECK)
       .then(async (s) => {
         if (!active) return;
+        loadedRef.current = true;
+        setError(null);
         setSnap(s);
         if (s.trouble.length > 0) {
           try {
@@ -273,14 +278,14 @@ export default function ProgressScreen() {
         }
         setLoading(false);
       })
-      .catch((e) => { if (active) { setError(e?.message ?? "Errore di caricamento"); setLoading(false); } });
+      .catch((e) => { if (active && !loadedRef.current) { setError(e?.message ?? "Errore di caricamento"); setLoading(false); } });
     return () => { active = false; };
-  }, []);
+  }, [visit]);
 
   useEffect(() => {
     setMyWords(loadMyWords());
     try { setSwipeHintDone(localStorage.getItem("verba_hint_trouble_swipe") === "1"); } catch { /* */ }
-  }, []);
+  }, [visit]);
 
   function startReview(ids: string[]) {
     if (ids.length === 0) return;
